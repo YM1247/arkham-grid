@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="BlockData" load_steps=2 format=3 uid="uid://tueim3ejagqx"]
+
+[ext_resource type="Script" uid="uid://8ntc37qmx8oc" path="res://scripts/block_data.gd" id="1_ymeod"]
+
+[resource]
+script = ExtResource("1_ymeod")
+id = "shape_L"
+cells = Array[Vector2i]([Vector2i(0, 0), Vector2i(0, -1), Vector2i(0, 1), Vector2i(1, 1)])
+metadata/_custom_type_script = "uid://8ntc37qmx8oc"

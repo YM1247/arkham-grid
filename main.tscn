@@ -1,0 +1,170 @@
+[gd_scene load_steps=17 format=3 uid="uid://dwxw7ydj0iw88"]
+
+[ext_resource type="Script" uid="uid://bynurhes78qkj" path="res://scripts/main.gd" id="1_4c57u"]
+[ext_resource type="Script" uid="uid://bveoo4lldlwhj" path="res://scripts/tablet_generator.gd" id="1_ig7tw"]
+[ext_resource type="Resource" uid="uid://tueim3ejagqx" path="res://resources/blocks/shape_L.tres" id="2_h2yge"]
+[ext_resource type="Resource" uid="uid://e7ss0tp5dp1l" path="res://resources/blocks/shape_T.tres" id="3_1bvp3"]
+[ext_resource type="PackedScene" path="res://scenes/battle_scene.tscn" id="4_1bvp3"]
+[ext_resource type="Script" uid="uid://bliwvesklcpe5" path="res://scripts/items/battle_item.gd" id="5_lquwl"]
+[ext_resource type="Resource" uid="uid://cuah8ljwcwiql" path="res://resources/items/pistol.tres" id="6_kek77"]
+[ext_resource type="Resource" uid="uid://dsi7fpjgs0ugy" path="res://resources/items/vest.tres" id="7_4c57u"]
+[ext_resource type="Resource" uid="uid://mle3het2p6eb" path="res://resources/items/heal_light.tres" id="8_efxa6"]
+[ext_resource type="Resource" uid="uid://io5u0bqy03en" path="res://resources/items/dark_spike.tres" id="9_dg77c"]
+[ext_resource type="Script" path="res://scripts/entity.gd" id="10_entity"]
+[ext_resource type="Script" path="res://scripts/run_manager.gd" id="11_run_manager"]
+[ext_resource type="PackedScene" path="res://scenes/reward_scene.tscn" id="12_reward"]
+[ext_resource type="PackedScene" path="res://scenes/map_container.tscn" id="13_map"]
+[ext_resource type="PackedScene" path="res://scenes/settlement_scene.tscn" id="14_settlement"]
+[ext_resource type="PackedScene" path="res://scenes/event_scene.tscn" id="15_event"]
+
+[node name="Main" type="Node"]
+script = ExtResource("1_4c57u")
+
+[node name="UILayer" type="CanvasLayer" parent="."]
+
+[node name="BG" type="ColorRect" parent="UILayer"]
+offset_right = 1920.0
+offset_bottom = 1080.0
+color = Color(0, 0, 0, 1)
+
+[node name="ScreenMargin" type="MarginContainer" parent="UILayer"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 80
+theme_override_constants/margin_top = 50
+theme_override_constants/margin_right = 50
+theme_override_constants/margin_bottom = 50
+
+[node name="Layout" type="HBoxContainer" parent="UILayer/ScreenMargin"]
+layout_mode = 2
+
+[node name="TabletSection" type="VBoxContainer" parent="UILayer/ScreenMargin/Layout"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 3.0
+script = ExtResource("1_ig7tw")
+block_pool = Array[ExtResource("2_h2yge")]([ExtResource("2_h2yge"), ExtResource("3_1bvp3")])
+hand_size = 3
+
+[node name="Header" type="HBoxContainer" parent="UILayer/ScreenMargin/Layout/TabletSection"]
+layout_mode = 2
+
+[node name="Corner" type="Control" parent="UILayer/ScreenMargin/Layout/TabletSection/Header"]
+layout_mode = 2
+
+[node name="ColIcons" type="HBoxContainer" parent="UILayer/ScreenMargin/Layout/TabletSection/Header"]
+layout_mode = 2
+
+[node name="Body" type="HBoxContainer" parent="UILayer/ScreenMargin/Layout/TabletSection"]
+layout_mode = 2
+
+[node name="RowIcons" type="VBoxContainer" parent="UILayer/ScreenMargin/Layout/TabletSection/Body"]
+layout_mode = 2
+
+[node name="GridCells" type="GridContainer" parent="UILayer/ScreenMargin/Layout/TabletSection/Body"]
+layout_mode = 2
+
+[node name="HandArea" type="HBoxContainer" parent="UILayer/ScreenMargin/Layout/TabletSection"]
+custom_minimum_size = Vector2(0, 150)
+layout_mode = 2
+size_flags_vertical = 10
+theme_override_constants/separation = 80
+
+[node name="InfoSection" type="VBoxContainer" parent="UILayer/ScreenMargin/Layout"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="EnemyContainer" type="VBoxContainer" parent="UILayer/ScreenMargin/Layout/InfoSection"]
+layout_mode = 2
+
+[node name="EnemySprite" type="TextureRect" parent="UILayer/ScreenMargin/Layout/InfoSection/EnemyContainer"]
+layout_mode = 2
+
+[node name="IntentLabel" type="Label" parent="UILayer/ScreenMargin/Layout/InfoSection/EnemyContainer"]
+layout_mode = 2
+text = "Intent: --"
+
+[node name="EnemyHpLabel" type="Label" parent="UILayer/ScreenMargin/Layout/InfoSection/EnemyContainer"]
+layout_mode = 2
+text = "Enemy HP: --"
+
+[node name="Spacer" type="Control" parent="UILayer/ScreenMargin/Layout/InfoSection"]
+layout_mode = 2
+
+[node name="PlayerStats" type="VBoxContainer" parent="UILayer/ScreenMargin/Layout/InfoSection"]
+layout_mode = 2
+
+[node name="HpLabel" type="Label" parent="UILayer/ScreenMargin/Layout/InfoSection/PlayerStats"]
+layout_mode = 2
+text = "Player HP: --"
+
+[node name="TurnLabel" type="Label" parent="UILayer/ScreenMargin/Layout/InfoSection/PlayerStats"]
+layout_mode = 2
+text = "玩家回合  AP: --"
+
+[node name="ResultLabel" type="Label" parent="UILayer/ScreenMargin/Layout/InfoSection/PlayerStats"]
+layout_mode = 2
+text = "探索開始"
+
+[node name="EndTurnButton" type="Button" parent="UILayer/ScreenMargin/Layout/InfoSection/PlayerStats"]
+layout_mode = 2
+text = "End Turn"
+
+[node name="EquipmentLabel" type="Label" parent="UILayer/ScreenMargin/Layout/InfoSection/PlayerStats"]
+layout_mode = 2
+text = "目前裝備"
+
+[node name="RewardPanel" parent="UILayer/ScreenMargin/Layout/InfoSection/PlayerStats" instance=ExtResource("12_reward")]
+layout_mode = 2
+
+[node name="MapContainer" parent="UILayer" instance=ExtResource("13_map")]
+
+[node name="EventView" parent="UILayer" instance=ExtResource("15_event")]
+
+[node name="SettlementScreen" parent="UILayer" instance=ExtResource("14_settlement")]
+
+[node name="Player" type="Node" parent="."]
+script = ExtResource("10_entity")
+entity_name = "調查員"
+max_hp = 80
+hp = 80
+max_sanity = 100
+sanity = 70
+
+[node name="Enemy" type="Node" parent="."]
+script = ExtResource("10_entity")
+entity_name = "深淵眷屬"
+max_hp = 120
+hp = 120
+
+[node name="BattleManager" parent="." instance=ExtResource("4_1bvp3")]
+row_items = Array[ExtResource("5_lquwl")]([ExtResource("6_kek77"), ExtResource("6_kek77"), ExtResource("6_kek77"), ExtResource("6_kek77"), ExtResource("7_4c57u"), ExtResource("7_4c57u"), ExtResource("7_4c57u"), ExtResource("7_4c57u")])
+col_items = Array[ExtResource("5_lquwl")]([ExtResource("8_efxa6"), ExtResource("8_efxa6"), ExtResource("8_efxa6"), ExtResource("8_efxa6"), ExtResource("9_dg77c"), ExtResource("9_dg77c"), ExtResource("9_dg77c"), ExtResource("9_dg77c")])
+player_path = NodePath("../Player")
+enemy_path = NodePath("../Enemy")
+tablet_path = NodePath("../UILayer/ScreenMargin/Layout/TabletSection")
+player_status_label_path = NodePath("../UILayer/ScreenMargin/Layout/InfoSection/PlayerStats/HpLabel")
+enemy_status_label_path = NodePath("../UILayer/ScreenMargin/Layout/InfoSection/EnemyContainer/EnemyHpLabel")
+turn_status_label_path = NodePath("../UILayer/ScreenMargin/Layout/InfoSection/PlayerStats/TurnLabel")
+intent_label_path = NodePath("../UILayer/ScreenMargin/Layout/InfoSection/EnemyContainer/IntentLabel")
+end_turn_button_path = NodePath("../UILayer/ScreenMargin/Layout/InfoSection/PlayerStats/EndTurnButton")
+equipment_summary_label_path = NodePath("../UILayer/ScreenMargin/Layout/InfoSection/PlayerStats/EquipmentLabel")
+player_max_action_points = 3
+enemy_attack_damage = 8
+
+[node name="RunManager" type="Node" parent="."]
+script = ExtResource("11_run_manager")
+battle_manager_path = NodePath("../BattleManager")
+tablet_path = NodePath("../UILayer/ScreenMargin/Layout/TabletSection")
+result_label_path = NodePath("../UILayer/ScreenMargin/Layout/InfoSection/PlayerStats/ResultLabel")
+reward_panel_path = NodePath("../UILayer/ScreenMargin/Layout/InfoSection/PlayerStats/RewardPanel")
+reward_buttons_container_path = NodePath("../UILayer/ScreenMargin/Layout/InfoSection/PlayerStats/RewardPanel/RewardButtons")
+map_container_path = NodePath("../UILayer/MapContainer")
+event_view_path = NodePath("../UILayer/EventView")
+settlement_screen_path = NodePath("../UILayer/SettlementScreen")
+
+[connection signal="col_activated" from="UILayer/ScreenMargin/Layout/TabletSection" to="." method="_on_tablet_section_col_activated"]
+[connection signal="row_activated" from="UILayer/ScreenMargin/Layout/TabletSection" to="." method="_on_tablet_section_row_activated"]

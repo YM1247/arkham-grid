@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "stages": [
+    {"id": "uneasy", "display_name": "不安", "threshold": 45, "effect_count": 1},
+    {"id": "fractured", "display_name": "崩解", "threshold": 25, "effect_count": 2}
+  ],
+  "source_labels": {
+    "magic": "施放魔法",
+    "dead_board": "盤面無路",
+    "enemy_intent": "敵人精神攻擊",
+    "event": "事件",
+    "rest": "休息"
+  },
+  "effects": [
+    {
+      "id": "obsessive_ritual",
+      "display_name": "儀式執著",
+      "description": "每次魔法額外消耗 1 Sanity。",
+      "amount": 1,
+      "behavior_resource": "res://resources/sanity/magic_cost.tres"
+    },
+    {
+      "id": "claustrophobic_grid",
+      "display_name": "盤面幽閉",
+      "description": "死盤額外損失 3 Sanity。",
+      "amount": 3,
+      "behavior_resource": "res://resources/sanity/dead_board_penalty.tres"
+    },
+    {
+      "id": "violent_clarity",
+      "display_name": "暴烈清明",
+      "description": "所有攻擊傷害 +2。",
+      "amount": 2,
+      "behavior_resource": "res://resources/sanity/attack_modifier.tres"
+    },
+    {
+      "id": "trembling_guard",
+      "display_name": "顫抖防線",
+      "description": "獲得護甲時減少 2。",
+      "amount": -2,
+      "behavior_resource": "res://resources/sanity/armor_modifier.tres"
+    }
+  ],
+  "simulation": {
+    "path_battles": 6,
+    "magic_uses_per_battle": 2,
+    "dead_boards_per_run": 1,
+    "enemy_sanity_hits_per_run": 2,
+    "enemy_sanity_hit": 6,
+    "rest_recovery": 100,
+    "acceptance_min_sanity_before_rest": 15,
+    "acceptance_max_sanity_before_rest": 55
+  }
+}

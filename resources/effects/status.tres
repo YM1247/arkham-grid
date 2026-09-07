@@ -1,0 +1,7 @@
+[gd_resource type="Resource" script_class="EffectStatus" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/items/effect_status.gd" id="1_status"]
+
+[resource]
+script = ExtResource("1_status")
+logic = "status"

@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "entries": [
+  {
+    "id": "encounter_01",
+    "name": "深淵眷屬",
+    "enemy_ids": ["abyss_thrall"]
+  },
+  {
+    "id": "encounter_02",
+    "name": "腐敗獵犬群",
+    "enemy_ids": ["rotting_hound", "abyss_thrall"]
+  },
+  {
+    "id": "encounter_03",
+    "name": "無光儀式",
+    "enemy_ids": ["lightless_priest", "abyss_thrall", "rotting_hound"]
+  },
+  {
+    "id": "encounter_04",
+    "name": "墓園集會",
+    "enemy_ids": ["grave_cultist", "rotting_hound"]
+  },
+  {
+    "id": "encounter_05",
+    "name": "扭曲祈禱",
+    "enemy_ids": ["warped_acolyte", "abyss_thrall", "abyss_thrall"]
+  },
+  {
+    "id": "encounter_06",
+    "name": "深淵守門",
+    "enemy_ids": ["abyss_guard", "grave_cultist"]
+  }
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "entries": [
+    {
+      "id": "prototype_event",
+      "title": "封存室的低語",
+      "description": "潮濕的檔案室深處傳來反覆低語。散落的殘頁像是在等待一個讀者，也像是在等待一個祭品。",
+      "options": [
+        {
+          "id": "study_fragments",
+          "label": "研讀殘頁",
+          "description": "承受知識的侵蝕，帶走其中仍可辨識的情報。",
+          "costs": {"sanity": 6},
+          "results": {"currency": 18},
+          "result_text": "你記下了買家會感興趣的名字，但有些字句仍留在腦中低語。"
+        },
+        {
+          "id": "bind_the_wound",
+          "label": "以血封存",
+          "description": "用自身的血重新封住殘頁，換取短暫的心智平靜。",
+          "costs": {"hp": 8},
+          "results": {"sanity": 12},
+          "result_text": "低語暫時止息，代價則留在你的手掌上。"
+        },
+        {
+          "id": "leave_archive",
+          "label": "離開封存室",
+          "description": "不碰觸任何東西，保留目前狀態繼續前進。",
+          "costs": {},
+          "results": {},
+          "result_text": "你關上門，低語被留在門後。至少現在如此。"
+        }
+      ]
+    }
+  ]
+}

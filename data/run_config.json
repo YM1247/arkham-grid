@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "seed": 424242,
+  "difficulty_model": {
+    "hp_weight": 0.35,
+    "attack_weight": 2.0,
+    "enemy_tier_weight": 12.0,
+    "sanity_pressure_weight": 8.0,
+    "reward_tier_thresholds": [80, 130]
+  },
+  "skip_reward_currency": 10,
+  "board_growth_rules": {
+    "directional_hand_min": 1,
+    "friendly_seed_cells": 15,
+    "friendly_row_holes": 2,
+    "friendly_col_holes": 3
+  },
+  "effect_resources": {
+    "attack": "res://resources/effects/attack.tres",
+    "conditional_attack": "res://resources/effects/conditional_attack.tres",
+    "support": "res://resources/effects/support.tres",
+    "status": "res://resources/effects/status.tres"
+  },
+  "block_pool": [
+    "shape_L",
+    "shape_T",
+    "shape_I",
+    "shape_O",
+    "shape_S",
+    "shape_Z",
+    "shape_J",
+    "shape_short_I"
+  ],
+  "row_items": [
+    "pistol",
+    "pistol",
+    "pistol",
+    "pistol",
+    "vest",
+    "vest",
+    "vest",
+    "vest"
+  ],
+  "col_items": [
+    "heal_light",
+    "heal_light",
+    "heal_light",
+    "heal_light",
+    "dark_spike",
+    "dark_spike",
+    "dark_spike",
+    "dark_spike"
+  ]
+}

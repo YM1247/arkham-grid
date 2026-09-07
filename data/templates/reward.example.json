@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "entries": [
+    {
+      "title": "範例道具獎勵",
+      "type": "item",
+      "id": "pistol",
+      "weight": 1.0,
+      "min_reward_tier": 1,
+      "min_battles_won": 0,
+      "requires_rewards": [],
+      "slot_kind": "row",
+      "slot_index": 0
+    }
+  ]
+}

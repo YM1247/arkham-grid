@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "entries": [
+    {
+      "id": "example_enemy",
+      "name": "範例敵人",
+      "hp": 30,
+      "attack": 8,
+      "speed": 8,
+      "tier": 1,
+      "intent_pattern": ["attack"],
+      "sanity_pressure": false
+    }
+  ]
+}

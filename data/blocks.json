@@ -1,0 +1,160 @@
+{
+  "schema_version": 1,
+  "entries": [
+  {
+    "id": "shape_L",
+    "name": "L 型石板",
+    "color": "#ff8c00",
+    "cells": [
+      [0, 0],
+      [0, -1],
+      [0, 1],
+      [1, 1]
+    ],
+    "tier": 1,
+    "weight": 1.0,
+    "tags": ["tall", "awkward", "combo"]
+  },
+  {
+    "id": "shape_T",
+    "name": "T 型石板",
+    "color": "#f88aff",
+    "cells": [
+      [0, 0],
+      [0, 1],
+      [1, 0],
+      [-1, 0]
+    ],
+    "tier": 1,
+    "weight": 1.0,
+    "tags": ["wide", "balanced", "combo"]
+  },
+  {
+    "id": "shape_I",
+    "name": "長條石板",
+    "color": "#36c5f0",
+    "cells": [
+      [0, 0],
+      [0, -1],
+      [0, 1],
+      [0, 2]
+    ],
+    "tier": 1,
+    "weight": 1.0,
+    "tags": ["tall", "straight", "line_clear"]
+  },
+  {
+    "id": "shape_O",
+    "name": "方形石板",
+    "color": "#ffd447",
+    "cells": [
+      [0, 0],
+      [1, 0],
+      [0, 1],
+      [1, 1]
+    ],
+    "tier": 1,
+    "weight": 1.0,
+    "tags": ["compact", "stable", "square"]
+  },
+  {
+    "id": "shape_S",
+    "name": "S 型石板",
+    "color": "#42d77d",
+    "cells": [
+      [0, 0],
+      [1, 0],
+      [0, 1],
+      [-1, 1]
+    ],
+    "tier": 1,
+    "weight": 1.0,
+    "tags": ["wide", "offset", "awkward"]
+  },
+  {
+    "id": "shape_Z",
+    "name": "Z 型石板",
+    "color": "#ff5a5f",
+    "cells": [
+      [0, 0],
+      [-1, 0],
+      [0, 1],
+      [1, 1]
+    ],
+    "tier": 1,
+    "weight": 1.0,
+    "tags": ["wide", "offset", "awkward"]
+  },
+  {
+    "id": "shape_J",
+    "name": "J 型石板",
+    "color": "#4d7cff",
+    "cells": [
+      [0, 0],
+      [0, -1],
+      [0, 1],
+      [-1, 1]
+    ],
+    "tier": 1,
+    "weight": 1.0,
+    "tags": ["tall", "awkward", "combo"]
+  },
+  {
+    "id": "shape_short_I",
+    "name": "短條石板",
+    "color": "#9adbcf",
+    "cells": [
+      [0, 0],
+      [0, -1],
+      [0, 1]
+    ],
+    "tier": 1,
+    "weight": 1.0,
+    "tags": ["small", "straight", "filler"]
+  },
+  {
+    "id": "special_dot",
+    "name": "星點石板",
+    "color": "#ffffff",
+    "cells": [
+      [0, 0]
+    ],
+    "tier": 2,
+    "weight": 0.45,
+    "tags": ["special", "small", "precision"],
+    "special": true,
+    "smart_score_bonus": 18
+  },
+  {
+    "id": "special_domino",
+    "name": "雙星石板",
+    "color": "#d6ff4d",
+    "cells": [
+      [0, 0],
+      [1, 0]
+    ],
+    "tier": 2,
+    "weight": 0.6,
+    "tags": ["special", "small", "wide", "filler"],
+    "special": true,
+    "smart_score_bonus": 12
+  },
+  {
+    "id": "special_cross",
+    "name": "十字石板",
+    "color": "#b36bff",
+    "cells": [
+      [0, 0],
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1]
+    ],
+    "tier": 3,
+    "weight": 0.35,
+    "tags": ["special", "combo", "cross", "awkward"],
+    "special": true,
+    "smart_score_bonus": 20
+  }
+  ]
+}

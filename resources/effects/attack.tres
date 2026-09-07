@@ -1,0 +1,7 @@
+[gd_resource type="Resource" script_class="EffectAttack" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/items/effect_attack.gd" id="1_attack"]
+
+[resource]
+script = ExtResource("1_attack")
+logic = "attack"

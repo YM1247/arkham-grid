@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "entries": [
+    {
+      "id": "example_intent",
+      "display_name": "範例攻擊",
+      "action": "damage",
+      "multiplier": 1.0,
+      "flat_bonus": 0
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "entries": [
+    {
+      "id": "event_example",
+      "title": "事件名稱",
+      "description": "玩家進入事件時看到的場景描述。",
+      "options": [
+        {
+          "id": "accept_cost",
+          "label": "選項名稱",
+          "description": "選項的補充說明。",
+          "costs": {"sanity": 5},
+          "results": {"currency": 10},
+          "result_text": "選擇後顯示的結果描述。"
+        },
+        {
+          "id": "leave",
+          "label": "離開",
+          "description": "不付出代價。",
+          "costs": {},
+          "results": {},
+          "result_text": "你選擇離開。"
+        }
+      ]
+    }
+  ]
+}

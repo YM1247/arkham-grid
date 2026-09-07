@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="EffectAttack" load_steps=2 format=3 uid="uid://io5u0bqy03en"]
+
+[ext_resource type="Script" uid="uid://deqjtim5tjuuu" path="res://scripts/items/effect_attack.gd" id="1_ik4ld"]
+
+[resource]
+script = ExtResource("1_ik4ld")
+damage = 20
+item_name = "暗影刺"
+item_type = 3
+sanity_cost = 3
+metadata/_custom_type_script = "uid://bliwvesklcpe5"

@@ -1,0 +1,822 @@
+class_name ContentRegistry
+extends RefCounted
+
+const SCHEMA_VERSION := 1
+const DATA_PATHS := {
+	"blocks": "res://data/blocks.json",
+	"items": "res://data/items.json",
+	"enemies": "res://data/enemies.json",
+	"intents": "res://data/intents.json",
+	"encounters": "res://data/encounters.json",
+	"rewards": "res://data/rewards.json",
+	"events": "res://data/events.json",
+	"player": "res://data/player.json",
+	"run_config": "res://data/run_config.json",
+	"map": "res://data/map.json",
+	"sanity": "res://data/sanity.json",
+}
+const ITEM_TYPES := ["WEAPON", "EQUIPMENT", "PRAYER", "CURSE"]
+const ITEM_LOGICS := ["attack", "conditional_attack", "support", "status"]
+const RARITIES := ["common", "uncommon", "rare"]
+const RARITY_RANK := {"common": 1, "uncommon": 2, "rare": 3}
+const SCOPES := ["single", "spread", "all", "self"]
+const STATUSES := ["strength", "weak", "hard", "fragile", "regen", "poison"]
+const INTENTS := ["attack", "heavy_attack", "guard", "sanity_attack", "debuff_player", "buff_self"]
+const INTENT_ACTIONS := ["damage", "armor", "sanity_damage", "status_player", "status_self"]
+
+var errors: Array[String] = []
+var documents: Dictionary = {}
+var definitions: Dictionary = {}
+var indexes: Dictionary = {}
+var block_resources: Dictionary = {}
+var item_resources: Dictionary = {}
+
+
+func load_all() -> bool:
+	errors.clear()
+	documents.clear()
+	definitions.clear()
+	indexes.clear()
+	block_resources.clear()
+	item_resources.clear()
+	for kind in DATA_PATHS:
+		var document = _load_document(str(DATA_PATHS[kind]))
+		if document != null:
+			documents[kind] = document
+	if not errors.is_empty():
+		return false
+	for kind in ["blocks", "items", "enemies", "intents", "encounters", "rewards", "events"]:
+		var entries = documents[kind].get("entries", [])
+		if not entries is Array:
+			errors.append("%s.entries 必須是陣列" % kind)
+			continue
+		definitions[kind] = entries
+		indexes[kind] = _build_id_index(kind, entries)
+	if not errors.is_empty():
+		return false
+	_validate_references()
+	_validate_values()
+	if not errors.is_empty():
+		return false
+	block_resources = _build_block_resources(definitions.get("blocks", []))
+	item_resources = _build_item_resources(definitions.get("items", []))
+	return errors.is_empty()
+
+
+func get_entries(kind: String) -> Array:
+	return definitions.get(kind, []).duplicate(true)
+
+
+func get_definition(kind: String, id: String) -> Dictionary:
+	var value = indexes.get(kind, {}).get(id, {})
+	return value.duplicate(true) if value is Dictionary else {}
+
+
+func get_document(kind: String) -> Dictionary:
+	var value = documents.get(kind, {})
+	return value.duplicate(true) if value is Dictionary else {}
+
+
+func get_block(id: String) -> BlockData:
+	return block_resources.get(id) as BlockData
+
+
+func get_item(id: String) -> BattleItem:
+	return item_resources.get(id) as BattleItem
+
+
+func get_blocks(ids: Array) -> Array[BlockData]:
+	var result: Array[BlockData] = []
+	for id in ids:
+		var block = get_block(str(id))
+		if block != null:
+			result.append(block)
+	return result
+
+
+func get_items(ids: Array) -> Array[BattleItem]:
+	var result: Array[BattleItem] = []
+	for id in ids:
+		var item = get_item(str(id))
+		if item != null:
+			result.append(item)
+	return result
+
+
+func validate_run_state_references(state: RunState) -> Array[String]:
+	var result: Array[String] = []
+	if state == null:
+		result.append("RunState 不可為 null")
+		return result
+	_append_unknown_ids(result, "blocks", "RunState.hand_ids", state.hand_ids)
+	_append_unknown_ids(result, "blocks", "RunState.block_pool_ids", state.block_pool_ids)
+	for hand_entry in state.hand_state:
+		if not hand_entry is Dictionary:
+			result.append("RunState.hand_state 含有非物件資料")
+			continue
+		var block_id := str(hand_entry.get("id", ""))
+		if not indexes.get("blocks", {}).has(block_id):
+			result.append("RunState.hand_state 引用不存在的 blocks：%s" % block_id)
+	if state.row_item_ids.size() != 8:
+		result.append("RunState.row_item_ids 必須剛好有 8 個 ID")
+	if state.col_item_ids.size() != 8:
+		result.append("RunState.col_item_ids 必須剛好有 8 個 ID")
+	_append_unknown_ids(result, "items", "RunState.row_item_ids", state.row_item_ids)
+	_append_unknown_ids(result, "items", "RunState.col_item_ids", state.col_item_ids)
+	for item_id in state.row_item_ids:
+		if str(get_definition("items", item_id).get("axis_type", "")) != "physical":
+			result.append("RunState.row_item_ids 含非 physical 道具：%s" % item_id)
+	for item_id in state.col_item_ids:
+		if str(get_definition("items", item_id).get("axis_type", "")) != "magic":
+			result.append("RunState.col_item_ids 含非 magic 道具：%s" % item_id)
+	_append_unknown_ids(result, "rewards", "RunState.selected_reward_ids", state.selected_reward_ids)
+	for item_id in state.item_inventory:
+		if not indexes.get("items", {}).has(str(item_id)):
+			result.append("RunState.item_inventory 引用不存在的 items：%s" % item_id)
+		if int(state.item_inventory[item_id]) < 0:
+			result.append("RunState.item_inventory.%s 數量不可為負數" % item_id)
+	var sanity_effect_ids := {}
+	for effect in documents.get("sanity", {}).get("effects", []):
+		sanity_effect_ids[str(effect.get("id", ""))] = true
+	for effect_id in state.sanity_effect_ids:
+		if not sanity_effect_ids.has(effect_id):
+			result.append("RunState.sanity_effect_ids 引用不存在的 effect：%s" % effect_id)
+	if not state.board_cells.is_empty() and state.board_cells.size() != 64:
+		result.append("RunState.board_cells 必須為空或剛好有 64 格")
+	_validate_saved_map_references(state, result)
+	return result
+
+
+func _append_unknown_ids(result: Array[String], kind: String, source: String, ids: Array) -> void:
+	for id in ids:
+		if not indexes.get(kind, {}).has(str(id)):
+			result.append("%s 引用不存在的 %s：%s" % [source, kind, id])
+
+
+func _validate_saved_map_references(state: RunState, result: Array[String]) -> void:
+	if state.map_data.is_empty():
+		if not state.current_node_id.is_empty() or not state.completed_node_ids.is_empty() or not state.available_node_ids.is_empty():
+			result.append("RunState 有節點進度但缺少 map_data")
+		return
+	var node_index := {}
+	var nodes = state.map_data.get("nodes", [])
+	if not nodes is Array or nodes.is_empty():
+		result.append("RunState.map_data.nodes 必須是非空陣列")
+		return
+	var content_pools: Dictionary = documents.get("map", {}).get("content_pools", {})
+	var node_pool_names := {
+		"event": "event",
+		"shop": "shop",
+		"rest": "rest",
+	}
+	for node in nodes:
+		if not node is Dictionary:
+			result.append("RunState.map_data.nodes 含有非物件資料")
+			continue
+		var node_id := str(node.get("id", ""))
+		if node_id.is_empty() or node_index.has(node_id):
+			result.append("RunState.map_data node id 為空或重複：%s" % node_id)
+		else:
+			node_index[node_id] = node
+		var node_type := str(node.get("type", ""))
+		var content_id := str(node.get("content_id", ""))
+		if node_type in ["normal_battle", "elite", "boss"]:
+			if not indexes.get("encounters", {}).has(content_id):
+				result.append("RunState.map_data node %s 引用不存在的 encounter：%s" % [node_id, content_id])
+		elif node_type == "event":
+			if not indexes.get("events", {}).has(content_id):
+				result.append("RunState.map_data node %s 引用不存在的 event：%s" % [node_id, content_id])
+		elif node_pool_names.has(node_type):
+			var pool = content_pools.get(node_pool_names[node_type], [])
+			if not pool is Array or content_id not in pool:
+				result.append("RunState.map_data node %s 引用不存在的 %s 內容：%s" % [node_id, node_type, content_id])
+		else:
+			result.append("RunState.map_data node %s type 不合法：%s" % [node_id, node_type])
+	for node in nodes:
+		if not node is Dictionary:
+			continue
+		for next_id in node.get("next_ids", []):
+			if not node_index.has(str(next_id)):
+				result.append("RunState.map_data node %s 指向不存在節點：%s" % [node.get("id", ""), next_id])
+	var progress_ids: Array = state.completed_node_ids.duplicate()
+	progress_ids.append_array(state.available_node_ids)
+	if not state.current_node_id.is_empty():
+		progress_ids.append(state.current_node_id)
+	for node_id in progress_ids:
+		if not node_index.has(str(node_id)):
+			result.append("RunState 節點進度引用不存在節點：%s" % node_id)
+	var boss_id := str(state.map_data.get("boss_node_id", ""))
+	if not node_index.has(boss_id) or str(node_index.get(boss_id, {}).get("type", "")) != "boss":
+		result.append("RunState.map_data.boss_node_id 必須引用 boss 節點")
+	for start_id in state.map_data.get("start_node_ids", []):
+		if not node_index.has(str(start_id)):
+			result.append("RunState.map_data.start_node_ids 引用不存在節點：%s" % start_id)
+
+
+func _load_document(path: String):
+	if not FileAccess.file_exists(path):
+		errors.append("找不到資料檔：%s" % path)
+		return null
+	var file = FileAccess.open(path, FileAccess.READ)
+	if file == null:
+		errors.append("無法開啟資料檔：%s" % path)
+		return null
+	var json := JSON.new()
+	var parse_error := json.parse(file.get_as_text())
+	if parse_error != OK:
+		errors.append("JSON 解析失敗：%s:%d %s" % [path, json.get_error_line(), json.get_error_message()])
+		return null
+	if not json.data is Dictionary:
+		errors.append("資料根節點必須是物件：%s" % path)
+		return null
+	var document: Dictionary = json.data
+	var version = document.get("schema_version")
+	if not version is float and not version is int:
+		errors.append("缺少整數 schema_version：%s" % path)
+	elif int(version) != SCHEMA_VERSION:
+		errors.append("不支援 schema_version %s：%s（目前支援 %d）" % [version, path, SCHEMA_VERSION])
+	return document
+
+
+func _build_id_index(kind: String, entries: Array) -> Dictionary:
+	var index := {}
+	for entry in entries:
+		if not entry is Dictionary:
+			errors.append("%s.entries 含有非物件資料" % kind)
+			continue
+		var id := str(entry.get("id", ""))
+		if id.is_empty():
+			errors.append("%s 有空 id" % kind)
+		elif index.has(id):
+			errors.append("%s id 重複：%s" % [kind, id])
+		else:
+			index[id] = entry
+	return index
+
+
+func _validate_references() -> void:
+	var run_config: Dictionary = documents.get("run_config", {})
+	for id in run_config.get("block_pool", []):
+		_require_id("blocks", str(id), "run_config.block_pool")
+	for id in run_config.get("row_items", []):
+		_require_id("items", str(id), "run_config.row_items")
+	for id in run_config.get("col_items", []):
+		_require_id("items", str(id), "run_config.col_items")
+	for encounter in definitions.get("encounters", []):
+		for enemy_id in encounter.get("enemy_ids", []):
+			_require_id("enemies", str(enemy_id), "encounter %s" % encounter.get("id", ""))
+	for enemy in definitions.get("enemies", []):
+		for intent_id in enemy.get("intent_pattern", []):
+			_require_id("intents", str(intent_id), "enemy %s.intent_pattern" % enemy.get("id", ""))
+	for reward in definitions.get("rewards", []):
+		var reward_type := str(reward.get("type", ""))
+		if reward_type == "item":
+			_require_id("items", str(reward.get("id", "")), "reward")
+		elif reward_type == "block":
+			_require_id("blocks", str(reward.get("id", "")), "reward")
+		else:
+			errors.append("reward type 不合法：%s" % reward_type)
+	var map_document: Dictionary = documents.get("map", {})
+	for node in map_document.get("nodes", []):
+		var node_type := str(node.get("type", ""))
+		if node_type in ["normal_battle", "elite", "boss"]:
+			_require_id("encounters", str(node.get("content_id", "")), "map node %s" % node.get("id", ""))
+		elif node_type == "event":
+			_require_id("events", str(node.get("content_id", "")), "map node %s" % node.get("id", ""))
+	var content_pools: Dictionary = map_document.get("content_pools", {})
+	for pool_name in ["normal_encounters", "elite_encounters", "boss_encounters"]:
+		for encounter_id in content_pools.get(pool_name, []):
+			_require_id("encounters", str(encounter_id), "map.content_pools.%s" % pool_name)
+	for event_id in content_pools.get("event", []):
+		_require_id("events", str(event_id), "map.content_pools.event")
+
+
+func _require_id(kind: String, id: String, source: String) -> void:
+	if not indexes.get(kind, {}).has(id):
+		errors.append("%s 引用不存在的 %s：%s" % [source, kind, id])
+
+
+func _validate_values() -> void:
+	for block in definitions.get("blocks", []):
+		var id := str(block.get("id", ""))
+		var cells = block.get("cells")
+		if not cells is Array or cells.is_empty():
+			errors.append("block %s cells 必須是非空陣列" % id)
+		elif not _are_coordinate_pairs(cells):
+			errors.append("block %s cells 必須是兩個整數的座標" % id)
+		if float(block.get("weight", 0.0)) <= 0.0:
+			errors.append("block %s weight 必須大於 0" % id)
+		if int(block.get("tier", 0)) <= 0:
+			errors.append("block %s tier 必須是正整數" % id)
+	for item in definitions.get("items", []):
+		var id := str(item.get("id", ""))
+		_validate_allowed(item, "item_type", ITEM_TYPES, "item %s" % id)
+		_validate_allowed(item, "axis_type", ["physical", "magic"], "item %s" % id)
+		_validate_allowed(item, "logic", ITEM_LOGICS, "item %s" % id)
+		_validate_allowed(item, "rarity", RARITIES, "item %s" % id)
+		_validate_allowed(item, "effect_scope", SCOPES, "item %s" % id)
+		if int(item.get("sanity_cost", 0)) < 0 or int(item.get("balance_cost", -1)) < 0:
+			errors.append("item %s 的 sanity_cost / balance_cost 不可為負數" % id)
+		if int(item.get("tier", 0)) <= 0:
+			errors.append("item %s tier 必須是正整數" % id)
+		var upgrade_from := str(item.get("upgrade_from", ""))
+		var upgrade_to := str(item.get("upgrade_to", ""))
+		if not upgrade_from.is_empty():
+			_require_id("items", upgrade_from, "item %s.upgrade_from" % id)
+		if not upgrade_to.is_empty():
+			_require_id("items", upgrade_to, "item %s.upgrade_to" % id)
+			if int(item.get("combine_count", 0)) <= 1:
+				errors.append("item %s 有 upgrade_to 時 combine_count 必須大於 1" % id)
+		for field in ["status_effects_self", "status_effects_target"]:
+			_validate_status_effects(item, field)
+	_validate_item_upgrade_chains()
+	for enemy in definitions.get("enemies", []):
+		var id := str(enemy.get("id", ""))
+		if int(enemy.get("hp", 0)) <= 0 or int(enemy.get("attack", -1)) < 0 or int(enemy.get("tier", 0)) <= 0 or int(enemy.get("speed", 0)) <= 0:
+			errors.append("enemy %s 的 hp / attack / tier / speed 超出值域" % id)
+		var pattern = enemy.get("intent_pattern")
+		if not pattern is Array or pattern.is_empty():
+			errors.append("enemy %s intent_pattern 必須是非空陣列" % id)
+		else:
+			for intent in pattern:
+				if str(intent) not in INTENTS:
+					errors.append("enemy %s 使用未知 intent：%s" % [id, intent])
+	for intent in definitions.get("intents", []):
+		var id := str(intent.get("id", ""))
+		var action := str(intent.get("action", ""))
+		if action not in INTENT_ACTIONS:
+			errors.append("intent %s action 不合法：%s" % [id, action])
+		if str(intent.get("display_name", "")).is_empty():
+			errors.append("intent %s 缺少 display_name" % id)
+		if action in ["armor", "sanity_damage", "status_player", "status_self"] and int(intent.get("amount", 0)) <= 0:
+			errors.append("intent %s amount 必須是正整數" % id)
+		if action in ["status_player", "status_self"] and str(intent.get("status_id", "")) not in STATUSES:
+			errors.append("intent %s 使用未知 status_id" % id)
+	for encounter in definitions.get("encounters", []):
+		var enemy_ids = encounter.get("enemy_ids")
+		if not enemy_ids is Array or enemy_ids.is_empty():
+			errors.append("encounter %s enemy_ids 必須是非空陣列" % encounter.get("id", ""))
+		elif enemy_ids.size() > 5:
+			errors.append("encounter %s 超過 5 名敵人上限" % encounter.get("id", ""))
+	for reward in definitions.get("rewards", []):
+		if float(reward.get("weight", 0.0)) <= 0.0:
+			errors.append("reward %s weight 必須大於 0" % reward.get("id", ""))
+		if int(reward.get("min_reward_tier", 1)) <= 0:
+			errors.append("reward %s min_reward_tier 必須是正整數" % reward.get("id", ""))
+		if str(reward.get("type", "")) == "item":
+			var kind := str(reward.get("slot_kind", ""))
+			var index := int(reward.get("slot_index", -1))
+			if kind not in ["row", "col"] or index < 0 or index >= 8:
+				errors.append("reward %s 的 slot 超出值域" % reward.get("id", ""))
+	_validate_reward_pool()
+	_validate_event_definitions()
+	var player: Dictionary = documents.get("player", {})
+	if str(player.get("name", "")).is_empty() or int(player.get("max_hp", 0)) <= 0 or int(player.get("action_points", 0)) <= 0:
+		errors.append("player 的 name / max_hp / action_points 不合法")
+	if int(player.get("hp", 0)) <= 0 or int(player.get("hp", 0)) > int(player.get("max_hp", 0)):
+		errors.append("player.hp 必須介於 1 與 max_hp")
+	if int(player.get("sanity", 0)) <= 0 or int(player.get("sanity", 0)) > int(player.get("max_sanity", 0)):
+		errors.append("player.sanity 必須介於 1 與 max_sanity")
+	var config: Dictionary = documents.get("run_config", {})
+	var effect_resources = config.get("effect_resources")
+	if not effect_resources is Dictionary:
+		errors.append("run_config.effect_resources 必須是物件")
+	else:
+		for logic in ITEM_LOGICS:
+			var path := str(effect_resources.get(logic, ""))
+			if path.is_empty() or not ResourceLoader.exists(path):
+				errors.append("effect_resources.%s 引用不存在：%s" % [logic, path])
+				continue
+			var prototype := load(path) as BattleItem
+			if prototype == null or prototype.logic != logic:
+				errors.append("effect_resources.%s 必須是 logic=%s 的 BattleItem" % [logic, logic])
+			elif logic == "conditional_attack" and not prototype is EffectConditionalAttack:
+				errors.append("effect_resources.conditional_attack 必須使用 EffectConditionalAttack")
+	if config.get("row_items", []).size() != 8 or config.get("col_items", []).size() != 8:
+		errors.append("run_config 的 row_items / col_items 必須各有 8 個 ID")
+	for id in config.get("row_items", []):
+		if str(get_definition("items", str(id)).get("axis_type", "")) != "physical":
+			errors.append("run_config.row_items 類型不合法：%s" % id)
+	for id in config.get("col_items", []):
+		if str(get_definition("items", str(id)).get("axis_type", "")) != "magic":
+			errors.append("run_config.col_items 類型不合法：%s" % id)
+	for reward in definitions.get("rewards", []):
+		if str(reward.get("type", "")) == "block":
+			var block := get_definition("blocks", str(reward.get("id", "")))
+			if not bool(block.get("special", false)):
+				errors.append("方塊獎勵只能引用 special 方塊：%s" % reward.get("id", ""))
+		elif str(reward.get("type", "")) == "item":
+			var item := get_definition("items", str(reward.get("id", "")))
+			var slot_kind := str(reward.get("slot_kind", ""))
+			var axis_type := str(item.get("axis_type", ""))
+			if (slot_kind == "row" and axis_type != "physical") or (slot_kind == "col" and axis_type != "magic"):
+				errors.append("reward %s 的 axis_type 與 slot_kind 不相容" % reward.get("id", ""))
+	_validate_map_document(documents.get("map", {}))
+	_validate_sanity_document(documents.get("sanity", {}))
+
+
+func _validate_event_definitions() -> void:
+	var allowed_resources := ["hp", "sanity", "currency"]
+	for event in definitions.get("events", []):
+		var event_id := str(event.get("id", ""))
+		if str(event.get("title", "")).is_empty() or str(event.get("description", "")).is_empty():
+			errors.append("event %s 的 title / description 不可為空" % event_id)
+		var options = event.get("options", [])
+		if not options is Array or options.size() < 2:
+			errors.append("event %s.options 至少需要兩個選項" % event_id)
+			continue
+		var option_ids := {}
+		for option in options:
+			if not option is Dictionary:
+				errors.append("event %s.options 含有非物件資料" % event_id)
+				continue
+			var option_id := str(option.get("id", ""))
+			if option_id.is_empty() or option_ids.has(option_id):
+				errors.append("event %s 的 option id 為空或重複：%s" % [event_id, option_id])
+			option_ids[option_id] = true
+			if str(option.get("label", "")).is_empty() or str(option.get("result_text", "")).is_empty():
+				errors.append("event %s option %s 的 label / result_text 不可為空" % [event_id, option_id])
+			for field in ["costs", "results"]:
+				var resources = option.get(field)
+				if not resources is Dictionary:
+					errors.append("event %s option %s.%s 必須是物件" % [event_id, option_id, field])
+					continue
+				for key in resources:
+					if str(key) not in allowed_resources:
+						errors.append("event %s option %s.%s 使用未知資源：%s" % [event_id, option_id, field, key])
+					elif not resources[key] is float and not resources[key] is int:
+						errors.append("event %s option %s.%s.%s 必須是整數" % [event_id, option_id, field, key])
+					elif int(resources[key]) < 0 or float(resources[key]) != float(int(resources[key])):
+						errors.append("event %s option %s.%s.%s 必須是非負整數" % [event_id, option_id, field, key])
+
+
+func _validate_item_upgrade_chains() -> void:
+	var edges := {}
+	for item in definitions.get("items", []):
+		var item_id := str(item.get("id", ""))
+		var upgrade_from := str(item.get("upgrade_from", ""))
+		var upgrade_to := str(item.get("upgrade_to", ""))
+		edges[item_id] = [upgrade_to] if indexes.get("items", {}).has(upgrade_to) else []
+		if not upgrade_from.is_empty():
+			var source: Dictionary = indexes.get("items", {}).get(upgrade_from, {})
+			if not source.is_empty() and str(source.get("upgrade_to", "")) != item_id:
+				errors.append("item %s.upgrade_from=%s 未被來源的 upgrade_to 對應" % [item_id, upgrade_from])
+		if upgrade_to.is_empty():
+			continue
+		var target: Dictionary = indexes.get("items", {}).get(upgrade_to, {})
+		if target.is_empty():
+			continue
+		if str(target.get("upgrade_from", "")) != item_id:
+			errors.append("item %s.upgrade_to=%s 未被目標的 upgrade_from 對應" % [item_id, upgrade_to])
+		if str(target.get("item_type", "")) != str(item.get("item_type", "")):
+			errors.append("item %s 與升級目標 %s 的 item_type 不一致" % [item_id, upgrade_to])
+		if str(target.get("axis_type", "")) != str(item.get("axis_type", "")):
+			errors.append("item %s 與升級目標 %s 的 axis_type 不一致" % [item_id, upgrade_to])
+		if int(target.get("tier", 0)) <= int(item.get("tier", 0)):
+			errors.append("item %s 的 tier 必須高於升級來源 %s" % [upgrade_to, item_id])
+		if int(RARITY_RANK.get(str(target.get("rarity", "")), 0)) < int(RARITY_RANK.get(str(item.get("rarity", "")), 0)):
+			errors.append("item %s 的 rarity 不可低於升級來源 %s" % [upgrade_to, item_id])
+	_validate_acyclic_edges(edges, "道具升級鏈", errors)
+
+
+func _validate_reward_pool() -> void:
+	var edges := {}
+	for reward in definitions.get("rewards", []):
+		var reward_id := str(reward.get("id", ""))
+		var required_ids = reward.get("requires_rewards", [])
+		if not required_ids is Array:
+			errors.append("reward %s.requires_rewards 必須是陣列" % reward_id)
+			edges[reward_id] = []
+			continue
+		edges[reward_id] = []
+		for required_id in required_ids:
+			if not indexes.get("rewards", {}).has(str(required_id)):
+				errors.append("reward %s 引用不存在的前置獎勵：%s" % [reward_id, required_id])
+			else:
+				edges[reward_id].append(str(required_id))
+	_validate_acyclic_edges(edges, "獎勵前置關係", errors)
+	for reward_tier in range(1, 4):
+		var eligible_count := 0
+		for reward in definitions.get("rewards", []):
+			if int(reward.get("min_reward_tier", 1)) > reward_tier:
+				continue
+			if str(reward.get("type", "")) == "item":
+				var item: Dictionary = indexes.get("items", {}).get(str(reward.get("id", "")), {})
+				if int(RARITY_RANK.get(str(item.get("rarity", "")), 0)) > reward_tier:
+					continue
+			elif str(reward.get("type", "")) == "block":
+				var block: Dictionary = indexes.get("blocks", {}).get(str(reward.get("id", "")), {})
+				if int(block.get("tier", 0)) > reward_tier:
+					continue
+			eligible_count += 1
+		if eligible_count < 3:
+			errors.append("reward tier %d 在全解鎖時仍不足三選一：只有 %d 項" % [reward_tier, eligible_count])
+
+
+func _validate_acyclic_edges(edges: Dictionary, label: String, output: Array[String]) -> void:
+	var incoming := {}
+	for node_id in edges:
+		incoming[str(node_id)] = 0
+	for node_id in edges:
+		for next_id in edges[node_id]:
+			if incoming.has(str(next_id)):
+				incoming[str(next_id)] = int(incoming[str(next_id)]) + 1
+	var pending: Array[String] = []
+	for node_id in incoming:
+		if int(incoming[node_id]) == 0:
+			pending.append(str(node_id))
+	var visited := 0
+	while not pending.is_empty():
+		var current: String = pending.pop_front()
+		visited += 1
+		for next_id in edges.get(current, []):
+			incoming[str(next_id)] = int(incoming[str(next_id)]) - 1
+			if int(incoming[str(next_id)]) == 0:
+				pending.append(str(next_id))
+	if visited != incoming.size():
+		output.append("%s 含有循環" % label)
+
+
+func _validate_sanity_document(sanity_document: Dictionary) -> void:
+	var last_threshold := 101
+	var last_count := 0
+	for stage in sanity_document.get("stages", []):
+		var threshold := int(stage.get("threshold", -1))
+		var effect_count := int(stage.get("effect_count", 0))
+		if threshold < 0 or threshold >= last_threshold:
+			errors.append("sanity stages 必須依 threshold 由高至低排列")
+		if effect_count <= last_count:
+			errors.append("sanity stages 的 effect_count 必須逐階增加")
+		last_threshold = threshold
+		last_count = effect_count
+	var effect_ids := {}
+	for effect in sanity_document.get("effects", []):
+		var effect_id := str(effect.get("id", ""))
+		if effect_id.is_empty() or effect_ids.has(effect_id):
+			errors.append("sanity effect id 為空或重複：%s" % effect_id)
+		effect_ids[effect_id] = true
+		var path := str(effect.get("behavior_resource", ""))
+		var behavior = load(path) if ResourceLoader.exists(path) else null
+		if path.is_empty() or behavior == null or not behavior.has_method("apply_to_entity"):
+			errors.append("sanity effect %s 的 behavior_resource 不合法" % effect_id)
+	if last_count > effect_ids.size():
+		errors.append("sanity effects 數量不足以供應最高階段")
+
+
+func _validate_map_document(map_document: Dictionary) -> void:
+	var generation: Dictionary = map_document.get("generation", {})
+	if bool(generation.get("enabled", false)):
+		if str(generation.get("algorithm", "")) != "layered_dag":
+			errors.append("map.generation.algorithm 目前只支援 layered_dag")
+		for field in ["floors", "columns", "start_count", "min_nodes_per_floor", "max_nodes_per_floor", "max_links_per_node"]:
+			if int(generation.get(field, 0)) <= 0:
+				errors.append("map.generation.%s 必須是正整數" % field)
+		if int(generation.get("floors", 0)) < 3:
+			errors.append("map.generation.floors 至少為 3")
+		var columns := int(generation.get("columns", 0))
+		var min_nodes := int(generation.get("min_nodes_per_floor", 0))
+		var max_nodes := int(generation.get("max_nodes_per_floor", 0))
+		var start_count := int(generation.get("start_count", 0))
+		if min_nodes < 1 or min_nodes > max_nodes or max_nodes > columns:
+			errors.append("map.generation 必須符合 1 <= min_nodes_per_floor <= max_nodes_per_floor <= columns")
+		if start_count > columns:
+			errors.append("map.generation.start_count 不可大於 columns")
+		var type_weights = generation.get("type_weights", {})
+		if not type_weights is Dictionary:
+			errors.append("map.generation.type_weights 必須是物件")
+		else:
+			var total_weight := 0.0
+			for type in ["normal_battle", "elite", "event", "shop", "rest"]:
+				if not type_weights.has(type) or float(type_weights.get(type, -1.0)) < 0.0:
+					errors.append("map type weight 不可為負數：%s" % type)
+				else:
+					total_weight += float(type_weights[type])
+			if total_weight <= 0.0:
+				errors.append("map.generation.type_weights 總和必須大於 0")
+		if bool(generation.get("structured_node_types", false)):
+			var floors := int(generation.get("floors", 0))
+			var structured_floors := [int(generation.get("event_floor", -1)), int(generation.get("elite_floor", -1)), floors / 2]
+			var seen_floors := {}
+			for floor in structured_floors:
+				if int(floor) < 1 or int(floor) >= floors - 2:
+					errors.append("結構化 event／elite／shop 樓層必須位於起點與 Boss 前休息之間")
+				if seen_floors.has(int(floor)):
+					errors.append("結構化 event／elite／shop 不可使用同一樓層")
+				seen_floors[int(floor)] = true
+	var nodes = map_document.get("nodes", [])
+	if not nodes is Array or nodes.is_empty():
+		errors.append("map.nodes 必須是非空陣列")
+		return
+	var node_index := _build_id_index("map.nodes", nodes)
+	var allowed_types := ["normal_battle", "elite", "boss", "event", "shop", "rest"]
+	var edges := {}
+	var incoming := {}
+	for node in nodes:
+		var node_id := str(node.get("id", ""))
+		edges[node_id] = []
+		incoming[node_id] = 0
+	for node in nodes:
+		var node_id := str(node.get("id", ""))
+		if str(node.get("type", "")) not in allowed_types:
+			errors.append("map node %s type 不合法" % node_id)
+		var next_ids = node.get("next_ids", [])
+		if not next_ids is Array:
+			errors.append("map node %s.next_ids 必須是陣列" % node_id)
+			continue
+		var seen_next_ids := {}
+		for next_id in next_ids:
+			if seen_next_ids.has(str(next_id)):
+				errors.append("map node %s.next_ids 含有重複節點：%s" % [node_id, next_id])
+			seen_next_ids[str(next_id)] = true
+			if not node_index.has(str(next_id)):
+				errors.append("map node %s 指向不存在節點：%s" % [node_id, next_id])
+			else:
+				edges[node_id].append(str(next_id))
+				incoming[str(next_id)] = int(incoming.get(str(next_id), 0)) + 1
+	_validate_acyclic_edges(edges, "地圖路線", errors)
+	var starts = map_document.get("start_node_ids", [])
+	if not starts is Array or starts.is_empty():
+		errors.append("map.start_node_ids 必須是非空陣列")
+	else:
+		var seen_starts := {}
+		for start_id in starts:
+			if seen_starts.has(str(start_id)):
+				errors.append("map.start_node_ids 含有重複節點：%s" % start_id)
+			seen_starts[str(start_id)] = true
+			if not node_index.has(str(start_id)):
+				errors.append("map start node 不存在：%s" % start_id)
+	var boss_id := str(map_document.get("boss_node_id", ""))
+	if not node_index.has(boss_id) or str(node_index.get(boss_id, {}).get("type", "")) != "boss":
+		errors.append("map.boss_node_id 必須引用 boss 節點")
+	elif not node_index.get(boss_id, {}).get("next_ids", []).is_empty():
+		errors.append("map Boss 必須是唯一終點，next_ids 必須為空")
+	var boss_count := 0
+	for node_id in node_index:
+		if str(node_index[node_id].get("type", "")) == "boss":
+			boss_count += 1
+		if node_id in starts and int(incoming.get(node_id, 0)) > 0:
+			errors.append("map start node %s 不可有前置連線" % node_id)
+		if node_id not in starts and int(incoming.get(node_id, 0)) == 0:
+			errors.append("map node %s 無法從任一前置節點進入" % node_id)
+		if node_id != boss_id and node_index[node_id].get("next_ids", []).is_empty():
+			errors.append("map node %s 是 Boss 以外的死路" % node_id)
+	if boss_count != 1:
+		errors.append("map 必須剛好有 1 個 boss 節點，目前為 %d" % boss_count)
+	for start_id in starts:
+		if not _can_reach_node(str(start_id), boss_id, node_index):
+			errors.append("map 起點 %s 無法抵達 Boss %s" % [start_id, boss_id])
+	var content_pools = map_document.get("content_pools", {})
+	if not content_pools is Dictionary:
+		errors.append("map.content_pools 必須是物件")
+		return
+	var node_pool_names := {
+		"normal_battle": "normal_encounters",
+		"elite": "elite_encounters",
+		"boss": "boss_encounters",
+		"event": "event",
+		"shop": "shop",
+		"rest": "rest",
+	}
+	for pool_name in ["normal_encounters", "elite_encounters", "boss_encounters", "event", "shop", "rest"]:
+		var pool = content_pools.get(pool_name, [])
+		if not pool is Array or pool.is_empty():
+			errors.append("map.content_pools.%s 必須是非空陣列" % pool_name)
+			continue
+		var seen := {}
+		for content_id in pool:
+			if seen.has(str(content_id)):
+				errors.append("map.content_pools.%s 含有重複 ID：%s" % [pool_name, content_id])
+			seen[str(content_id)] = true
+	for node in nodes:
+		var pool_name: String = node_pool_names.get(str(node.get("type", "")), "")
+		var pool = content_pools.get(pool_name, [])
+		if pool is Array and str(node.get("content_id", "")) not in pool:
+			errors.append("map node %s 的 content_id 不在 %s 內：%s" % [node.get("id", ""), pool_name, node.get("content_id", "")])
+
+
+func _can_reach_node(start_id: String, target_id: String, node_index: Dictionary) -> bool:
+	var pending: Array[String] = [start_id]
+	var visited := {}
+	while not pending.is_empty():
+		var current: String = pending.pop_front()
+		if current == target_id:
+			return true
+		if visited.has(current):
+			continue
+		visited[current] = true
+		for next_id in node_index.get(current, {}).get("next_ids", []):
+			pending.append(str(next_id))
+	return false
+
+
+func _validate_allowed(entry: Dictionary, field: String, allowed: Array, source: String) -> void:
+	var value := str(entry.get(field, ""))
+	if value not in allowed:
+		errors.append("%s 的 %s 不合法：%s" % [source, field, value])
+
+
+func _validate_status_effects(item: Dictionary, field: String) -> void:
+	var effects = item.get(field, [])
+	if not effects is Array:
+		errors.append("item %s 的 %s 必須是陣列" % [item.get("id", ""), field])
+		return
+	for effect in effects:
+		if not effect is Dictionary or str(effect.get("id", "")) not in STATUSES or int(effect.get("amount", 0)) <= 0:
+			errors.append("item %s 的 %s 含未知狀態或非正數 amount" % [item.get("id", ""), field])
+
+
+func _are_coordinate_pairs(values: Array) -> bool:
+	for value in values:
+		if not value is Array or value.size() != 2:
+			return false
+		for component in value:
+			if not component is float and not component is int:
+				return false
+	return true
+
+
+func _build_block_resources(block_defs: Array) -> Dictionary:
+	var resources := {}
+	for block_def in block_defs:
+		var block_data := BlockData.new()
+		block_data.id = str(block_def.get("id", ""))
+		block_data.display_name = str(block_def.get("name", block_data.id))
+		block_data.color = Color.html(str(block_def.get("color", "#ff8c00")))
+		var cells: Array[Vector2i] = []
+		for cell in block_def.get("cells", []):
+			if cell is Array and cell.size() >= 2:
+				cells.append(Vector2i(int(cell[0]), int(cell[1])))
+		block_data.cells = cells
+		block_data.tier = int(block_def.get("tier", 1))
+		block_data.weight = float(block_def.get("weight", 1.0))
+		block_data.is_special = bool(block_def.get("special", false))
+		block_data.smart_score_bonus = int(block_def.get("smart_score_bonus", 0))
+		var tags: Array[String] = []
+		for tag in block_def.get("tags", []):
+			tags.append(str(tag))
+		block_data.tags = tags
+		resources[block_data.id] = block_data
+	return resources
+
+
+func _build_item_resources(item_defs: Array) -> Dictionary:
+	var resources := {}
+	for item_def in item_defs:
+		var item = _create_item_resource(item_def)
+		if item != null:
+			resources[str(item_def.get("id", ""))] = item
+	return resources
+
+
+func _create_item_resource(item_def: Dictionary) -> BattleItem:
+	var logic := str(item_def.get("logic", "attack"))
+	var effect_resources: Dictionary = documents.get("run_config", {}).get("effect_resources", {})
+	var resource_path := str(effect_resources.get(logic, ""))
+	var prototype := load(resource_path) as BattleItem
+	if prototype == null:
+		errors.append("item %s 無法載入效果原型：%s" % [item_def.get("id", ""), resource_path])
+		return null
+	var item := prototype.duplicate(true) as BattleItem
+	if item is EffectSupport:
+		item.armor_gain = int(item_def.get("armor_gain", 0))
+		item.heal_amount = int(item_def.get("heal_amount", 0))
+	if item is EffectAttack:
+		item.damage = int(item_def.get("damage", 10))
+		item.bonus_damage = int(item_def.get("bonus_damage", 0))
+		item.hit_count = int(item_def.get("hit_count", 1))
+	item.content_id = str(item_def.get("id", ""))
+	item.item_name = str(item_def.get("name", "未命名道具"))
+	item.item_type = _parse_item_type(str(item_def.get("item_type", "WEAPON")))
+	item.axis_type = BattleItem.AxisType.MAGIC if str(item_def.get("axis_type", "physical")) == "magic" else BattleItem.AxisType.PHYSICAL
+	item.logic = logic
+	item.rarity = str(item_def.get("rarity", "common"))
+	item.tier = int(item_def.get("tier", 1))
+	item.balance_cost = int(item_def.get("balance_cost", 0))
+	item.upgrade_from = str(item_def.get("upgrade_from", ""))
+	item.upgrade_to = str(item_def.get("upgrade_to", ""))
+	item.combine_count = int(item_def.get("combine_count", 0))
+	item.sanity_cost = int(item_def.get("sanity_cost", 0))
+	item.effect_scope = str(item_def.get("effect_scope", "single"))
+	item.status_effects_self = _parse_status_effects(item_def.get("status_effects_self", []))
+	item.status_effects_target = _parse_status_effects(item_def.get("status_effects_target", []))
+	item.description = str(item_def.get("description", ""))
+	for tag in item_def.get("tags", []):
+		item.tags.append(str(tag))
+	return item
+
+
+func _parse_status_effects(raw_effects) -> Array[Dictionary]:
+	var parsed: Array[Dictionary] = []
+	if raw_effects is Array:
+		for effect in raw_effects:
+			if effect is Dictionary:
+				parsed.append({"id": str(effect.get("id", "")), "amount": int(effect.get("amount", 0))})
+	return parsed
+
+
+func _parse_item_type(type_name: String) -> BattleItem.ItemType:
+	match type_name:
+		"EQUIPMENT": return BattleItem.ItemType.EQUIPMENT
+		"PRAYER": return BattleItem.ItemType.PRAYER
+		"CURSE": return BattleItem.ItemType.CURSE
+		_: return BattleItem.ItemType.WEAPON

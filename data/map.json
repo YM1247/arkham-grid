@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "map_id": "prototype_route_01",
+  "generation": {
+    "enabled": true,
+    "algorithm": "layered_dag",
+    "floors": 9,
+    "columns": 5,
+    "start_count": 2,
+    "min_nodes_per_floor": 2,
+    "max_nodes_per_floor": 3,
+    "max_links_per_node": 2,
+    "force_mid_shop": true,
+    "force_rest_before_boss": true,
+    "structured_node_types": true,
+    "event_floor": 2,
+    "elite_floor": 3,
+    "type_weights": {
+      "normal_battle": 45.0,
+      "event": 20.0,
+      "elite": 15.0,
+      "shop": 10.0,
+      "rest": 10.0
+    }
+  },
+  "content_pools": {
+    "normal_encounters": ["encounter_01", "encounter_02", "encounter_03", "encounter_04"],
+    "elite_encounters": ["encounter_05"],
+    "boss_encounters": ["encounter_06"],
+    "event": ["prototype_event"],
+    "shop": ["prototype_shop"],
+    "rest": ["boss_rest"]
+  },
+  "start_node_ids": ["start_a", "start_b"],
+  "boss_node_id": "boss_gate",
+  "nodes": [
+    {"id": "start_a", "type": "normal_battle", "content_id": "encounter_01", "next_ids": ["event_archive", "shop_alley"]},
+    {"id": "start_b", "type": "normal_battle", "content_id": "encounter_02", "next_ids": ["shop_alley", "rest_chapel"]},
+    {"id": "event_archive", "type": "event", "content_id": "prototype_event", "next_ids": ["elite_ritual"]},
+    {"id": "shop_alley", "type": "shop", "content_id": "prototype_shop", "next_ids": ["elite_ritual", "rest_chapel"]},
+    {"id": "elite_ritual", "type": "elite", "content_id": "encounter_05", "next_ids": ["rest_chapel"]},
+    {"id": "rest_chapel", "type": "rest", "content_id": "boss_rest", "next_ids": ["boss_gate"]},
+    {"id": "boss_gate", "type": "boss", "content_id": "encounter_06", "next_ids": []}
+  ]
+}

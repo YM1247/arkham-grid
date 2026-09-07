@@ -1,0 +1,180 @@
+# 開發紀錄
+
+## 2026-09-07：Phase 18 存檔基礎與可重現狀態
+
+- 再次檢查 `OPEN_QUESTIONS.md`；`MAGIC-001`、`CONTENT-003`、`CONTENT-007` 的玩家回覆仍為「待回覆」，因此未改動 MP、商店／休息或正式視聽方向。
+- 新增獨立 `SaveGameService`，提供單一 Run 自動槽、版本 envelope、可注入路徑、同目錄暫存、原子提升、last-known-good 備份與損壞主檔回退。
+- 存檔載入先做嚴格結構與數值範圍檢查；不支援的版本、錯型或無法遷移的現有主檔會被拒絕且不遭覆寫。
+- RunState schema 升至 v4，保存獎勵與抽牌 RNG 當前 state；舊 v1–v3 快照可逐版遷移，v3 會以 Run seed 建立穩定 RNG 初始狀態。
+- 新 Run 的 Tablet RNG 改由 Run seed 加固定 salt 初始化；記憶體快照擷取／還原會同步保存兩套 RNG，避免讀檔後改變後續獎勵或手牌序列。
+- 自動測試增至 18 suites，新增磁碟 round-trip、暫存檔清理、備份輪替、壞主檔回退、拒絕覆寫、v3 遷移、嚴格資源範圍及 RNG 延續案例。
+- 將服務接入 RunManager：新 Run、節點入口、節點完成與結算均自動保存；啟動時會繼續有效存檔，`node_entered` checkpoint 恢復時固定重啟已選節點，不能回地圖重選。
+- 若主檔的結構或內容引用失效，RunManager 會再驗證備份；成功回退後隔離原始壞檔為 `.rejected-*`、修復主槽並繼續保存。envelope 同時記錄各內容文件 schema 版本，預留 content-ID 遷移。
+- 依審查補強合法色碼、背包數量、歷史項目、手牌雙欄一致性、AP 與終止資源狀態、checkpoint、時間戳及 JSON 安全 seed 範圍驗證；暫存提升前也會完成整份 round-trip 驗證。
+- `tools/validate_all.sh` 已通過 Python 資料驗證、18 組 Godot 測試、棋盤、單場戰鬥、完整 Run、Sanity 與 encounter 報告；完整 Run 仍為 0% 通關的舊基線，因 `MAGIC-001` 未決，本次未自行調整核心數值。
+
+## 2026-09-06：最新決策整理與資料化事件
+
+- 將玩家對 Meta、存檔、MP、可及性、內容及發布問題的明確回覆移入已決定；`META-002` 依原選項語意正規化為以角色差異取代永久 HP／Sanity／AP 成長。
+- 將尚未覆蓋的重大細節拆為 `MAGIC-001`、`CONTENT-007`，連同視聽資產 `CONTENT-003` 保留待確認，不先改動核心資源或商店／休息方向。
+- 新增 `events.json` 與事件範本，第一筆原創事件提供三個選項；HP、Sanity、金錢代價與結果皆由資料定義，兩套驗證器會檢查值域、選項 ID 與地圖引用。
+- 新增純資料 `EventChoiceResolver`、事件畫面與 RunManager 接線；玩家可先看成本／收益，資源不足選項會禁用，事件完成後回到地圖且保留盤面。
+- 事件 Sanity 變化保留來源記錄，HP／Sanity 不可支付至 0，回復受上限限制；上述小型邊界規則已寫入內容文件。
+- 自動測試增至 17 suites，涵蓋事件預覽、結算、上限、不足、未知選項、UI 與 Run 流程；完整一鍵驗證結果記錄於本次交付說明。
+- `tools/validate_all.sh` 已通過 Python 資料驗證、17 組 Godot 測試、棋盤、單場戰鬥、完整 Run、Sanity 與 encounter 報告；未調整既有戰鬥數值，完整 Run 基線仍為 0% 通關。
+
+## 2026-09-06：專案盤點與 Phase 16 內容完整性
+
+- 重新檢查使用者更新過的 `OPEN_QUESTIONS.md`；目前待確認列仍全部標示「待回覆」，因此未將候選方向誤當成新決策。
+- 完整對照場景、GDScript、JSON、測試、Roadmap 與企劃文件；確認可玩進度已到 Phase 15 完成、Phase 16 進行中，並校正 Roadmap、核心迴圈與開發指引中的過時現況。
+- 整理 `OPEN_QUESTIONS.md`：將玩家明確回覆的 `UX-003`、`CONTENT-004`、`RELEASE-003` 移入已決定，其餘候選方向仍保留為待確認；新增 `CONTENT-005` 追蹤公版／授權邊界。
+- Python 與 Godot 內容驗證新增升級鏈雙向對應、tier／rarity／軸連續性、循環防護、獎勵前置與各 tier 候選容量、地圖內容池、DAG 與唯一 Boss 終點規則。
+- `ContentRegistry` 新增 RunState 內容引用驗證；`RunManager.restore_run_state()` 在修改 runtime 前拒絕遺失的方塊、道具、獎勵、地圖或 Sanity ID。
+- 修正 `COMBAT-004` 實作落差：鎖定敵人死亡後現在會保持空目標，單體／擴散效果在玩家手動選擇下一名敵人前失效，並加入多敵人整合測試。
+- 新增固定 seed 的 `BoardSimulator` 與 headless 報告工具，依現行補牌、AP、消線與死盤重建順序，比較智慧手牌和權重隨機的合法率、消線率與盤面佔用；同 seed 結果由測試保證可重現。
+- 新增無 UI `BattleBatchSimulator`，以相同棋盤事件驅動現有 Entity、道具 Resource、敵人意圖、狀態時序、目標與勝敗規則，輸出六場遭遇的勝率、回合、傷害、護甲、Sanity 與敵人存活曲線。
+- 新增六種現行註冊內容的 schema v1 JSON 範本與 `CONTENT_SCHEMA.md`，建立穩定 ID、欄位廢棄、breaking change、RunState 引用和遷移順序規範；正式事件／商店／休息 schema 因影響互動方向，新增 `CONTENT-006` 待玩家確認。
+- 新增 `tools/validate_all.sh`，把 Python 資料驗證、16 組 Godot 測試、棋盤、單場／完整 Run 戰鬥、Sanity 與 encounter 基線整合為單一 headless 入口，並額外攔截 Godot 偶爾未以非零狀態回報的 script parse error。
+- 新增持久化棋盤 session 與 `RunPressureSimulator`，讓固定 seed 路線跨戰鬥保留手牌、盤面、HP、Sanity、方塊池、獎勵、背包合成與裝備；測試增至 16 suites，一鍵驗證納入完整 Run 批次。
+- 10 組完整 Run 基線通關率為 0%；9 組因 Sanity、1 組因 HP 失敗，第三場抵達後勝率僅 40%。此結果已登錄為 `BALANCE-001`，未在玩家選擇主要調整方向前自行修改核心數值。
+- 自動測試增加到 16 suites；`python3 tools/validate_data.py`、棋盤／單場戰鬥／完整 Run 基線模擬與 Godot 4.5.1 headless 整合測試全部通過。本次未修改遊戲數值。
+
+## 2026-07-18：Phase 15 與地圖可讀性
+
+- 將程序地圖改為可捲動圖形畫布，依 `next_ids` 繪製全部連線，並以灰／黃／綠標示一般、可選與已走路線。
+- 將事件、菁英、商店、休息指定為完整樓層，生成路線只保留四層普通戰鬥；完整路徑仍維持 6 場戰鬥。
+- 新增資料化 Sanity 階段、跨系統瘋狂效果池、統一來源介面、HUD 歷史與魔法後果預覽。
+- RunState schema 升至 3，保存瘋狂效果與 Sanity 來源歷史。
+- 新增完整 Run Sanity 壓力模擬與第 12 組自動測試。
+
+## 2026-07-18：Phase 14 完整 Run 與程序地圖整合
+
+- 整理 `BOARD-003`：所有 Run 節點間完整保留盤面，只有全新 Run 重建盤面。
+- 整理 `BOARD-005`、`BOARD-006`：方塊抽入手牌時由系統決定旋轉方向；玩家不能手動旋轉；回合末保留未使用手牌與方向，下一回合只補足缺額。
+- 參考使用者提供的 Godot 4.5 `114-2_dsap_project`，移植分層 DAG、距離連邊、交叉抑制與可達性驗證；改為注入 Run seed、現有節點類型與 schema。
+- `data/map.json` 新增程序生成參數、節點權重與 encounter 內容池；同 seed 可完全重現。
+- 路線保證多起點、事件、商店、菁英、Boss 前休息、單一 Boss，以及每條路徑 5–8 場戰鬥。
+- 新增可操作地圖 overlay 與結算／重新開始畫面；RunManager 正式接入七個流程狀態。
+- 所有節點透過 `RunNodeResult` 修改 RunState；盤面、手牌方向、裝備、玩家資源、背包、金錢、生成地圖與完成節點均可序列化。
+- 普通／菁英勝利進入獎勵後返回地圖，Boss 勝利直接通關，失敗進入結算；移除六場 encounter 的 modulo 無限循環。Phase 14 全項完成。
+
+## 2026-07-18：Phase 13 收束與 Phase 14 基礎
+
+- 整理玩家文件回覆：`BOARD-001` 每手至少一張有方向、`BOARD-002` 程序友善盤面、`BOARD-004` 重複特殊方塊增加抽取權重，並移入已決定區。
+- 新增 `FriendlyBoardGenerator`，以 JSON 的格數及 Row／Col 缺口參數建立不會開局直接消除的友善盤面。
+- 智慧手牌評分新增 `direction_score`，只把方塊實際參與的接近完成線視為方向；每手第一張優先直接消除或有方向候選。
+- 特殊方塊重複取得會保留重複池項目，提高實際抽取權重；獎勵 tooltip 與結果顯示持有份數。
+- Phase 10B 與 Phase 13 全項完成。
+- 開始 Phase 14：新增 `RunStateMachine`、`RunNodeResult`、版本化 `data/map.json`，建立雙起點、中段分支、Boss 前休息與單一 Boss 的 7 節點固定路線。
+- ContentRegistry 與 Python 工具驗證節點型別、引用、邊、起點、Boss，以及所有起點到 Boss 的可達性；RunState 加入流程與節點欄位。
+- 自動測試擴充為 11 suites；Phase 14 後續接線等待 `BOARD-003`。
+
+## 2026-07-18：戰鬥操作修正與 Phase 13 局內成長
+
+- 死亡敵人不再保留灰色卡片；roster 只建立存活敵人卡並保存原始敵人索引，死亡時清除舊鎖定並選到第一名存活敵人。
+- 方塊拖曳成立後隱藏手牌原位置的圖形，只保留拖曳預覽；取消拖曳會恢復來源，成功放置仍移除來源節點。
+- `BattleItem` runtime 加入 rarity、tier、balance cost、升級來源／目標及合成數量；新增三條 JSON 管理的 Tier 1 → Tier 2 合成鏈。
+- 新增 `EquipmentGrowthService`；道具先進背包，相同道具依 JSON 合成，戰鬥外可比較八個合法槽位後選擇裝備或保留。
+- 新增 encounter 強度模型與 reward tier；候選器支援權重、稀有度／tier、最小勝場、解鎖、去重及固定種子重現，並加入跳過換局內金錢。
+- 新增逐場戰鬥統計與固定六場平衡報告工具；測試擴充為 10 suites。
+- Phase 13 除特殊方塊／手牌成長外均完成；該項等待 `BOARD-001`、`BOARD-004`、`BOARD-006` 決策。
+
+## 2026-07-18：Phase 12 戰鬥系統收束
+
+- 確認並整理 `CORE-001`、`COMBAT-001` 至 `COMBAT-008`；正式 slot 分類改為 Row 物理／Col 魔法，同時死亡判玩家失敗，敵人完整支援六狀態，encounter 上限為 5 名。
+- 新增版本化 `data/intents.json` 與 `EnemyIntentState`／`EnemyIntentExecutor`。每名敵人獨立循環意圖，並依隱藏速度由高至低行動；未知 ID 或 action 會驗證失敗。
+- 實作攻擊、重擊、防禦、Sanity 攻擊、玩家 debuff 與敵人 buff 六種資料化意圖；新增敵人 `speed` 並讓無光祭司、深淵守衛覆蓋新意圖。
+- 固定回合時序：玩家回合末狀態、敵人依序行動與各自回合末狀態、完整輪統一衰減、下一玩家回合。
+- 新增 `TargetResolver`，落實擴散跳過死亡空位與鎖定目標死亡後不自動重選。
+- 新增 `BattleEffectContext`，提供觸發軸、索引、目標集合、觸發歷史及戰鬥狀態；連發手槍透過 context 判斷條件，`BattleManager` 不再保存個別道具特例。
+- 新增 `BattleOutcomeResolver`，統一勝利、HP／Sanity 失敗與同時死亡優先序。
+- 新增可重用 `EnemyCard`；五敵人 roster 只在成員改變時調整節點，HP、護甲、狀態、意圖與鎖定更新不重建卡片。
+- 測試擴充為 8 suites，涵蓋資料、RunState、棋盤、意圖與速度、目標解析、狀態與結果、五敵人 UI，以及完整敵人回合 smoke test。
+- 新增 `docs/COMBAT_SYSTEM.md`，並同步更新 Roadmap、資料指南、數值紀錄與 TODO。Phase 12 全項完成。
+
+## 2026-07-18：Phase 11 架構與資料基礎
+
+- 建立 `tests/` 正式測試入口，涵蓋 ContentRegistry、RunState round-trip、BoardModel 與 `main.tscn` 核心迴圈 smoke test。
+- 新增 `ContentRegistry`，集中處理七份 JSON 的載入、schema 版本、值域、唯一 ID、跨檔案引用、資料查詢與 runtime Resource 建立；`RunManager` 不再直接解析 JSON。
+- 所有資料檔加入 `schema_version: 1`；`tools/validate_data.py` 同步驗證資料根節點、intent、rarity、scope、status、tier、slot 與引用。
+- 建立最小可序列化 `RunState`，保存玩家資源、AP、盤面、手牌、方塊池、裝備、進度、獎勵與種子，並提供現有 runtime 的擷取／還原介面。
+- 新增 `BattleStartInput`、`BattleResult` 與 `battle_finished`，讓 Run 流程透過資料介面開始／結束戰鬥，不由戰鬥控制器決定下一個場景。
+- 將敵人建立與原型 UI 分別抽到 `EnemyFactory`、`EnemyRosterPresenter`；將盤面規則與智慧手牌評分抽到 `BoardModel`、`SmartHandScorer`。
+- 新增獨立戰鬥控制器、獎勵、地圖容器與結算場景；現有主場景仍維持可玩流程，地圖／正式結算留待 Phase 14 接線。
+- 新增 `docs/ARCHITECTURE.md` 記錄責任與資料流。
+- 玩家確認 `ARCH-001`：JSON 管內容組合與數值、`.tres` 管效果行為。新增四個正式效果原型與 `run_config.effect_resources` 對應，`ContentRegistry` 改為複製 `.tres` 後套用 JSON 數值。
+- 將連發手槍的條件傷害從 `BattleManager` 特例移入 `EffectConditionalAttack`，讓效果行為由 `.tres` 選定的策略類別負責。Phase 11 全項完成。
+- 整理 `OPEN_QUESTIONS.md` 的歷史錯置欄位：將已填答的 `CORE-001`、`COMBAT-001` 至 `COMBAT-005`、成長、獎勵、Run、節點、Sanity、`UX-001` 與 `UX-002` 正規化後移入「已決定」，並保留仍只有候選方向的問題。
+
+## 2026-07-17：專案完成性盤點與後續規劃
+
+- 以目前程式、場景、JSON、企劃文件與資料驗證結果為基礎，完成從戰鬥原型到可發布版本的整體完成性盤點。
+- 新增 `docs/PROJECT_ROADMAP.md`，將後續工作分為架構與資料、戰鬥收束、局內成長、完整 Run、Sanity、內容工具、UI、存檔／局外及發布準備九個獨立章節。
+- 每個 Roadmap 章節都記錄現況、目標、前置條件、執行內容、交付成果、驗收標準與相關 Open Question ID。
+- 重整 `docs/OPEN_QUESTIONS.md`；已回答規則移入「已決定」，真正未決內容依架構、核心分類、棋盤、戰鬥、成長、獎勵、Run、節點、Sanity、Meta、存檔、UX、內容及發布分類。
+- 將 `Codex/TODO.md` 改為精簡執行索引，保留 Phase 1–10 歷史摘要，新增 Phase 11–19 並連結 Roadmap 與設計閘門。
+- 明確保留壓力資源原則：普通戰鬥獎勵不提供 HP／Sanity 回復或上限、AP 上限；相關內容即使存在，也必須是非常珍貴的稀有獎勵。
+- 確認目前主場景仍可由 Godot 4.5.1 headless 載入，資料驗證通過；後續可先從正式測試、資料註冊層、RunState 與既有欄位驗證開始，不需等待企劃問題回答。
+
+## 2026-07-04
+
+- 閱讀目前專案文件與程式結構。
+- 開始 Phase 4，新增可重用的 `Entity` 腳本，包含 HP、最大 HP、護甲、受傷、治療、加護甲與死亡信號。
+- 將 `BattleManager` 的 dummy 戰鬥對象替換為場景中的 Player 與 Enemy 實體參照。
+- 將 Player 與 Enemy 數值連接到右側 UI 文字。
+- 更新攻擊與支援道具，讓 Row / Col 消除後能真正改變戰鬥數值。
+- 修正方塊場景載入路徑大小寫，從 `Block.tscn` 改為 `block.tscn`。
+- 根據設計回覆整理 `OPEN_QUESTIONS.md`，之後未決問題與開發紀錄改用繁體中文。
+- 開始 Phase 5，將測試用方塊生成改為正式手牌抽取流程。
+- 成功放置方塊後會消耗該手牌方塊；手牌耗盡時自動抽出新的一手。
+- 同時消除 Row 與 Col 時，觸發順序改為先 Col 再 Row。
+- 開始 Phase 6，加入 `PLAYER_TURN` / `ENEMY_TURN` 回合狀態。
+- 玩家 AP 由資料表控制；每成功放置 1 個方塊扣 1 AP，AP 歸零後暫停棋盤放置。
+- `EndTurnButton` 現在會清空玩家護甲、切換到敵人回合、執行敵人攻擊，然後回到玩家回合並刷新手牌。
+- 敵人意圖目前以固定攻擊作為原型，顯示在 `IntentLabel`。
+- 依照戰鬥原型需求，新增目前裝備摘要文字，只顯示 Row / Col 對應裝備，不提供戰鬥中修改功能。
+- 修正護甲重置時機：改為玩家回合開始時清空，確保同一回合獲得的護甲能防住敵人攻擊。
+- 修正 AP 歸零後的互動：現在會直接禁用手牌拖曳，而不是拖曳後才拒絕放置。
+- 新增 Sanity 數值：玩家上限 100、初始 70；Curse 物品預設消耗 3 點 Sanity，`暗影刺` 已設定成本。
+- 進入 Phase 7，加入狀態 Label 閃色、浮動戰鬥文字與方塊拖曳縮放 / 禁用外觀。
+- 進入 Phase 8，新增 `RunManager` 作為單局流程控制器。
+- 新增 `data/enemies.json`、`data/rewards.json`、`data/run_config.json`，先用 JSON 管理敵人、獎勵池與起始配置。
+- 敵人死亡後會進入勝利狀態，禁用棋盤與結束回合按鈕，並顯示三選一獎勵。
+- 玩家 HP 或 Sanity 歸零會進入失敗狀態；Sanity 低於 30 時會在回合 UI 顯示「理智不穩」。
+- 選擇方塊獎勵會加入後續抽牌池；選擇裝備獎勵會替換指定 Row / Col 槽，然後直接開始下一場戰鬥。
+- 棋盤邊緣現在會顯示 Row / Col 類型與目前裝備，滑鼠停留時顯示道具效果。
+- 拖曳方塊時，若該位置會造成行列消除，預計被消除的整條 Row / Col 會以高亮預覽。
+- 將玩家、方塊、道具、敵人、獎勵與初始配置整理為 `data/` 內的 JSON；`RunManager` 會從 JSON 建立 runtime Resource。
+- 新增 `data/README.md` 說明新增方塊、道具與獎勵的資料格式。
+- 新增無合法步懲罰：若目前手牌沒有任何方塊能放到盤面上，會扣 10 Sanity，清空盤面並重抽手牌。
+
+## 2026-07-17
+
+- 撤回常規 HP / Sanity / AP 成長獎勵；HP / Sanity 回復與上限、AP 上限改列為非常稀有的特殊節點獎勵，不進入普通戰鬥三選一。
+- Phase 10 保留特殊方塊獎勵入口；玩家成長曲線改回待設計，方向以裝備升級、稀有度、特殊方塊與手牌規則為主。
+- 新增特殊方塊：星點石板、雙星石板、十字石板；特殊方塊可透過 `weight` 與 `smart_score_bonus` 影響抽牌與智慧手牌。
+- 完成智慧手牌 v1：抽牌時會評估目前盤面，優先給能直接消除或補接近完成行列的方塊，同時保留前幾名候選的隨機性。
+
+## 2026-07-06
+
+- 改善盤面節奏：開局與死盤懲罰後會生成友善盤面，不再從完全空盤開始。
+- 進入下一場戰鬥時保留目前盤面，只重置敵人、手牌、AP、護甲與暫時狀態。
+- 玩家身上的異常狀態會在新戰鬥開始時清除，但 HP / Sanity 仍保留。
+- 將智慧手牌、特殊方塊構築與玩家成長曲線列入 Phase 10 待辦與設計文件。
+- 補齊 Phase 9 內容基準：目前方塊 8 種、道具 17 件、敵人 6 種、遭遇 6 組。
+- 新增 `tools/validate_data.py`，可檢查 JSON ID、獎勵引用、Row / Col slot 合法性、道具 / 敵人最低數量與 encounter 敵人引用。
+- 改善裝備效果查看：棋盤邊緣、右側目前裝備清單與獎勵按鈕都會顯示道具效果 tooltip。
+- 新增 Equipment：加固長外套、護身臂甲。
+- 新增敵人：墓園教徒、扭曲侍僧、深淵守衛。
+
+## 2026-07-05
+
+- 調整資料規則：普通方塊不再作為獎勵，敵人移除 `reward_tier`，獎勵級別改由未來關卡資料計算。
+- 新增多敵人初步實作：`encounters.json` 可定義一場戰鬥的敵人組合，戰鬥中可用右側按鈕鎖定敵人，道具可依單體 / 擴散 / 全體範圍結算。
+- 新增異常狀態規格與初步實作：力量、虛弱、堅硬、脆弱、再生、中毒。
+- Prayer 現在與 Curse 一樣會消耗 Sanity；`聖光術` 改為 cost 3。
+- 新增 11 件 common 道具資料：霰彈槍、連發手槍、微型炸藥、狙擊槍、單手盾、轉守為攻、祈願、身強體壯、中毒術、劣化、毒滿地。
+- 方塊種類由 2 種擴充到 8 種，新增長條、方形、S、Z、J、短條等普通方塊，並加入開局方塊池。
+- 新增 `DESIGN_CORE_LOOP.md`、`NUMERIC_MODEL.md`、`CONTENT_GUIDE.md`、`BALANCE_LOG.md`，建立短局快測、Sanity 壓力與強連動道具的企劃 / 數值基準。
+- 擴充 `items.json`、`blocks.json`、`enemies.json` 的企劃欄位，加入 tags、rarity、trigger_hint、balance_cost、tier、weight、intent_pattern 等資料。
+- 更新 `data/README.md`，補充新增敵人與道具平衡欄位的說明。

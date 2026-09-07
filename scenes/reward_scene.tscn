@@ -1,0 +1,11 @@
+[gd_scene format=3]
+
+[node name="RewardPanel" type="VBoxContainer"]
+visible = false
+
+[node name="RewardTitle" type="Label" parent="."]
+layout_mode = 2
+text = "選擇獎勵"
+
+[node name="RewardButtons" type="VBoxContainer" parent="."]
+layout_mode = 2
