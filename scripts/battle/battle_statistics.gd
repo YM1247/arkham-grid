@@ -15,6 +15,10 @@ func reset(encounter_id: String) -> void:
 		"damage_blocked": 0,
 		"armor_gained": 0,
 		"sanity_spent": 0,
+		"mp_spent": 0,
+		"spells_triggered": 0,
+		"spells_paid_with_sanity": 0,
+		"spell_fizzles": 0,
 		"dead_boards": 0,
 		"reward_id": "",
 	}

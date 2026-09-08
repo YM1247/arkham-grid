@@ -5,5 +5,8 @@
   "hp": 80,
   "max_sanity": 100,
   "sanity": 70,
+  "profession_id": "investigator",
+  "max_mp": 100,
+  "mp": 70,
   "action_points": 5
 }

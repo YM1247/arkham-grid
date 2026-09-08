@@ -117,10 +117,10 @@ func validate_run_state_payload(payload: Dictionary) -> Array[String]:
 		errors.append("player 必須是物件")
 	else:
 		_validate_player(player, errors)
-	for key in ["board_cells", "hand_ids", "hand_state", "block_pool_ids", "row_item_ids", "col_item_ids", "selected_reward_ids", "battle_reports", "completed_node_ids", "available_node_ids", "sanity_effect_ids", "sanity_history"]:
+	for key in ["board_cells", "board_spell_ids", "hand_ids", "hand_state", "block_pool_ids", "spell_pool_ids", "selected_reward_ids", "battle_reports", "completed_node_ids", "available_node_ids", "sanity_effect_ids", "sanity_history"]:
 		if not payload.get(key) is Array:
 			errors.append("%s 必須是陣列" % key)
-	for key in ["item_inventory", "map_data", "rng_state"]:
+	for key in ["map_data", "rng_state"]:
 		if not payload.get(key) is Dictionary:
 			errors.append("%s 必須是物件" % key)
 	if payload.get("board_cells") is Array:
@@ -134,10 +134,14 @@ func validate_run_state_payload(payload: Dictionary) -> Array[String]:
 			if not cell.is_empty() and not Color.html_is_valid(cell):
 				errors.append("board_cells 包含無效色碼")
 				break
+	if payload.get("board_spell_ids") is Array:
+		var board_spells: Array = payload.get("board_spell_ids")
+		if not board_spells.is_empty() and board_spells.size() != 64:
+			errors.append("board_spell_ids 必須為空或正好 64 格")
 	_validate_string_array(payload, "hand_ids", errors)
 	_validate_string_array(payload, "block_pool_ids", errors)
-	_validate_string_array(payload, "row_item_ids", errors)
-	_validate_string_array(payload, "col_item_ids", errors)
+	_validate_string_array(payload, "spell_pool_ids", errors)
+	_validate_string_array(payload, "board_spell_ids", errors)
 	_validate_string_array(payload, "selected_reward_ids", errors)
 	_validate_string_array(payload, "completed_node_ids", errors)
 	_validate_string_array(payload, "available_node_ids", errors)
@@ -163,8 +167,12 @@ func validate_run_state_payload(payload: Dictionary) -> Array[String]:
 				errors.append("rng_state.%s 必須是可解析的整數字串" % key)
 	if payload.get("hand_state") is Array:
 		for entry in payload.get("hand_state"):
-			if not entry is Dictionary or not entry.get("id") is String or not _is_integer_value(entry.get("rotation_steps")):
-				errors.append("hand_state 項目必須包含字串 id 與整數 rotation_steps")
+			if not entry is Dictionary or not entry.get("id") is String or not entry.get("spell_id") is String or not _is_integer_value(entry.get("rotation_steps")) or not entry.get("effect_cell") is Array:
+				errors.append("hand_state 項目必須包含字串 id、spell_id、整數 rotation_steps 與 effect_cell 陣列")
+				break
+			var effect_cell: Array = entry.get("effect_cell")
+			if effect_cell.size() != 2 or not _is_integer_value(effect_cell[0]) or not _is_integer_value(effect_cell[1]):
+				errors.append("hand_state.effect_cell 必須是兩個整數")
 				break
 			var rotation := int(entry.get("rotation_steps"))
 			if rotation < 0 or rotation > 3:
@@ -182,12 +190,6 @@ func validate_run_state_payload(payload: Dictionary) -> Array[String]:
 					break
 	_validate_dictionary_array(payload, "battle_reports", errors)
 	_validate_dictionary_array(payload, "sanity_history", errors)
-	if payload.get("item_inventory") is Dictionary:
-		for key in payload.get("item_inventory"):
-			var amount = payload.get("item_inventory")[key]
-			if not key is String or not _is_integer_value(amount) or int(amount) < 0:
-				errors.append("item_inventory 必須是字串 ID 對非負整數數量")
-				break
 	if _is_integer_value(payload.get("flow_state")) and player is Dictionary:
 		var state := int(payload.get("flow_state"))
 		if state != 6 and (_is_integer_value(player.get("hp")) and int(player.get("hp")) <= 0 or _is_integer_value(player.get("sanity")) and int(player.get("sanity")) <= 0):
@@ -304,6 +306,33 @@ func _migrate_run_state(raw: Dictionary) -> Dictionary:
 				tablet_rng.seed = seed ^ 0x41C64E6D
 				data["rng_state"] = {"reward": str(reward_rng.state), "tablet": str(tablet_rng.state)}
 				version = 4
+			4:
+				var player: Dictionary = data.get("player", {})
+				player["max_mp"] = 100
+				player["mp"] = 70
+				player["profession_id"] = str(player.get("profession_id", "investigator"))
+				data["player"] = player
+				var legacy_spells: Array = []
+				for spell_id in data.get("row_item_ids", []):
+					legacy_spells.append(str(spell_id))
+				for spell_id in data.get("col_item_ids", []):
+					legacy_spells.append(str(spell_id))
+				if legacy_spells.is_empty():
+					legacy_spells = ["pistol", "vest", "reinforced_coat", "dark_spike"]
+				data["spell_pool_ids"] = legacy_spells
+				data["board_spell_ids"] = []
+				for _index in range(64):
+					data["board_spell_ids"].append("")
+				var hand_index := 0
+				for entry in data.get("hand_state", []):
+					if entry is Dictionary:
+						entry["spell_id"] = str(legacy_spells[hand_index % legacy_spells.size()])
+						entry["effect_cell"] = [0, 0]
+						hand_index += 1
+				data.erase("row_item_ids")
+				data.erase("col_item_ids")
+				data.erase("item_inventory")
+				version = 5
 			_:
 				return {"ok": false, "error": "缺少 RunState %d 的遷移器" % version}
 		data["schema_version"] = version
@@ -373,9 +402,11 @@ func _read_document(path: String) -> Dictionary:
 
 
 func _validate_player(player: Dictionary, errors: Array[String]) -> void:
+	if not player.get("profession_id") is String or str(player.get("profession_id", "")).is_empty():
+		errors.append("player.profession_id 必須是非空字串")
 	if not player.get("name") is String or str(player.get("name")).is_empty():
 		errors.append("player.name 必須是非空字串")
-	for key in ["hp", "max_hp", "sanity", "max_sanity", "action_points"]:
+	for key in ["hp", "max_hp", "sanity", "max_sanity", "mp", "max_mp", "action_points"]:
 		if not _is_integer_value(player.get(key)):
 			errors.append("player.%s 必須是整數" % key)
 	if not errors.is_empty():
@@ -384,10 +415,14 @@ func _validate_player(player: Dictionary, errors: Array[String]) -> void:
 	var max_hp := int(player.get("max_hp"))
 	var sanity := int(player.get("sanity"))
 	var max_sanity := int(player.get("max_sanity"))
+	var mp := int(player.get("mp"))
+	var max_mp := int(player.get("max_mp"))
 	if max_hp <= 0 or hp < 0 or hp > max_hp:
 		errors.append("player.hp/max_hp 範圍無效")
 	if max_sanity <= 0 or sanity < 0 or sanity > max_sanity:
 		errors.append("player.sanity/max_sanity 範圍無效")
+	if max_mp <= 0 or mp < 0 or mp > max_mp:
+		errors.append("player.mp/max_mp 範圍無效")
 	if int(player.get("action_points")) <= 0:
 		errors.append("player.action_points 必須大於 0")
 

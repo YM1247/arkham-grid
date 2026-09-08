@@ -1,6 +1,6 @@
 extends SceneTree
 
-const EquipmentGrowthServiceScript = preload("res://scripts/growth/equipment_growth_service.gd")
+const SpellUpgradeServiceScript = preload("res://scripts/growth/spell_upgrade_service.gd")
 const EncounterDifficultyCalculatorScript = preload("res://scripts/growth/encounter_difficulty_calculator.gd")
 const RewardCandidateSelectorScript = preload("res://scripts/growth/reward_candidate_selector.gd")
 const FriendlyBoardGeneratorScript = preload("res://scripts/board/friendly_board_generator.gd")
@@ -13,6 +13,7 @@ const BattleBatchSimulatorScript = preload("res://scripts/battle/battle_batch_si
 const RunPressureSimulatorScript = preload("res://scripts/run/run_pressure_simulator.gd")
 const EventChoiceResolverScript = preload("res://scripts/run/event_choice_resolver.gd")
 const SaveGameServiceScript = preload("res://scripts/save/save_game_service.gd")
+const ProfileSaveServiceScript = preload("res://scripts/save/profile_save_service.gd")
 
 var failures: Array[String] = []
 
@@ -25,6 +26,7 @@ func _run() -> void:
 	_test_content_registry()
 	_test_run_state_round_trip()
 	_test_phase_18_save_foundation()
+	_test_phase_18_profile_foundation()
 	_test_board_model()
 	_test_enemy_intents_and_speed()
 	_test_target_resolver()
@@ -41,7 +43,7 @@ func _run() -> void:
 	await _test_drag_source_visibility()
 	await _test_main_scene_smoke()
 	if failures.is_empty():
-		print("TESTS OK (18 suites)")
+		print("TESTS OK (19 suites)")
 		quit(0)
 	else:
 		for failure in failures:
@@ -53,23 +55,31 @@ func _test_content_registry() -> void:
 	var registry := ContentRegistry.new()
 	_expect(registry.load_all(), "ContentRegistry 應載入並驗證全部資料：%s" % [registry.errors])
 	_expect(registry.get_entries("blocks").size() == 11, "應索引 11 種方塊")
-	_expect(registry.get_entries("intents").size() == 6, "應索引 6 種敵人意圖")
-	_expect(registry.get_definition("enemies", "abyss_thrall").get("hp") == 30.0, "應可依 ID 查詢敵人")
+	_expect(registry.get_entries("intents").size() == 8, "應索引 8 種敵人意圖")
+	_expect(registry.get_definition("enemies", "abyss_thrall").get("hp") == 35.0, "應可依 ID 查詢敵人")
 	_expect(registry.get_block("shape_L") != null, "應建立 BlockData runtime Resource")
-	_expect(registry.get_item("pistol") != null, "應建立 BattleItem runtime Resource")
-	_expect(registry.get_item("pistol") is EffectAttack, "attack JSON 應使用 attack.tres 行為")
-	_expect(registry.get_item("burst_pistol") is EffectConditionalAttack, "conditional_attack JSON 應使用 conditional_attack.tres 行為")
-	_expect(registry.get_item("vest") is EffectSupport, "support JSON 應使用 support.tres 行為")
-	_expect(registry.get_item("poison_spell") is EffectStatus, "status JSON 應使用 status.tres 行為")
-	_expect(registry.get_item("pistol").axis_type == BattleItem.AxisType.PHYSICAL, "Row 道具應使用 physical axis_type")
-	_expect(registry.get_item("dark_spike").axis_type == BattleItem.AxisType.MAGIC, "Col 道具應使用 magic axis_type")
-	var conditional := registry.get_item("burst_pistol") as EffectConditionalAttack
+	_expect(registry.get_spell("pistol") != null, "應建立咒文 runtime Resource")
+	_expect(registry.get_spell("pistol") is EffectAttack, "attack JSON 應使用 attack.tres 行為")
+	_expect(registry.get_spell("burst_pistol") is EffectConditionalAttack, "conditional_attack JSON 應使用 conditional_attack.tres 行為")
+	_expect(registry.get_spell("vest") is EffectSupport, "support JSON 應使用 support.tres 行為")
+	_expect(registry.get_spell("poison_spell") is EffectStatus, "status JSON 應使用 status.tres 行為")
+	_expect(registry.get_spell("pistol").mp_cost == 3 and registry.get_spell("dark_spike").mp_cost == 6, "所有咒文應以 MP 成本取代軸與類型")
+	_expect(registry.get_spell("pistol").icon_text == "⚔" and registry.get_spell("poison_spell").icon_text == "☠", "不同咒文效果應提供可直接辨識的盤面圖標")
+	var icon_cell := GridCell.new()
+	icon_cell.init(0, 0, null)
+	icon_cell.set_spell(registry.get_spell("poison_spell"))
+	_expect(icon_cell.spell_marker.text == "☠", "盤面效果格應直接顯示咒文圖標，不需依賴 hover")
+	icon_cell.free()
+	for spell in registry.get_entries("spells"):
+		var has_regen: bool = spell.get("status_effects_self", []).any(func(effect): return str(effect.get("id", "")) == "regen")
+		_expect(int(spell.get("heal_amount", 0)) == 0 and not has_regen, "常規咒文不得提供直接或持續 HP 回復：%s" % spell.get("id", ""))
+	var conditional := registry.get_spell("burst_pistol") as EffectConditionalAttack
 	var target := _make_entity("條件目標", 30)
 	var user := _make_entity("使用者", 30)
 	var context := BattleEffectContext.new()
-	context.weapon_trigger_count = 1
+	context.spell_trigger_count = 1
 	conditional.execute_with_context(target, user, context)
-	_expect(target.hp == 16, "條件攻擊應從效果上下文讀取武器觸發紀錄")
+	_expect(target.hp == 17, "條件攻擊應從效果上下文讀取咒文觸發紀錄")
 	target.free()
 	user.free()
 
@@ -77,16 +87,19 @@ func _test_content_registry() -> void:
 func _test_run_state_round_trip() -> void:
 	var original := RunState.new()
 	original.seed = 4242
+	original.profession_id = "investigator"
 	original.hp = 51
 	original.board_cells.resize(64)
 	original.board_cells.fill("")
 	original.board_cells[7] = "ff0000ff"
+	original.board_spell_ids.resize(64)
+	original.board_spell_ids.fill("")
+	original.board_spell_ids[7] = "pistol"
 	original.hand_ids = ["shape_L", "shape_T"]
-	original.hand_state = [{"id": "shape_L", "rotation_steps": 2}, {"id": "shape_T", "rotation_steps": 0}]
+	original.hand_state = [{"id": "shape_L", "rotation_steps": 2, "spell_id": "pistol", "effect_cell": [0, 0]}, {"id": "shape_T", "rotation_steps": 0, "spell_id": "vest", "effect_cell": [0, 0]}]
 	original.block_pool_ids = ["shape_L"]
-	original.row_item_ids = ["pistol"]
+	original.spell_pool_ids = ["pistol", "vest"]
 	original.selected_reward_ids = ["special_dot"]
-	original.item_inventory = {"pistol": 2}
 	original.currency = 20
 	original.battle_reports = [{"turns": 3}]
 	original.flow_state = 2
@@ -98,11 +111,11 @@ func _test_run_state_round_trip() -> void:
 	original.tablet_rng_state = "987654321"
 	var restored := RunState.from_dict(original.to_dict())
 	_expect(restored != null, "RunState 應可反序列化")
-	_expect(restored.seed == 4242 and restored.hp == 51, "RunState 應保留玩家與種子")
+	_expect(restored.seed == 4242 and restored.hp == 51 and restored.profession_id == "investigator", "RunState 應保留職業、玩家與種子")
 	_expect(restored.board_cells[7] == "ff0000ff", "RunState 應保留盤面")
 	_expect(restored.hand_ids == original.hand_ids, "RunState 應保留手牌 ID")
 	_expect(restored.hand_state == original.hand_state, "RunState 應保留手牌旋轉狀態")
-	_expect(restored.item_inventory.get("pistol") == 2 and restored.currency == 20, "RunState 應保留背包與局內金錢")
+	_expect(restored.spell_pool_ids == original.spell_pool_ids and restored.currency == 20, "RunState 應保留咒文池與局內金錢")
 	_expect(restored.battle_reports.size() == 1, "RunState 應保留戰鬥統計")
 	_expect(restored.flow_state == 2 and restored.current_node_id == "event_archive", "RunState 應保留流程與目前節點")
 	_expect(restored.available_node_ids == ["event_archive"] and restored.map_data.get("map_id") == "saved_map", "RunState 應保留生成地圖與可選節點")
@@ -162,6 +175,22 @@ func _test_phase_18_save_foundation() -> void:
 	_expect(migration.get("ok", false) and migration.get("migrated", false), "RunState v3 應可遷移至目前版本")
 	if migration.get("state") is RunState:
 		_expect(migration.state.reward_rng_state.is_valid_int() and migration.state.tablet_rng_state.is_valid_int(), "v3 遷移應建立可重現 RNG 狀態")
+	var version_four := first.to_dict()
+	version_four.schema_version = 4
+	version_four.player.erase("mp")
+	version_four.player.erase("max_mp")
+	version_four.erase("board_spell_ids")
+	version_four.erase("spell_pool_ids")
+	version_four.row_item_ids = ["pistol"]
+	version_four.col_item_ids = ["vest"]
+	version_four.item_inventory = {"pistol": 1}
+	version_four.hand_ids = ["shape_L"]
+	version_four.hand_state = [{"id": "shape_L", "rotation_steps": 1}]
+	var version_four_migration: Dictionary = service._migrate_run_state(version_four)
+	_expect(version_four_migration.get("ok", false), "RunState v4 應可遷移至效果格與 MP schema")
+	var migrated_v5: Dictionary = version_four_migration.get("data", {})
+	_expect(migrated_v5.get("spell_pool_ids", []) == ["pistol", "vest"] and migrated_v5.get("hand_state", [])[0].get("spell_id", "") == "pistol", "v4 Row／Col 裝備與手牌應遷移為咒文池及效果格")
+	_expect(service.validate_run_state_payload(migrated_v5).is_empty(), "遷移後的 RunState v5 應通過嚴格驗證")
 	for old_version in [1, 2]:
 		var old_payload := first.to_dict()
 		old_payload.schema_version = old_version
@@ -178,14 +207,60 @@ func _test_phase_18_save_foundation() -> void:
 	invalid.player.hp = invalid.player.max_hp + 1
 	_expect(not service.validate_run_state_payload(invalid).is_empty(), "嚴格解析應拒絕超出上限的玩家資源")
 	invalid = first.to_dict()
-	invalid.item_inventory = {"pistol": -1}
-	_expect(not service.validate_run_state_payload(invalid).is_empty(), "嚴格解析應拒絕負數背包數量")
+	invalid.player.mp = invalid.player.max_mp + 1
+	_expect(not service.validate_run_state_payload(invalid).is_empty(), "嚴格解析應拒絕超出上限的 MP")
+	invalid = first.to_dict()
+	invalid.board_spell_ids = ["pistol"]
+	_expect(not service.validate_run_state_payload(invalid).is_empty(), "嚴格解析應拒絕非 64 格的盤面咒文狀態")
 	invalid = first.to_dict()
 	invalid.battle_reports = ["broken"]
 	_expect(not service.validate_run_state_payload(invalid).is_empty(), "嚴格解析應拒絕會被靜默丟棄的報告項目")
 	for path in [service.get_run_path(), service.get_backup_path(), service.get_temp_path(), legacy_path, rejected_path]:
 		if FileAccess.file_exists(path):
 			DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(test_directory))
+
+
+func _test_phase_18_profile_foundation() -> void:
+	var test_directory := "/tmp/arkham_grid_test_profile_%d" % Time.get_ticks_usec()
+	var service = ProfileSaveServiceScript.new(test_directory)
+	var settings := SettingsState.new()
+	_expect(service.save_settings(settings), "設定檔應可原子寫入：%s" % service.last_error)
+	settings.locale = "en"
+	settings.music_volume = 0.4
+	_expect(service.save_settings(settings), "設定檔第二次保存應建立備份")
+	_expect(FileAccess.file_exists(service.get_backup_path("settings")), "設定檔應保留 last-known-good 備份")
+	var loaded_settings: Dictionary = service.load_settings()
+	_expect(loaded_settings.get("ok", false) and loaded_settings.state.locale == "en" and is_equal_approx(loaded_settings.state.music_volume, 0.4), "設定檔 round-trip 應保留語言與音量")
+	var broken := FileAccess.open(service.get_primary_path("settings"), FileAccess.WRITE)
+	if broken != null:
+		broken.store_string("{broken")
+		broken = null
+	var recovered_settings: Dictionary = service.load_settings()
+	_expect(recovered_settings.get("ok", false) and recovered_settings.get("source") == "backup" and recovered_settings.state.locale == "zh_TW", "設定主檔損壞時應回退至上一份有效備份")
+
+	var registry := ContentRegistry.new()
+	_expect(registry.load_all(), "Meta 預設內容測試前資料應有效：%s" % [registry.errors])
+	var meta := MetaState.from_defaults(registry.get_document("meta_progression"))
+	_expect(meta != null and meta.unlocked_profession_ids == ["investigator"] and meta.unlocked_spell_ids.size() == 20, "Meta 預設值應解鎖現有職業與內容，不改變當前平衡池")
+	_expect(meta.unlock_spell("future_spell") and not meta.unlock_spell("future_spell"), "共享解鎖應只新增一次")
+	_expect(not registry.validate_meta_state_references(meta).is_empty(), "ContentRegistry 應拒絕 Meta 中不存在的內容引用")
+	meta.unlocked_spell_ids.erase("future_spell")
+	meta.shared_currency = 25
+	meta.runs_started = 2
+	_expect(service.save_meta(meta), "Meta 進度應可獨立保存：%s" % service.last_error)
+	var loaded_meta: Dictionary = service.load_meta()
+	_expect(loaded_meta.get("ok", false) and loaded_meta.state.shared_currency == 25 and loaded_meta.state.runs_started == 2, "Meta round-trip 應保留共享貨幣與 Run 統計")
+	var invalid_settings := settings.to_dict()
+	invalid_settings.master_volume = 1.5
+	_expect(not service.validate_settings_payload(invalid_settings).is_empty(), "設定驗證應拒絕超出範圍的音量")
+	var invalid_meta := meta.to_dict()
+	invalid_meta.unlocked_spell_ids.append(invalid_meta.unlocked_spell_ids[0])
+	_expect(not service.validate_meta_payload(invalid_meta).is_empty(), "Meta 驗證應拒絕重複解鎖 ID")
+	for kind in ["settings", "meta"]:
+		for path in [service.get_primary_path(kind), service.get_backup_path(kind), service.get_temp_path(kind)]:
+			if FileAccess.file_exists(path):
+				DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(test_directory))
 
 
@@ -244,7 +319,7 @@ func _test_enemy_intents_and_speed() -> void:
 	executor.execute(registry.get_definition("intents", "heavy_attack"), actor, player)
 	_expect(player.hp == 85, "重擊應依資料倍率造成 15 傷害")
 	executor.execute(registry.get_definition("intents", "guard"), actor, player)
-	_expect(actor.armor == 10, "防禦意圖應依資料獲得護甲")
+	_expect(actor.armor == 8, "防禦意圖應依資料獲得護甲")
 	executor.execute(registry.get_definition("intents", "debuff_player"), actor, player)
 	_expect(player.get_status_amount("weak") == 2, "debuff 意圖應對玩家施加狀態")
 	executor.execute(registry.get_definition("intents", "buff_self"), actor, player)
@@ -306,15 +381,15 @@ func _test_status_timing_and_outcomes() -> void:
 func _test_phase_13_growth_and_rewards() -> void:
 	var registry := ContentRegistry.new()
 	_expect(registry.load_all(), "Phase 13 成長資料應通過載入：%s" % [registry.errors])
-	var pistol := registry.get_item("pistol")
-	_expect(pistol.tier == 1 and pistol.balance_cost == 10 and pistol.upgrade_to == "pistol_engraved", "runtime 道具應包含 tier、balance_cost 與升級關係")
-	var upgraded := registry.get_item("pistol_engraved")
+	var pistol := registry.get_spell("pistol")
+	_expect(pistol.tier == 1 and pistol.balance_cost == 10 and pistol.upgrade_to == "pistol_engraved", "runtime 咒文應包含 tier、balance_cost 與升級關係")
+	var upgraded := registry.get_spell("pistol_engraved")
 	_expect(upgraded != null and upgraded.tier == 2 and upgraded.rarity == "uncommon", "升級結果應建立為獨立 runtime Resource")
 
-	var growth = EquipmentGrowthServiceScript.new()
+	var growth = SpellUpgradeServiceScript.new()
 	var inventory := {"pistol": 1}
-	var growth_result := growth.add_to_inventory("pistol", inventory, registry.indexes.get("items", {}))
-	_expect(growth_result.get("item_id") == "pistol_engraved", "兩件相同裝備應依 JSON 關係合成升級")
+	var growth_result := growth.add_to_collection("pistol", inventory, registry.indexes.get("spells", {}))
+	_expect(growth_result.get("spell_id") == "pistol_engraved", "兩份相同咒文應依 JSON 關係合成升級")
 	_expect(int(inventory.get("pistol", 0)) == 0 and int(inventory.get("pistol_engraved", 0)) == 1, "合成應正確消耗背包數量")
 
 	var encounter_defs: Array = [registry.get_definition("enemies", "rotting_hound"), registry.get_definition("enemies", "abyss_thrall")]
@@ -328,8 +403,8 @@ func _test_phase_13_growth_and_rewards() -> void:
 	first_rng.seed = 777
 	second_rng.seed = 777
 	var context := {"battles_won": 3, "reward_tier": 2, "unlocked_reward_ids": []}
-	var first := selector.pick(registry.get_entries("rewards"), registry.indexes.get("items", {}), registry.indexes.get("blocks", {}), context, 3, first_rng)
-	var second := selector.pick(registry.get_entries("rewards"), registry.indexes.get("items", {}), registry.indexes.get("blocks", {}), context, 3, second_rng)
+	var first := selector.pick(registry.get_entries("rewards"), registry.indexes.get("spells", {}), registry.indexes.get("blocks", {}), context, 3, first_rng)
+	var second := selector.pick(registry.get_entries("rewards"), registry.indexes.get("spells", {}), registry.indexes.get("blocks", {}), context, 3, second_rng)
 	_expect(first == second and first.size() == 3, "相同強度與種子應產生可重現的三選一")
 	var candidate_ids: Array[String] = []
 	var unique_candidate_ids := {}
@@ -338,6 +413,15 @@ func _test_phase_13_growth_and_rewards() -> void:
 		candidate_ids.append(candidate_id)
 		unique_candidate_ids[candidate_id] = true
 	_expect(candidate_ids.size() == unique_candidate_ids.size(), "同一次三選一不應出現重複內容")
+	var owned_block_context := context.duplicate(true)
+	owned_block_context.unlocked_reward_ids = ["special_dot"]
+	var owned_block_rewards := selector.pick(registry.get_entries("rewards"), registry.indexes.get("spells", {}), registry.indexes.get("blocks", {}), owned_block_context, 20, first_rng)
+	_expect(not owned_block_rewards.any(func(reward): return str(reward.get("type", "")) == "block" and str(reward.get("id", "")) == "special_dot"), "已取得的特殊形狀不應再次進入獎勵池")
+	var meta_limited_context := context.duplicate(true)
+	meta_limited_context.meta_unlocked_spell_ids = ["pistol"]
+	meta_limited_context.meta_unlocked_block_ids = ["special_dot"]
+	var meta_limited_rewards := selector.pick(registry.get_entries("rewards"), registry.indexes.get("spells", {}), registry.indexes.get("blocks", {}), meta_limited_context, 20, first_rng)
+	_expect(meta_limited_rewards.all(func(reward): return str(reward.get("id", "")) in ["pistol", "special_dot"]), "獎勵候選應受到共享 Meta 內容解鎖池限制")
 
 	var board_rng := RandomNumberGenerator.new()
 	board_rng.seed = 2468
@@ -409,7 +493,7 @@ func _test_phase_15_sanity_rules() -> void:
 	for effect_id in uneasy.active:
 		unique_effects[effect_id] = true
 	_expect(uneasy.active.size() == 1 and unique_effects.size() == uneasy.active.size(), "第一階段應加入一個且不可重複的效果")
-	_expect(rules.modify_magic_cost(3) == 4, "儀式執著行為 Resource 應增加魔法成本")
+	_expect(rules.modify_spell_mp_cost(3) == 4, "儀式執著行為 Resource 應增加咒文 MP 成本")
 	var fractured: Dictionary = rules.synchronize(20)
 	_expect(fractured.active.size() == 2 and rules.modify_dead_board_penalty(10) == 13, "第二階段應疊加跨系統效果")
 	var preview: Dictionary = rules.preview(30, -6)
@@ -420,9 +504,10 @@ func _test_phase_15_sanity_rules() -> void:
 	player.sanity_changed.connect(func(_entity, _delta, source, _before, _after): record.source = source)
 	player.spend_sanity(6, "enemy_intent:sanity_attack")
 	_expect(record.source == "enemy_intent:sanity_attack", "統一 Sanity 介面應保留敵人意圖來源")
+	_expect(rules.get_source_label("spell:fallback:pistol") == "咒文", "MP 不足的 Sanity 代付應使用可讀的咒文來源標籤")
 	player.free()
 	var simulation: Dictionary = registry.get_document("sanity").get("simulation", {})
-	var before_rest := 70 - 5 * int(simulation.get("magic_uses_per_battle", 2)) * 3 - int(simulation.get("dead_boards_per_run", 1)) * 10 - int(simulation.get("enemy_sanity_hits_per_run", 2)) * int(simulation.get("enemy_sanity_hit", 6))
+	var before_rest := 70 - int(simulation.get("dead_boards_per_run", 1)) * 10 - int(simulation.get("enemy_sanity_hits_per_run", 2)) * int(simulation.get("enemy_sanity_hit", 4))
 	_expect(before_rest >= int(simulation.get("acceptance_min_sanity_before_rest", 15)) and before_rest <= int(simulation.get("acceptance_max_sanity_before_rest", 55)), "完整 Run 基準情境的休息前 Sanity 應落在驗收區間")
 
 
@@ -434,8 +519,9 @@ func _test_phase_16_content_integrity() -> void:
 	var state := RunState.new()
 	var config := registry.get_document("run_config")
 	state.block_pool_ids = RunState._strings(config.get("block_pool", []))
-	state.row_item_ids = RunState._strings(config.get("row_items", []))
-	state.col_item_ids = RunState._strings(config.get("col_items", []))
+	state.spell_pool_ids = RunState._strings(config.get("spell_pool", []))
+	state.board_spell_ids.resize(64)
+	state.board_spell_ids.fill("")
 	var generator = LayeredMapGeneratorScript.new()
 	state.map_data = generator.generate(13579, registry.get_document("map"))
 	state.available_node_ids = RunState._strings(state.map_data.get("start_node_ids", []))
@@ -443,14 +529,13 @@ func _test_phase_16_content_integrity() -> void:
 
 	var invalid := RunState.from_dict(state.to_dict())
 	invalid.block_pool_ids.append("missing_block")
-	invalid.row_item_ids[0] = "dark_spike"
+	invalid.spell_pool_ids.append("missing_spell")
 	invalid.selected_reward_ids.append("missing_reward")
-	invalid.item_inventory["missing_item"] = 1
 	invalid.sanity_effect_ids.append("missing_effect")
 	invalid.available_node_ids.append("missing_node")
 	invalid.map_data.nodes[0].content_id = "missing_encounter"
 	var reference_errors := registry.validate_run_state_references(invalid)
-	_expect(reference_errors.size() >= 7, "RunState 還原前應捕獲方塊、裝備軸、獎勵、背包、Sanity、節點與 encounter 失效引用")
+	_expect(reference_errors.size() >= 6, "RunState 還原前應捕獲方塊、咒文、獎勵、Sanity、節點與 encounter 失效引用")
 
 
 func _test_phase_16_data_driven_events() -> void:
@@ -460,18 +545,30 @@ func _test_phase_16_data_driven_events() -> void:
 		return
 	var event_definition := registry.get_definition("events", "prototype_event")
 	_expect(event_definition.get("options", []).size() == 3, "原型事件應提供三個資料化選項")
+	var shop_definition := registry.get_definition("shops", "prototype_shop")
+	var rest_definition := registry.get_definition("rests", "boss_rest")
+	_expect(shop_definition.get("options", []).size() == 4, "商店應提供三種資源交易與離開選項")
+	_expect(rest_definition.get("options", []).size() == 3, "休息應提供身心休養、MP 專注與離開選項")
 	var resolver = EventChoiceResolverScript.new()
-	var state := {"hp": 40, "max_hp": 80, "sanity": 70, "max_sanity": 100, "currency": 2}
+	var state := {"hp": 40, "max_hp": 80, "sanity": 70, "max_sanity": 100, "mp": 25, "max_mp": 100, "currency": 20}
 	var snapshot := state.duplicate(true)
 	var study: Dictionary = resolver.resolve_choice(event_definition, "study_fragments", state)
 	_expect(study.get("valid", false) and study.get("affordable", false), "資源足夠時事件選項應可執行")
-	_expect(study.get("changes", {}).get("sanity") == 64 and study.get("changes", {}).get("currency") == 20, "事件應依資料同時套用代價與結果")
+	_expect(study.get("changes", {}).get("sanity") == 64 and study.get("changes", {}).get("currency") == 38, "事件應依資料同時套用代價與結果")
 	_expect(state == snapshot, "事件預覽與結算不應直接修改輸入狀態")
 	var healed: Dictionary = resolver.resolve_choice(event_definition, "bind_the_wound", {"hp": 40, "max_hp": 80, "sanity": 95, "max_sanity": 100, "currency": 0})
 	_expect(healed.get("changes", {}).get("hp") == 32 and healed.get("changes", {}).get("sanity") == 100, "事件回復應受到資源上限限制")
 	var unaffordable: Dictionary = resolver.resolve_choice(event_definition, "study_fragments", {"hp": 40, "max_hp": 80, "sanity": 6, "max_sanity": 100, "currency": 0})
 	_expect(not unaffordable.get("affordable", true), "事件不得讓 HP 或 Sanity 因支付代價降至零")
 	_expect(not resolver.resolve_choice(event_definition, "missing_option", state).get("valid", true), "未知事件選項應明確失敗")
+	var mana_purchase: Dictionary = resolver.resolve_choice(shop_definition, "buy_mana_vial", state)
+	_expect(mana_purchase.get("affordable", false) and mana_purchase.get("changes", {}).get("currency") == 8 and mana_purchase.get("changes", {}).get("mp") == 60, "商店應以金錢交換 MP 並保留其他資源")
+	var poor_purchase: Dictionary = resolver.resolve_choice(shop_definition, "buy_tonic", {"hp": 40, "max_hp": 80, "sanity": 70, "max_sanity": 100, "mp": 25, "max_mp": 100, "currency": 14})
+	_expect(not poor_purchase.get("affordable", true), "金錢不足時商店商品應禁用")
+	var deep_rest: Dictionary = resolver.resolve_choice(rest_definition, "deep_rest", state)
+	_expect(deep_rest.get("changes", {}).get("hp") == 80 and deep_rest.get("changes", {}).get("sanity") == 100 and deep_rest.get("changes", {}).get("mp") == 25, "安穩休養應回滿 HP／Sanity 且不額外更動 MP")
+	var focus_rest: Dictionary = resolver.resolve_choice(rest_definition, "focus_ritual", state)
+	_expect(focus_rest.get("changes", {}).get("mp") == 100 and focus_rest.get("changes", {}).get("hp") == 40, "專注冥想應回滿 MP 且不額外更動 HP")
 
 
 func _test_phase_16_board_simulation() -> void:
@@ -504,6 +601,46 @@ func _test_phase_16_board_simulation() -> void:
 	var random_report: Dictionary = simulator.simulate(blocks, rules, random_options)
 	_expect(int(random_report.get("successful_placements", 0)) == 36, "權重隨機基線也應完成指定放置次數")
 
+	var special := registry.get_block("special_dot")
+	var special_draw_counts: Array[int] = []
+	for copies in [1]:
+		var grown_pool: Array[BlockData] = []
+		grown_pool.assign(blocks)
+		for _copy in range(copies):
+			grown_pool.append(special)
+		var special_draws := 0
+		for sample in range(120):
+			var session := simulator.create_session(grown_pool, rules, {
+				"mode": BoardSimulatorScript.SMART_MODE,
+				"seed": 50000 + sample,
+				"hand_size": 3,
+				"action_points": 5,
+			})
+			_expect(simulator.begin_session_turn(session), "特殊方塊分布測試應可產生手牌")
+			var hand_ids := {}
+			for drawn in session.get("hand", []):
+				hand_ids[drawn.id] = true
+				if drawn.id == "special_dot":
+					special_draws += 1
+			_expect(hand_ids.size() == 3, "候選種類足夠時，同一手牌不可出現重複方塊 ID")
+		special_draw_counts.append(special_draws)
+	_expect(special_draw_counts[0] > 0 and special_draw_counts[0] < 45, "一份星點石板應偶爾出現，但不可支配 360 張樣本手牌")
+
+	var spell := registry.get_spell("pistol")
+	var board_spells := {
+		Vector2i(2, 2): spell,
+		Vector2i(5, 2): registry.get_spell("vest"),
+	}
+	var intersection_spells: Array[BattleItem] = simulator._collect_cleared_spells(board_spells, [2], [2])
+	_expect(intersection_spells.size() == 2 and board_spells.is_empty(), "Row／Col 交叉消除時，每個效果格只能觸發一次")
+	var marked := blocks[0].with_spell(spell, blocks[0].cells.back())
+	var marked_rotated := marked.rotated(1)
+	_expect(marked_rotated.spell.content_id == spell.content_id and marked_rotated.effect_cell == Vector2i(-marked.effect_cell.y, marked.effect_cell.x), "方塊旋轉應同步旋轉效果格，且形狀與咒文保持獨立")
+
+	var tiny_pool: Array[BlockData] = [blocks[0], blocks[1]]
+	var tiny_session := simulator.create_session(tiny_pool, rules, {"mode": BoardSimulatorScript.SMART_MODE, "seed": 9876, "hand_size": 3, "action_points": 5})
+	_expect(simulator.begin_session_turn(tiny_session) and tiny_session.get("hand", []).size() == 3, "方塊種類少於手牌數時應允許 fallback 重複以補滿手牌")
+
 
 func _test_phase_16_battle_batch() -> void:
 	var registry := ContentRegistry.new()
@@ -524,8 +661,7 @@ func _test_phase_16_battle_batch() -> void:
 		enemy_index,
 		intent_index,
 		registry.get_document("player"),
-		registry.get_items(config.get("row_items", [])),
-		registry.get_items(config.get("col_items", [])),
+		registry.get_spells(config.get("spell_pool", [])),
 		registry.get_blocks(config.get("block_pool", [])),
 		config.get("board_growth_rules", {}),
 		registry.get_document("sanity"),
@@ -538,6 +674,24 @@ func _test_phase_16_battle_batch() -> void:
 	var outcomes := int(round(float(report.get("win_rate", 0.0)) * 2.0)) + int(report.get("hp_defeats", 0)) + int(report.get("sanity_defeats", 0)) + int(report.get("timeouts", 0))
 	_expect(outcomes == 2, "戰鬥批次每次試驗都應歸入勝利、HP／Sanity 失敗或超時")
 	_expect(report.get("enemy_survival_curve", []).size() == 4, "敵人存活曲線應覆蓋指定最大回合數")
+	_expect(report.has("average_mp_spent") and report.has("average_spell_fizzles"), "戰鬥批次應量測咒文 MP 消耗與不足失敗")
+
+	var manager := preload("res://scripts/battle_manager.gd").new()
+	manager.player = _make_entity("MP 測試玩家", 40, 70)
+	manager.enemies = [_make_entity("MP 測試敵人", 40)]
+	manager.enemy = manager.enemies[0]
+	manager.battle_active = true
+	manager._battle_stats.reset("mp_test")
+	manager.sanity_rules.configure(registry.get_document("sanity"), 1)
+	manager.mp = 0
+	var hp_before := manager.enemy.hp
+	_expect(manager.execute_spell(registry.get_spell("pistol")) and manager.enemy.hp == hp_before - 10 and manager.player.sanity == 67, "MP 不足時應改以同額 Sanity 支付並照常發動咒文")
+	_expect(int(manager._battle_stats.values.get("spells_paid_with_sanity", 0)) == 1 and int(manager._battle_stats.values.get("spell_fizzles", 0)) == 0, "Sanity 代付應獨立記錄且不算咒文失敗")
+	manager.mp = 3
+	_expect(manager.execute_spell(registry.get_spell("pistol")) and manager.mp == 0 and manager.player.sanity == 67 and manager.enemy.hp == hp_before - 20, "MP 足夠時應優先扣除 MP，不消耗 Sanity")
+	manager.player.free()
+	manager.enemy.free()
+	manager.free()
 
 
 func _test_phase_19_full_run_pressure() -> void:
@@ -553,7 +707,7 @@ func _test_phase_19_full_run_pressure() -> void:
 	_expect(int(first.get("runs", 0)) == 1 and int(first.get("invalid_runs", 1)) == 0, "完整 Run 模擬應產生一筆有效結果")
 	_expect(float(first.get("average_battles_reached", 0.0)) >= 1.0, "完整 Run 模擬至少應抵達第一場戰鬥")
 	_expect(float(first.get("average_board_placements", 0.0)) > 0.0, "完整 Run 模擬應透過持久棋盤產生放置")
-	_expect(not first.get("pressure_curve", []).is_empty(), "完整 Run 模擬應輸出逐場 HP／Sanity 壓力曲線")
+	_expect(first.has("average_mp_end") and not first.get("pressure_curve", []).is_empty(), "完整 Run 模擬應輸出逐場 HP／Sanity／MP 壓力曲線")
 
 
 func _test_five_enemy_roster() -> void:
@@ -648,11 +802,46 @@ func _test_main_scene_smoke() -> void:
 			_expect(run_manager.run_state.sanity == sanity_before_event - 6 and run_manager.run_state.currency == currency_before_event + 18, "事件選擇應修改 Run 資源")
 			_expect(str(run_manager.run_state.sanity_history.back().get("source", "")).begins_with("event:prototype_event"), "事件 Sanity 變化應記錄資料來源")
 			run_manager.start_new_run()
+		var shop_node := {}
+		for candidate in run_manager.runtime_map.get("nodes", []):
+			if str(candidate.get("type", "")) == "shop":
+				shop_node = candidate
+				break
+		_expect(not shop_node.is_empty(), "程序地圖應包含可操作的商店節點")
+		if not shop_node.is_empty():
+			run_manager.run_state.currency = 20
+			manager.mp = 20
+			run_manager.flow.transition(run_manager.flow.State.NODE)
+			run_manager.run_state.flow_state = run_manager.flow.current_state
+			run_manager.run_state.current_node_id = str(shop_node.get("id", ""))
+			run_manager._show_choice_node(shop_node)
+			_expect(event_view.visible and event_view.get_option_buttons().size() == 4, "商店節點應使用共用選項介面並顯示四個選項")
+			run_manager._on_event_choice_selected("buy_mana_vial")
+			_expect(run_manager.run_state.currency == 8 and run_manager.run_state.mp == 90, "商店購買應扣除金錢、回復 MP，再套用固定節點 MP 回復")
+			run_manager.start_new_run()
+		var rest_node := {}
+		for candidate in run_manager.runtime_map.get("nodes", []):
+			if str(candidate.get("type", "")) == "rest":
+				rest_node = candidate
+				break
+		_expect(not rest_node.is_empty(), "程序地圖應包含可操作的休息節點")
+		if not rest_node.is_empty():
+			manager.player.hp = 30
+			manager.player.sanity = 40
+			manager.mp = 10
+			run_manager.flow.transition(run_manager.flow.State.NODE)
+			run_manager.run_state.flow_state = run_manager.flow.current_state
+			run_manager.run_state.current_node_id = str(rest_node.get("id", ""))
+			run_manager._show_choice_node(rest_node)
+			_expect(event_view.visible and event_view.get_option_buttons().size() == 3, "休息節點應使用共用選項介面並顯示三個選項")
+			run_manager._on_event_choice_selected("deep_rest")
+			_expect(run_manager.run_state.hp == 80 and run_manager.run_state.sanity == 100 and run_manager.run_state.mp == 45, "安穩休養應回滿 HP／Sanity，並保留節點完成的固定 MP 回復")
+			run_manager.start_new_run()
 	var tablet = manager.tablet
 	var special_block: BlockData = run_manager.content.get_block("special_dot")
 	var special_count_before: int = tablet.get_block_pool_count("special_dot")
 	tablet.add_block_to_pool(special_block)
-	_expect(tablet.get_block_pool_count("special_dot") == special_count_before + 1, "重複特殊方塊應以池內份數增加抽取權重")
+	_expect(tablet.get_block_pool_count("special_dot") == maxi(special_count_before, 1), "同一特殊形狀不得重複加入方塊池")
 	_expect(run_manager.flow.current_state == run_manager.flow.State.MAP, "新 Run 應先進入地圖選擇")
 	var first_node_id: String = run_manager.run_state.available_node_ids[0]
 	_expect(run_manager.select_map_node(first_node_id), "玩家應可選擇生成地圖的起點")
@@ -669,8 +858,8 @@ func _test_main_scene_smoke() -> void:
 	var hand_before_turn: Array[Dictionary] = tablet.get_hand_state()
 	manager.end_player_turn()
 	await create_timer(0.5).timeout
-	_expect(manager.player.hp == hp_before - 8, "核心迴圈應依資料化 attack 意圖完成敵人回合")
-	_expect(int(manager._battle_stats.values.get("damage_taken", 0)) == 8, "戰鬥統計應記錄承受傷害")
+	_expect(manager.player.hp == hp_before - 10, "核心迴圈應依調整後的資料化 attack 意圖完成敵人回合")
+	_expect(int(manager._battle_stats.values.get("damage_taken", 0)) == 10, "戰鬥統計應記錄調整後的承受傷害")
 	_expect(manager.current_turn == manager.TurnState.PLAYER_TURN, "敵人回合結束後應回到玩家回合")
 	_expect(tablet.get_hand_state() == hand_before_turn, "回合結束時未使用的手牌與旋轉方向應保留")
 	var board_before_reward: Array[String] = tablet.get_board_state()
@@ -680,18 +869,18 @@ func _test_main_scene_smoke() -> void:
 	])
 	manager.enemies[0].take_damage(9999)
 	await process_frame
-	_expect(manager.selected_enemy_index == -1 and manager._get_targets_for_scope("single").is_empty(), "鎖定目標死亡後應保持空目標，不自動改鎖定")
-	manager._select_enemy(1)
-	_expect(manager._get_targets_for_scope("single") == [manager.enemies[1]], "玩家重新選擇後單體效果應恢復目標")
+	_expect(manager.selected_enemy_index == 1 and manager._get_targets_for_scope("single") == [manager.enemies[1]], "鎖定目標死亡後應自動改鎖第一名存活敵人")
 	for active_enemy in manager.enemies:
 		if active_enemy != null and not active_enemy.is_dead:
 			active_enemy.take_damage(9999)
 	await process_frame
 	await process_frame
 	_expect(run_manager.flow.current_state == run_manager.flow.State.REWARD, "普通戰鬥勝利後應由狀態機進入獎勵")
+	var mp_before_node_completion: int = manager.mp
 	run_manager._on_reward_skipped(10)
 	await process_frame
 	_expect(run_manager.flow.current_state == run_manager.flow.State.MAP, "獎勵結算後應返回地圖")
+	_expect(manager.mp == mini(mp_before_node_completion + 35, manager.max_mp), "完成節點後應依設定固定回復 35 MP")
 	var completion_save: Dictionary = run_manager.save_service.load_run()
 	_expect(completion_save.get("ok", false) and completion_save.state.flow_state == run_manager.flow.State.MAP and first_node_id in completion_save.state.completed_node_ids, "節點完成後自動存檔應保存最新地圖進度")
 	_expect(tablet.get_board_state() == board_before_reward, "跨戰鬥、獎勵與地圖節點應完整保留盤面")

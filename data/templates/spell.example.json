@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "entries": [{
+      "id": "spell_example",
+      "icon_text": "⚔",
+    "name": "範例咒文",
+    "logic": "attack",
+    "description": "效果格被消除時支付 MP 發動。",
+    "damage": 10,
+    "hit_count": 1,
+    "effect_scope": "single",
+    "mp_cost": 4,
+    "tags": [],
+    "rarity": "common",
+    "tier": 1,
+    "trigger_hint": "支付 4 MP，造成 10 點傷害。",
+    "balance_cost": 10
+  }]
+}

@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "entries": [
+    {
+      "id": "boss_rest",
+      "title": "無名禮拜堂",
+      "description": "破碎彩窗隔開了外頭的霧。你只能選擇如何使用這段難得的寂靜。",
+      "options": [
+        {
+          "id": "deep_rest",
+          "label": "安穩休養",
+          "description": "將 HP 與 Sanity 回復至上限；MP 仍會依節點完成規則回復。",
+          "costs": {},
+          "results": {"hp": 999, "sanity": 999},
+          "result_text": "你在長椅上沉沉睡去，醒來時傷口與低語都已平息。"
+        },
+        {
+          "id": "focus_ritual",
+          "label": "專注冥想",
+          "description": "將 MP 回復至上限，但不處理肉體與心智的損耗。",
+          "costs": {},
+          "results": {"mp": 999},
+          "result_text": "你沿著石地上的舊刻痕重整術式，魔力重新充滿迴路。"
+        },
+        {
+          "id": "leave_rest",
+          "label": "立即離開",
+          "description": "不額外回復資源，只取得完成節點的固定 MP 回復。",
+          "costs": {},
+          "results": {},
+          "result_text": "你沒有久留，在鐘聲響起前回到了霧中。"
+        }
+      ]
+    }
+  ]
+}

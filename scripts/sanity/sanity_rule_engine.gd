@@ -103,12 +103,12 @@ func apply_entity_modifiers(entity: Entity) -> void:
 			behavior.apply_to_entity(_effect_index.get(effect_id, {}), entity)
 
 
-func modify_magic_cost(value: int) -> int:
+func modify_spell_mp_cost(value: int) -> int:
 	var result := value
 	for effect_id in active_effect_ids:
 		var behavior = _behaviors.get(effect_id)
 		if behavior != null:
-			result = behavior.modify_magic_cost(_effect_index.get(effect_id, {}), result)
+			result = behavior.modify_spell_mp_cost(_effect_index.get(effect_id, {}), result)
 	return result
 
 

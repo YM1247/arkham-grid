@@ -8,25 +8,26 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / "data"
 
-ITEM_TYPES = {"WEAPON", "EQUIPMENT", "PRAYER", "CURSE"}
 ITEM_LOGICS = {"attack", "conditional_attack", "support", "status"}
 RARITIES = {"common", "uncommon", "rare"}
 RARITY_RANK = {"common": 1, "uncommon": 2, "rare": 3}
 SCOPES = {"single", "spread", "all", "self"}
 STATUSES = {"strength", "weak", "hard", "fragile", "regen", "poison"}
-INTENTS = {"attack", "heavy_attack", "guard", "sanity_attack", "debuff_player", "buff_self"}
-INTENT_ACTIONS = {"damage", "armor", "sanity_damage", "status_player", "status_self"}
+INTENTS = {"attack", "heavy_attack", "guard", "sanity_attack", "debuff_player", "buff_self", "watch", "brace"}
+INTENT_ACTIONS = {"damage", "armor", "sanity_damage", "status_player", "status_self", "idle"}
 SCHEMA_VERSION = 1
 TEMPLATE_FILES = {
     "block.example.json",
-    "item.example.json",
+    "spell.example.json",
     "intent.example.json",
     "enemy.example.json",
     "encounter.example.json",
     "reward.example.json",
     "event.example.json",
+    "shop.example.json",
+    "rest.example.json",
 }
-EVENT_RESOURCES = {"hp", "sanity", "currency"}
+CHOICE_RESOURCES = {"hp", "sanity", "mp", "currency"}
 
 
 def load_json(name):
@@ -81,23 +82,23 @@ def collect_ids(items, label, errors):
     return set(ids)
 
 
-def validate_status_effects(item, field, errors):
-    effects = item.get(field, [])
+def validate_status_effects(spell, field, errors):
+    effects = spell.get(field, [])
     if effects is None:
         return
     if not isinstance(effects, list):
-        errors.append(f"item {item.get('id')} 的 {field} 必須是陣列")
+        errors.append(f"spell {spell.get('id')} 的 {field} 必須是陣列")
         return
     for effect in effects:
         if not isinstance(effect, dict):
-            errors.append(f"item {item.get('id')} 的 {field} 內含非物件資料")
+            errors.append(f"spell {spell.get('id')} 的 {field} 內含非物件資料")
             continue
         status_id = effect.get("id")
         amount = effect.get("amount")
         if status_id not in STATUSES:
-            errors.append(f"item {item.get('id')} 使用未知狀態：{status_id}")
+            errors.append(f"spell {spell.get('id')} 使用未知狀態：{status_id}")
         if not isinstance(amount, int) or amount <= 0:
-            errors.append(f"item {item.get('id')} 狀態 {status_id} 的 amount 必須是正整數")
+            errors.append(f"spell {spell.get('id')} 狀態 {status_id} 的 amount 必須是正整數")
 
 
 def validate_acyclic_edges(edges, label, errors):
@@ -123,41 +124,37 @@ def validate_acyclic_edges(edges, label, errors):
         visit(node_id, [])
 
 
-def validate_upgrade_chains(items, item_by_id, errors):
+def validate_upgrade_chains(spells, spell_by_id, errors):
     edges = {}
-    for item in items:
-        item_id = item.get("id")
-        upgrade_from = item.get("upgrade_from") or ""
-        upgrade_to = item.get("upgrade_to") or ""
-        edges[item_id] = [upgrade_to] if upgrade_to in item_by_id else []
+    for spell in spells:
+        spell_id = spell.get("id")
+        upgrade_from = spell.get("upgrade_from") or ""
+        upgrade_to = spell.get("upgrade_to") or ""
+        edges[spell_id] = [upgrade_to] if upgrade_to in spell_by_id else []
 
         if upgrade_from:
-            source = item_by_id.get(upgrade_from)
-            if source is not None and (source.get("upgrade_to") or "") != item_id:
+            source = spell_by_id.get(upgrade_from)
+            if source is not None and (source.get("upgrade_to") or "") != spell_id:
                 errors.append(
-                    f"item {item_id}.upgrade_from={upgrade_from} 未被來源的 upgrade_to 對應"
+                    f"spell {spell_id}.upgrade_from={upgrade_from} 未被來源的 upgrade_to 對應"
                 )
         if not upgrade_to:
             continue
-        target = item_by_id.get(upgrade_to)
+        target = spell_by_id.get(upgrade_to)
         if target is None:
             continue
-        if (target.get("upgrade_from") or "") != item_id:
+        if (target.get("upgrade_from") or "") != spell_id:
             errors.append(
-                f"item {item_id}.upgrade_to={upgrade_to} 未被目標的 upgrade_from 對應"
+                f"spell {spell_id}.upgrade_to={upgrade_to} 未被目標的 upgrade_from 對應"
             )
-        if target.get("item_type") != item.get("item_type"):
-            errors.append(f"item {item_id} 與升級目標 {upgrade_to} 的 item_type 不一致")
-        if target.get("axis_type") != item.get("axis_type"):
-            errors.append(f"item {item_id} 與升級目標 {upgrade_to} 的 axis_type 不一致")
-        if int(target.get("tier", 0)) <= int(item.get("tier", 0)):
-            errors.append(f"item {upgrade_to} 的 tier 必須高於升級來源 {item_id}")
-        source_rarity = RARITY_RANK.get(item.get("rarity"), 0)
+        if int(target.get("tier", 0)) <= int(spell.get("tier", 0)):
+            errors.append(f"spell {upgrade_to} 的 tier 必須高於升級來源 {spell_id}")
+        source_rarity = RARITY_RANK.get(spell.get("rarity"), 0)
         target_rarity = RARITY_RANK.get(target.get("rarity"), 0)
         if target_rarity < source_rarity:
-            errors.append(f"item {upgrade_to} 的 rarity 不可低於升級來源 {item_id}")
+            errors.append(f"spell {upgrade_to} 的 rarity 不可低於升級來源 {spell_id}")
 
-    validate_acyclic_edges(edges, "道具升級鏈", errors)
+    validate_acyclic_edges(edges, "咒文升級鏈", errors)
 
 
 def validate_reward_dependencies(rewards, reward_ids, errors):
@@ -178,37 +175,37 @@ def validate_reward_dependencies(rewards, reward_ids, errors):
     validate_acyclic_edges(edges, "獎勵前置關係", errors)
 
 
-def validate_events(events, errors):
-    for event in events:
-        event_id = event.get("id")
-        if not isinstance(event.get("title"), str) or not event.get("title"):
-            errors.append(f"event {event_id}.title 必須是非空字串")
-        if not isinstance(event.get("description"), str) or not event.get("description"):
-            errors.append(f"event {event_id}.description 必須是非空字串")
-        options = event.get("options")
+def validate_choice_definitions(definitions, label, errors):
+    for definition in definitions:
+        definition_id = definition.get("id")
+        if not isinstance(definition.get("title"), str) or not definition.get("title"):
+            errors.append(f"{label} {definition_id}.title 必須是非空字串")
+        if not isinstance(definition.get("description"), str) or not definition.get("description"):
+            errors.append(f"{label} {definition_id}.description 必須是非空字串")
+        options = definition.get("options")
         if not isinstance(options, list) or len(options) < 2:
-            errors.append(f"event {event_id}.options 至少需要兩個選項")
+            errors.append(f"{label} {definition_id}.options 至少需要兩個選項")
             continue
-        collect_ids(options, f"event {event_id}.options", errors)
+        collect_ids(options, f"{label} {definition_id}.options", errors)
         for option in options:
             if not isinstance(option, dict):
-                errors.append(f"event {event_id}.options 含有非物件資料")
+                errors.append(f"{label} {definition_id}.options 含有非物件資料")
                 continue
             option_id = option.get("id")
             if not isinstance(option.get("label"), str) or not option.get("label"):
-                errors.append(f"event {event_id} option {option_id}.label 必須是非空字串")
+                errors.append(f"{label} {definition_id} option {option_id}.label 必須是非空字串")
             if not isinstance(option.get("result_text"), str) or not option.get("result_text"):
-                errors.append(f"event {event_id} option {option_id}.result_text 必須是非空字串")
+                errors.append(f"{label} {definition_id} option {option_id}.result_text 必須是非空字串")
             for field in ("costs", "results"):
                 resources = option.get(field)
                 if not isinstance(resources, dict):
-                    errors.append(f"event {event_id} option {option_id}.{field} 必須是物件")
+                    errors.append(f"{label} {definition_id} option {option_id}.{field} 必須是物件")
                     continue
                 for resource, amount in resources.items():
-                    if resource not in EVENT_RESOURCES:
-                        errors.append(f"event {event_id} option {option_id}.{field} 使用未知資源：{resource}")
+                    if resource not in CHOICE_RESOURCES:
+                        errors.append(f"{label} {definition_id} option {option_id}.{field} 使用未知資源：{resource}")
                     if isinstance(amount, bool) or not isinstance(amount, int) or amount < 0:
-                        errors.append(f"event {event_id} option {option_id}.{field}.{resource} 必須是非負整數")
+                        errors.append(f"{label} {definition_id} option {option_id}.{field}.{resource} 必須是非負整數")
 
 
 def main():
@@ -217,25 +214,30 @@ def main():
     validate_templates(errors)
 
     blocks = load_json("blocks.json").get("entries")
-    items = load_json("items.json").get("entries")
+    items = load_json("spells.json").get("entries")
     enemies = load_json("enemies.json").get("entries")
     intents = load_json("intents.json").get("entries")
     encounters = load_json("encounters.json").get("entries")
     rewards = load_json("rewards.json").get("entries")
     events = load_json("events.json").get("entries")
+    shops = load_json("shops.json").get("entries")
+    rests = load_json("rests.json").get("entries")
     run_config = load_json("run_config.json")
     player = load_json("player.json")
     map_document = load_json("map.json")
     sanity_document = load_json("sanity.json")
+    meta_progression = load_json("meta_progression.json")
 
     for name, entries in {
         "blocks.json": blocks,
-        "items.json": items,
+        "spells.json": items,
         "enemies.json": enemies,
         "intents.json": intents,
         "encounters.json": encounters,
         "rewards.json": rewards,
         "events.json": events,
+        "shops.json": shops,
+        "rests.json": rests,
     }.items():
         if not isinstance(entries, list):
             errors.append(f"{name}.entries 必須是陣列")
@@ -259,15 +261,42 @@ def main():
                 errors.append(f"effect_resources.{logic} 引用不存在：{resource_path}")
 
     block_ids = collect_ids(blocks, "blocks.json", errors)
-    item_ids = collect_ids(items, "items.json", errors)
+    spell_ids = collect_ids(items, "spells.json", errors)
     enemy_ids = collect_ids(enemies, "enemies.json", errors)
     intent_ids = collect_ids(intents, "intents.json", errors)
     encounter_ids = collect_ids(encounters, "encounters.json", errors)
     reward_ids = collect_ids(rewards, "rewards.json", errors)
     event_ids = collect_ids(events, "events.json", errors)
-    item_by_id = {item.get("id"): item for item in items}
+    shop_ids = collect_ids(shops, "shops.json", errors)
+    rest_ids = collect_ids(rests, "rests.json", errors)
+    spell_by_id = {spell.get("id"): spell for spell in items}
 
-    validate_events(events, errors)
+    validate_choice_definitions(events, "event", errors)
+    validate_choice_definitions(shops, "shop", errors)
+    validate_choice_definitions(rests, "rest", errors)
+
+    if not isinstance(meta_progression.get("initial_shared_currency"), int) or meta_progression.get("initial_shared_currency", -1) < 0:
+        errors.append("meta_progression.initial_shared_currency 必須是非負整數")
+    meta_lists = {
+        "initial_unlocked_profession_ids": None,
+        "initial_unlocked_block_ids": block_ids,
+        "initial_unlocked_spell_ids": spell_ids,
+    }
+    for key, valid_ids in meta_lists.items():
+        values = meta_progression.get(key)
+        if not isinstance(values, list) or not values:
+            errors.append(f"meta_progression.{key} 必須是非空陣列")
+            continue
+        if any(not isinstance(value, str) or not value for value in values) or len(values) != len(set(values)):
+            errors.append(f"meta_progression.{key} 只能包含唯一非空字串")
+            continue
+        if valid_ids is not None:
+            for value in values:
+                if value not in valid_ids:
+                    errors.append(f"meta_progression.{key} 引用不存在內容：{value}")
+    profession_ids = meta_progression.get("initial_unlocked_profession_ids", [])
+    if player.get("profession_id") not in profession_ids:
+        errors.append("player.profession_id 必須存在於初始 Meta 職業解鎖")
 
     for block_id in run_config.get("block_pool", []):
         if block_id not in block_ids:
@@ -275,13 +304,17 @@ def main():
 
     if not isinstance(player.get("name"), str) or not player.get("name"):
         errors.append("player.name 必須是非空字串")
-    for field in ("max_hp", "hp", "max_sanity", "sanity", "action_points"):
+    if not isinstance(player.get("profession_id"), str) or not player.get("profession_id"):
+        errors.append("player.profession_id 必須是非空字串")
+    for field in ("max_hp", "hp", "max_sanity", "sanity", "max_mp", "mp", "action_points"):
         if not isinstance(player.get(field), int):
             errors.append(f"player.{field} 必須是整數")
     if int(player.get("max_hp", 0)) <= 0 or not 0 < int(player.get("hp", 0)) <= int(player.get("max_hp", 0)):
         errors.append("player.hp 必須介於 1 與 max_hp")
     if int(player.get("max_sanity", 0)) <= 0 or not 0 < int(player.get("sanity", 0)) <= int(player.get("max_sanity", 0)):
         errors.append("player.sanity 必須介於 1 與 max_sanity")
+    if int(player.get("max_mp", 0)) <= 0 or not 0 <= int(player.get("mp", -1)) <= int(player.get("max_mp", 0)):
+        errors.append("player.mp 必須介於 0 與 max_mp")
     if int(player.get("action_points", 0)) <= 0:
         errors.append("player.action_points 必須大於 0")
 
@@ -301,54 +334,45 @@ def main():
         if not isinstance(block.get("tags"), list):
             errors.append(f"block {block_id} tags 必須是陣列")
 
-    item_type_counts = Counter()
-    for item in items:
-        item_id = item.get("id")
-        item_type = item.get("item_type")
-        axis_type = item.get("axis_type")
-        logic = item.get("logic")
-        rarity = item.get("rarity")
-        scope = item.get("effect_scope", "single")
-        item_type_counts[item_type] += 1
-        if item_type not in ITEM_TYPES:
-            errors.append(f"item {item_id} 的 item_type 不合法：{item_type}")
-        if axis_type not in {"physical", "magic"}:
-            errors.append(f"item {item_id} 的 axis_type 不合法：{axis_type}")
+    for spell in items:
+        spell_id = spell.get("id")
+        logic = spell.get("logic")
+        rarity = spell.get("rarity")
+        scope = spell.get("effect_scope", "single")
+        icon_text = spell.get("icon_text")
+        if not isinstance(icon_text, str) or not 1 <= len(icon_text) <= 2:
+            errors.append(f"spell {spell_id} icon_text 必須是 1–2 個可見字元")
         if logic not in ITEM_LOGICS:
-            errors.append(f"item {item_id} 的 logic 不合法：{logic}")
+            errors.append(f"spell {spell_id} 的 logic 不合法：{logic}")
         if rarity not in RARITIES:
-            errors.append(f"item {item_id} 的 rarity 不合法：{rarity}")
-        if not isinstance(item.get("tier"), int) or item.get("tier", 0) <= 0:
-            errors.append(f"item {item_id} 的 tier 必須是正整數")
+            errors.append(f"spell {spell_id} 的 rarity 不合法：{rarity}")
+        if not isinstance(spell.get("tier"), int) or spell.get("tier", 0) <= 0:
+            errors.append(f"spell {spell_id} 的 tier 必須是正整數")
         if scope not in SCOPES:
-            errors.append(f"item {item_id} 的 effect_scope 不合法：{scope}")
-        if not isinstance(item.get("tags", []), list):
-            errors.append(f"item {item_id} 的 tags 必須是陣列")
-        if not isinstance(item.get("balance_cost"), int) or item.get("balance_cost", -1) < 0:
-            errors.append(f"item {item_id} 的 balance_cost 必須是非負整數")
-        if not isinstance(item.get("sanity_cost", 0), int) or item.get("sanity_cost", 0) < 0:
-            errors.append(f"item {item_id} 的 sanity_cost 必須是非負整數")
-        validate_status_effects(item, "status_effects_self", errors)
-        validate_status_effects(item, "status_effects_target", errors)
+            errors.append(f"spell {spell_id} 的 effect_scope 不合法：{scope}")
+        if not isinstance(spell.get("tags", []), list):
+            errors.append(f"spell {spell_id} 的 tags 必須是陣列")
+        if not isinstance(spell.get("balance_cost"), int) or spell.get("balance_cost", -1) < 0:
+            errors.append(f"spell {spell_id} 的 balance_cost 必須是非負整數")
+        if not isinstance(spell.get("mp_cost"), int) or spell.get("mp_cost", -1) < 0:
+            errors.append(f"spell {spell_id} 的 mp_cost 必須是非負整數")
+        validate_status_effects(spell, "status_effects_self", errors)
+        validate_status_effects(spell, "status_effects_target", errors)
 
-        upgrade_from = item.get("upgrade_from", "")
-        upgrade_to = item.get("upgrade_to", "")
-        if upgrade_from and upgrade_from not in item_ids:
-            errors.append(f"item {item_id} upgrade_from 引用不存在道具：{upgrade_from}")
+        upgrade_from = spell.get("upgrade_from", "")
+        upgrade_to = spell.get("upgrade_to", "")
+        if upgrade_from and upgrade_from not in spell_ids:
+            errors.append(f"spell {spell_id} upgrade_from 引用不存在咒文：{upgrade_from}")
         if upgrade_to:
-            if upgrade_to not in item_ids:
-                errors.append(f"item {item_id} upgrade_to 引用不存在道具：{upgrade_to}")
-            if not isinstance(item.get("combine_count"), int) or item.get("combine_count", 0) <= 1:
-                errors.append(f"item {item_id} 有 upgrade_to 時 combine_count 必須大於 1")
-
-    for item_type in sorted(ITEM_TYPES):
-        if item_type_counts[item_type] < 4:
-            errors.append(f"{item_type} 道具少於 4 件：目前 {item_type_counts[item_type]} 件")
+            if upgrade_to not in spell_ids:
+                errors.append(f"spell {spell_id} upgrade_to 引用不存在咒文：{upgrade_to}")
+            if not isinstance(spell.get("combine_count"), int) or spell.get("combine_count", 0) <= 1:
+                errors.append(f"spell {spell_id} 有 upgrade_to 時 combine_count 必須大於 1")
 
     if len(enemy_ids) < 6:
         errors.append(f"敵人少於 6 種：目前 {len(enemy_ids)} 種")
 
-    validate_upgrade_chains(items, item_by_id, errors)
+    validate_upgrade_chains(items, spell_by_id, errors)
 
     for enemy in enemies:
         enemy_id = enemy.get("id")
@@ -422,6 +446,10 @@ def main():
             errors.append(f"map node {node_id} 引用不存在 encounter：{node.get('content_id')}")
         if node_type == "event" and node.get("content_id") not in event_ids:
             errors.append(f"map node {node_id} 引用不存在 event：{node.get('content_id')}")
+        if node_type == "shop" and node.get("content_id") not in shop_ids:
+            errors.append(f"map node {node_id} 引用不存在 shop：{node.get('content_id')}")
+        if node_type == "rest" and node.get("content_id") not in rest_ids:
+            errors.append(f"map node {node_id} 引用不存在 rest：{node.get('content_id')}")
     start_ids = map_document.get("start_node_ids", [])
     if not isinstance(start_ids, list) or not start_ids:
         errors.append("map.start_node_ids 必須是非空陣列")
@@ -527,6 +555,14 @@ def main():
                 for event_id in pool:
                     if event_id not in event_ids:
                         errors.append(f"map.content_pools.event 引用不存在 event：{event_id}")
+            elif pool_name == "shop":
+                for shop_id in pool:
+                    if shop_id not in shop_ids:
+                        errors.append(f"map.content_pools.shop 引用不存在 shop：{shop_id}")
+            elif pool_name == "rest":
+                for rest_id in pool:
+                    if rest_id not in rest_ids:
+                        errors.append(f"map.content_pools.rest 引用不存在 rest：{rest_id}")
 
         node_pool_names = {
             "normal_battle": "normal_encounters",
@@ -575,17 +611,15 @@ def main():
         if not isinstance(effect.get("amount"), int):
             errors.append(f"sanity effect {effect.get('id')} amount 必須是整數")
 
-    for field, allowed_axis in (("row_items", "physical"), ("col_items", "magic")):
-        ids = run_config.get(field)
-        if not isinstance(ids, list) or len(ids) != 8:
-            errors.append(f"run_config.{field} 必須剛好有 8 個 ID")
-            continue
-        for item_id in ids:
-            item = next((entry for entry in items if entry.get("id") == item_id), None)
-            if item is None:
-                errors.append(f"run_config.{field} 引用不存在道具：{item_id}")
-            elif item.get("axis_type") != allowed_axis:
-                errors.append(f"run_config.{field} 的 {item_id} axis_type 不合法：{item.get('axis_type')}")
+    spell_pool = run_config.get("spell_pool")
+    if not isinstance(spell_pool, list) or not spell_pool:
+        errors.append("run_config.spell_pool 必須是非空陣列")
+    else:
+        for spell_id in spell_pool:
+            if spell_id not in spell_ids:
+                errors.append(f"run_config.spell_pool 引用不存在咒文：{spell_id}")
+    if not isinstance(run_config.get("mp_restore_per_node"), int) or run_config.get("mp_restore_per_node", -1) < 0:
+        errors.append("run_config.mp_restore_per_node 必須是非負整數")
 
     for reward in rewards:
         reward_type = reward.get("type")
@@ -594,22 +628,9 @@ def main():
             errors.append(f"reward {reward_id} weight 必須大於 0")
         if not isinstance(reward.get("min_reward_tier"), int) or reward.get("min_reward_tier", 0) <= 0:
             errors.append(f"reward {reward_id} min_reward_tier 必須是正整數")
-        if reward_type == "item":
-            if reward_id not in item_ids:
-                errors.append(f"reward 引用不存在道具：{reward_id}")
-            slot_kind = reward.get("slot_kind")
-            slot_index = int(reward.get("slot_index", -1))
-            if slot_kind not in {"row", "col"}:
-                errors.append(f"reward {reward_id} slot_kind 不合法：{slot_kind}")
-            if slot_index < 0 or slot_index > 7:
-                errors.append(f"reward {reward_id} slot_index 超出 0-7：{slot_index}")
-            item = next((entry for entry in items if entry.get("id") == reward_id), None)
-            if item is not None:
-                axis_type = item.get("axis_type")
-                if slot_kind == "row" and axis_type != "physical":
-                    errors.append(f"reward {reward_id} 是 {axis_type}，不能放入 Row")
-                if slot_kind == "col" and axis_type != "magic":
-                    errors.append(f"reward {reward_id} 是 {axis_type}，不能放入 Col")
+        if reward_type == "spell":
+            if reward_id not in spell_ids:
+                errors.append(f"reward 引用不存在咒文：{reward_id}")
         elif reward_type == "block":
             if reward_id not in block_ids:
                 errors.append(f"reward 引用不存在方塊：{reward_id}")
@@ -629,8 +650,8 @@ def main():
         for reward in rewards:
             if int(reward.get("min_reward_tier", 1)) > reward_tier:
                 continue
-            if reward.get("type") == "item":
-                definition = item_by_id.get(reward.get("id"), {})
+            if reward.get("type") == "spell":
+                definition = spell_by_id.get(reward.get("id"), {})
                 if RARITY_RANK.get(definition.get("rarity"), 0) > reward_tier:
                     continue
             elif reward.get("type") == "block":
@@ -653,14 +674,17 @@ def main():
 
     print("DATA VALIDATION OK")
     print(f"- blocks: {len(block_ids)}")
-    print(f"- items: {len(item_ids)} ({dict(sorted(item_type_counts.items()))})")
+    print(f"- spells: {len(spell_ids)}")
     print(f"- enemies: {len(enemy_ids)}")
     print(f"- intents: {len(intent_ids)}")
     print(f"- encounters: {len(encounters)}")
     print(f"- rewards: {len(rewards)}")
     print(f"- events: {len(events)}")
+    print(f"- shops: {len(shops)}")
+    print(f"- rests: {len(rests)}")
     print(f"- map nodes: {len(map_ids)}")
     print(f"- sanity effects: {len(sanity_effect_ids)}")
+    print(f"- initial meta unlocks: {len(meta_progression.get('initial_unlocked_block_ids', []))} blocks / {len(meta_progression.get('initial_unlocked_spell_ids', []))} spells")
     if warnings:
         print("WARNINGS")
         for warning in warnings:

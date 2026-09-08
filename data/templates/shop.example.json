@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "entries": [
+    {
+      "id": "shop_example",
+      "title": "商店名稱",
+      "description": "商店的場景描述。",
+      "options": [
+        {
+          "id": "buy_resource",
+          "label": "購買補給",
+          "description": "商品用途與限制。",
+          "costs": {"currency": 10},
+          "results": {"mp": 20},
+          "result_text": "交易完成後的描述。"
+        },
+        {
+          "id": "leave",
+          "label": "離開",
+          "description": "不進行交易。",
+          "costs": {},
+          "results": {},
+          "result_text": "你離開了商店。"
+        }
+      ]
+    }
+  ]
+}

@@ -8,7 +8,7 @@ class_name EffectSupport
 func execute(target: Node, user: Node):
 	var quiet := user != null and bool(user.get_meta("simulation_quiet", false))
 	if not quiet:
-		print("   ✨ [", item_name, "] 發動！(類型:", ItemType.keys()[item_type], ")")
+		print("   ✦ 咒文 [", spell_name, "] 發動！")
 	
 	if user:
 		if armor_gain > 0:

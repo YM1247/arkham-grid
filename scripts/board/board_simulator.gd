@@ -11,9 +11,11 @@ const RANDOM_MODE := "weighted_random"
 
 var _scorer := SmartHandScorer.new()
 var _friendly_board_generator := FriendlyBoardGenerator.new()
+var _spell_pool: Array[BattleItem] = []
 
 
 func create_session(block_pool: Array[BlockData], board_rules: Dictionary, options: Dictionary = {}) -> Dictionary:
+	_spell_pool.assign(options.get("spell_pool", []))
 	var mode := str(options.get("mode", SMART_MODE))
 	if block_pool.is_empty() or mode not in [SMART_MODE, RANDOM_MODE]:
 		return {}
@@ -27,7 +29,9 @@ func create_session(block_pool: Array[BlockData], board_rules: Dictionary, optio
 	return {
 		"board": board,
 		"pool": pool,
+		"spell_pool": _spell_pool.duplicate(),
 		"hand": hand,
+		"board_spells": {},
 		"rules": board_rules.duplicate(true),
 		"rng": rng,
 		"mode": mode,
@@ -43,6 +47,7 @@ func create_session(block_pool: Array[BlockData], board_rules: Dictionary, optio
 func begin_session_turn(session: Dictionary) -> bool:
 	if not _is_valid_session(session):
 		return false
+	_spell_pool.assign(session.get("spell_pool", []))
 	var hand: Array[BlockData] = session.hand
 	var board := session.board as BoardModel
 	var pool: Array[BlockData] = session.pool
@@ -64,6 +69,7 @@ func begin_session_turn(session: Dictionary) -> bool:
 func next_session_event(session: Dictionary) -> Dictionary:
 	if not _is_valid_session(session) or int(session.action_points_left) <= 0:
 		return {"type": "turn_complete", "turn": int(session.get("turn", 0))}
+	_spell_pool.assign(session.get("spell_pool", []))
 	var board := session.board as BoardModel
 	var hand: Array[BlockData] = session.hand
 	var pool: Array[BlockData] = session.pool
@@ -72,6 +78,7 @@ func next_session_event(session: Dictionary) -> Dictionary:
 	if _count_playable_cards(board, hand) <= 0:
 		session.dead_boards = int(session.dead_boards) + 1
 		board.clear()
+		session.board_spells.clear()
 		hand.clear()
 		_seed_friendly_board(board, session.rules, rng)
 		_refill_hand(hand, int(session.hand_size), board, pool, str(session.mode), directional_hand_min, rng)
@@ -88,6 +95,10 @@ func next_session_event(session: Dictionary) -> Dictionary:
 	session.placements = int(session.placements) + 1
 	var rows: Array = placement.get("rows", [])
 	var cols: Array = placement.get("cols", [])
+	var board_spells: Dictionary = session.board_spells
+	if block.spell != null:
+		board_spells[Vector2i(int(choice.origin_x), int(choice.origin_y)) + block.effect_cell] = block.spell
+	var triggered_spells := _collect_cleared_spells(board_spells, rows, cols)
 	# 正式流程同樣會在手牌用盡時先補牌，再完成消線。
 	if hand.is_empty():
 		_refill_hand(hand, int(session.hand_size), board, pool, str(session.mode), directional_hand_min, rng)
@@ -98,6 +109,7 @@ func next_session_event(session: Dictionary) -> Dictionary:
 		"block_id": block.id,
 		"rows": rows.duplicate(),
 		"cols": cols.duplicate(),
+		"spells": triggered_spells,
 		"occupied_cells": _count_occupied_cells(board),
 	}
 
@@ -106,7 +118,19 @@ func add_session_block(session: Dictionary, block: BlockData) -> bool:
 	if not _is_valid_session(session) or block == null:
 		return false
 	var pool: Array[BlockData] = session.pool
+	if pool.any(func(owned): return owned != null and owned.id == block.id):
+		return false
 	pool.append(block)
+	return true
+
+
+func add_session_spell(session: Dictionary, spell: BattleItem) -> bool:
+	if not _is_valid_session(session) or spell == null:
+		return false
+	var spells: Array = session.get("spell_pool", [])
+	spells.append(spell)
+	session.spell_pool = spells
+	_spell_pool.assign(spells)
 	return true
 
 
@@ -118,6 +142,7 @@ func get_session_board_state(session: Dictionary) -> Array[String]:
 
 
 func simulate(block_pool: Array[BlockData], board_rules: Dictionary, options: Dictionary = {}) -> Dictionary:
+	_spell_pool.assign(options.get("spell_pool", []))
 	var mode := str(options.get("mode", SMART_MODE))
 	if mode not in [SMART_MODE, RANDOM_MODE]:
 		return {"error": "未知模擬模式：%s" % mode}
@@ -148,6 +173,7 @@ func simulate(block_pool: Array[BlockData], board_rules: Dictionary, options: Di
 
 
 func generate_events(block_pool: Array[BlockData], board_rules: Dictionary, options: Dictionary = {}) -> Array[Dictionary]:
+	_spell_pool.assign(options.get("spell_pool", []))
 	var placements := maxi(int(options.get("placements", DEFAULT_PLACEMENTS_PER_RUN)), 1)
 	var hand_size := maxi(int(options.get("hand_size", DEFAULT_HAND_SIZE)), 1)
 	var action_points := maxi(int(options.get("action_points", DEFAULT_ACTION_POINTS)), 1)
@@ -189,6 +215,7 @@ func _simulate_run(
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed
 	var board := BoardModel.new(BOARD_DIMENSION)
+	var board_spells := {}
 	var hand: Array[BlockData] = []
 	_seed_friendly_board(board, board_rules, rng)
 	var placements := 0
@@ -210,6 +237,7 @@ func _simulate_run(
 			if record_events:
 				events.append({"type": "dead_board", "turn": turn_number})
 			board.clear()
+			board_spells.clear()
 			hand.clear()
 			_seed_friendly_board(board, board_rules, rng)
 			_refill_hand(hand, hand_size, board, block_pool, mode, directional_hand_min, rng)
@@ -229,6 +257,9 @@ func _simulate_run(
 		totals.successful_placements = int(totals.successful_placements) + 1
 		var rows: Array = placement.get("rows", [])
 		var cols: Array = placement.get("cols", [])
+		if block.spell != null:
+			board_spells[Vector2i(int(choice.origin_x), int(choice.origin_y)) + block.effect_cell] = block.spell
+		var triggered_spells := _collect_cleared_spells(board_spells, rows, cols)
 		var line_count := rows.size() + cols.size()
 		if line_count > 0:
 			totals.clear_placements = int(totals.clear_placements) + 1
@@ -240,6 +271,7 @@ func _simulate_run(
 				"block_id": block.id,
 				"rows": rows.duplicate(),
 				"cols": cols.duplicate(),
+				"spells": triggered_spells,
 			})
 		# 正式流程會在手牌用盡時先補牌，再播放並完成消線；模擬器保留同一順序。
 		if hand.is_empty():
@@ -263,7 +295,10 @@ func _refill_hand(
 	rng: RandomNumberGenerator
 ) -> void:
 	while hand.size() < hand_size:
-		var block := _draw_block(board, block_pool, mode, hand.size(), directional_hand_min, rng)
+		var excluded_ids := {}
+		for held_block in hand:
+			excluded_ids[held_block.id] = true
+		var block := _draw_block(board, block_pool, mode, hand.size(), directional_hand_min, excluded_ids, rng)
 		if block == null:
 			return
 		hand.append(block)
@@ -275,49 +310,116 @@ func _draw_block(
 	mode: String,
 	hand_index: int,
 	directional_hand_min: int,
+	excluded_ids: Dictionary,
 	rng: RandomNumberGenerator
 ) -> BlockData:
+	var selected: BlockData = null
 	if mode == SMART_MODE:
-		var candidates := _rank_rotated_pool(board, block_pool)
+		var candidates := _rank_rotated_pool(board, block_pool, excluded_ids)
 		if not candidates.is_empty():
 			if hand_index < directional_hand_min:
 				var clear_candidates := candidates.filter(func(candidate): return int(candidate.get("clear_count", 0)) > 0)
 				if not clear_candidates.is_empty():
-					return _pick_from_top_candidates(clear_candidates, 2, rng)
+					selected = _pick_from_top_candidates(clear_candidates, 2, block_pool, rng)
 				var directional_candidates := candidates.filter(func(candidate): return int(candidate.get("direction_score", 0)) > 0)
-				if not directional_candidates.is_empty():
-					return _pick_from_top_candidates(directional_candidates, 3, rng)
-			return _pick_from_top_candidates(candidates, 3, rng)
-	return _random_weighted_rotation(block_pool, rng)
+				if selected == null and not directional_candidates.is_empty():
+					selected = _pick_from_top_candidates(directional_candidates, 3, block_pool, rng)
+			if selected == null:
+				selected = _pick_from_top_candidates(candidates, 3, block_pool, rng)
+	if selected == null:
+		selected = _random_weighted_rotation(block_pool, excluded_ids, rng)
+		if selected == null and not excluded_ids.is_empty():
+			selected = _random_weighted_rotation(block_pool, {}, rng)
+	return _attach_spell(selected, rng)
 
 
-func _rank_rotated_pool(board: BoardModel, block_pool: Array[BlockData]) -> Array:
+func _attach_spell(block: BlockData, rng: RandomNumberGenerator) -> BlockData:
+	if block == null or _spell_pool.is_empty() or block.cells.is_empty():
+		return block
+	var spell := _spell_pool[rng.randi_range(0, _spell_pool.size() - 1)] as BattleItem
+	return block.with_spell(spell, block.cells[rng.randi_range(0, block.cells.size() - 1)])
+
+
+func _collect_cleared_spells(board_spells: Dictionary, rows: Array, cols: Array) -> Array[BattleItem]:
+	var cleared_coords := {}
+	for y in rows:
+		for x in range(BOARD_DIMENSION):
+			cleared_coords[Vector2i(x, int(y))] = true
+	for x in cols:
+		for y in range(BOARD_DIMENSION):
+			cleared_coords[Vector2i(int(x), y)] = true
+	var result: Array[BattleItem] = []
+	for coord in cleared_coords:
+		var spell := board_spells.get(coord) as BattleItem
+		if spell != null:
+			result.append(spell)
+		board_spells.erase(coord)
+	return result
+
+
+func _rank_rotated_pool(board: BoardModel, block_pool: Array[BlockData], excluded_ids: Dictionary = {}) -> Array:
 	var rotated_pool: Array = []
 	for block in block_pool:
-		if block == null:
+		if block == null or excluded_ids.has(block.id):
 			continue
 		for rotation_steps in range(4):
 			rotated_pool.append(block.rotated(rotation_steps))
 	return _scorer.rank(board, rotated_pool)
 
 
-func _pick_from_top_candidates(candidates: Array, top_count: int, rng: RandomNumberGenerator) -> BlockData:
-	var pick_count := mini(top_count, candidates.size())
-	var index := rng.randi_range(0, pick_count - 1)
-	return candidates[index].get("block") as BlockData
-
-
-func _random_weighted_rotation(block_pool: Array[BlockData], rng: RandomNumberGenerator) -> BlockData:
+func _pick_from_top_candidates(candidates: Array, top_count: int, block_pool: Array[BlockData], rng: RandomNumberGenerator) -> BlockData:
+	var unique: Array[Dictionary] = []
+	var seen := {}
+	for candidate in candidates:
+		var block := candidate.get("block") as BlockData
+		if block == null or seen.has(block.id):
+			continue
+		seen[block.id] = true
+		unique.append(candidate)
+		if unique.size() >= top_count:
+			break
+	if unique.is_empty():
+		return null
 	var total_weight := 0.0
-	for block in block_pool:
-		total_weight += maxf(block.weight, 0.01)
+	for candidate in unique:
+		var block := candidate.get("block") as BlockData
+		total_weight += maxf(block.weight, 0.01) * float(_pool_count(block_pool, block.id))
 	var roll := rng.randf_range(0.0, total_weight)
 	var cursor := 0.0
+	for candidate in unique:
+		var block := candidate.get("block") as BlockData
+		cursor += maxf(block.weight, 0.01) * float(_pool_count(block_pool, block.id))
+		if roll <= cursor:
+			return block
+	return unique.back().get("block") as BlockData
+
+
+func _random_weighted_rotation(block_pool: Array[BlockData], excluded_ids: Dictionary, rng: RandomNumberGenerator) -> BlockData:
+	var total_weight := 0.0
 	for block in block_pool:
+		if not excluded_ids.has(block.id):
+			total_weight += maxf(block.weight, 0.01)
+	if total_weight <= 0.0:
+		return null
+	var roll := rng.randf_range(0.0, total_weight)
+	var cursor := 0.0
+	var fallback: BlockData = null
+	for block in block_pool:
+		if excluded_ids.has(block.id):
+			continue
+		fallback = block
 		cursor += maxf(block.weight, 0.01)
 		if roll <= cursor:
 			return block.rotated(rng.randi_range(0, 3))
-	return block_pool.back().rotated(rng.randi_range(0, 3))
+	return fallback.rotated(rng.randi_range(0, 3)) if fallback != null else null
+
+
+func _pool_count(block_pool: Array[BlockData], block_id: String) -> int:
+	var count := 0
+	for block in block_pool:
+		if block != null and block.id == block_id:
+			count += 1
+	return count
 
 
 func _count_playable_cards(board: BoardModel, hand: Array[BlockData]) -> int:

@@ -1,15 +1,10 @@
-[gd_scene load_steps=17 format=3 uid="uid://dwxw7ydj0iw88"]
+[gd_scene load_steps=11 format=3 uid="uid://dwxw7ydj0iw88"]
 
 [ext_resource type="Script" uid="uid://bynurhes78qkj" path="res://scripts/main.gd" id="1_4c57u"]
 [ext_resource type="Script" uid="uid://bveoo4lldlwhj" path="res://scripts/tablet_generator.gd" id="1_ig7tw"]
 [ext_resource type="Resource" uid="uid://tueim3ejagqx" path="res://resources/blocks/shape_L.tres" id="2_h2yge"]
 [ext_resource type="Resource" uid="uid://e7ss0tp5dp1l" path="res://resources/blocks/shape_T.tres" id="3_1bvp3"]
 [ext_resource type="PackedScene" path="res://scenes/battle_scene.tscn" id="4_1bvp3"]
-[ext_resource type="Script" uid="uid://bliwvesklcpe5" path="res://scripts/items/battle_item.gd" id="5_lquwl"]
-[ext_resource type="Resource" uid="uid://cuah8ljwcwiql" path="res://resources/items/pistol.tres" id="6_kek77"]
-[ext_resource type="Resource" uid="uid://dsi7fpjgs0ugy" path="res://resources/items/vest.tres" id="7_4c57u"]
-[ext_resource type="Resource" uid="uid://mle3het2p6eb" path="res://resources/items/heal_light.tres" id="8_efxa6"]
-[ext_resource type="Resource" uid="uid://io5u0bqy03en" path="res://resources/items/dark_spike.tres" id="9_dg77c"]
 [ext_resource type="Script" path="res://scripts/entity.gd" id="10_entity"]
 [ext_resource type="Script" path="res://scripts/run_manager.gd" id="11_run_manager"]
 [ext_resource type="PackedScene" path="res://scenes/reward_scene.tscn" id="12_reward"]
@@ -113,9 +108,9 @@ text = "探索開始"
 layout_mode = 2
 text = "End Turn"
 
-[node name="EquipmentLabel" type="Label" parent="UILayer/ScreenMargin/Layout/InfoSection/PlayerStats"]
+[node name="SpellLabel" type="Label" parent="UILayer/ScreenMargin/Layout/InfoSection/PlayerStats"]
 layout_mode = 2
-text = "目前裝備"
+text = "咒文構築"
 
 [node name="RewardPanel" parent="UILayer/ScreenMargin/Layout/InfoSection/PlayerStats" instance=ExtResource("12_reward")]
 layout_mode = 2
@@ -141,8 +136,6 @@ max_hp = 120
 hp = 120
 
 [node name="BattleManager" parent="." instance=ExtResource("4_1bvp3")]
-row_items = Array[ExtResource("5_lquwl")]([ExtResource("6_kek77"), ExtResource("6_kek77"), ExtResource("6_kek77"), ExtResource("6_kek77"), ExtResource("7_4c57u"), ExtResource("7_4c57u"), ExtResource("7_4c57u"), ExtResource("7_4c57u")])
-col_items = Array[ExtResource("5_lquwl")]([ExtResource("8_efxa6"), ExtResource("8_efxa6"), ExtResource("8_efxa6"), ExtResource("8_efxa6"), ExtResource("9_dg77c"), ExtResource("9_dg77c"), ExtResource("9_dg77c"), ExtResource("9_dg77c")])
 player_path = NodePath("../Player")
 enemy_path = NodePath("../Enemy")
 tablet_path = NodePath("../UILayer/ScreenMargin/Layout/TabletSection")
@@ -151,7 +144,7 @@ enemy_status_label_path = NodePath("../UILayer/ScreenMargin/Layout/InfoSection/E
 turn_status_label_path = NodePath("../UILayer/ScreenMargin/Layout/InfoSection/PlayerStats/TurnLabel")
 intent_label_path = NodePath("../UILayer/ScreenMargin/Layout/InfoSection/EnemyContainer/IntentLabel")
 end_turn_button_path = NodePath("../UILayer/ScreenMargin/Layout/InfoSection/PlayerStats/EndTurnButton")
-equipment_summary_label_path = NodePath("../UILayer/ScreenMargin/Layout/InfoSection/PlayerStats/EquipmentLabel")
+spell_summary_label_path = NodePath("../UILayer/ScreenMargin/Layout/InfoSection/PlayerStats/SpellLabel")
 player_max_action_points = 3
 enemy_attack_damage = 8
 

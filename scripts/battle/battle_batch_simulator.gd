@@ -16,8 +16,6 @@ func simulate_encounter_with_session(
 	enemy_definitions: Dictionary,
 	intent_definitions: Dictionary,
 	player_state: Dictionary,
-	row_items: Array[BattleItem],
-	col_items: Array[BattleItem],
 	board_session: Dictionary,
 	sanity_document: Dictionary,
 	seed: int,
@@ -30,8 +28,6 @@ func simulate_encounter_with_session(
 		enemy_definitions,
 		intent_definitions,
 		player_state,
-		row_items,
-		col_items,
 		[],
 		sanity_document,
 		seed,
@@ -45,15 +41,14 @@ func simulate(
 	enemy_definitions: Dictionary,
 	intent_definitions: Dictionary,
 	player_config: Dictionary,
-	row_items: Array[BattleItem],
-	col_items: Array[BattleItem],
+	spells: Array[BattleItem],
 	block_pool: Array[BlockData],
 	board_rules: Dictionary,
 	sanity_document: Dictionary,
 	options: Dictionary = {}
 ) -> Dictionary:
-	if row_items.size() != 8 or col_items.size() != 8:
-		return {"error": "戰鬥批次模擬需要各 8 個 Row／Col 道具"}
+	if spells.is_empty():
+		return {"error": "戰鬥批次模擬的咒文池不可為空"}
 	if block_pool.is_empty():
 		return {"error": "戰鬥批次模擬的方塊池不可為空"}
 	var battles := maxi(int(options.get("battles", DEFAULT_BATTLES)), 1)
@@ -68,6 +63,7 @@ func simulate(
 			"placements": max_turns * action_points,
 			"hand_size": 3,
 			"action_points": action_points,
+			"spell_pool": spells,
 		})
 		if events.is_empty():
 			return {"error": "無法產生棋盤事件序列"}
@@ -83,8 +79,6 @@ func simulate(
 				enemy_definitions,
 				intent_definitions,
 				player_config,
-				row_items,
-				col_items,
 				event_sequences[battle_index],
 				sanity_document,
 				seed + battle_index * 104729,
@@ -95,7 +89,7 @@ func simulate(
 		"seed": seed,
 		"battles_per_encounter": battles,
 		"max_turns": max_turns,
-		"policy": "智慧手牌最高分放置；每次放置前手動鎖定第一名存活敵人",
+		"policy": "智慧手牌最高分放置；效果格消除支付 MP 觸發咒文；目標死亡自動切換",
 		"encounters": reports,
 	}
 
@@ -105,8 +99,6 @@ func _simulate_once(
 	enemy_definitions: Dictionary,
 	intent_definitions: Dictionary,
 	player_config: Dictionary,
-	row_items: Array[BattleItem],
-	col_items: Array[BattleItem],
 	events: Array,
 	sanity_document: Dictionary,
 	seed: int,
@@ -121,6 +113,10 @@ func _simulate_once(
 		"damage_blocked": 0,
 		"armor_gained": 0,
 		"sanity_spent": 0,
+		"mp_spent": 0,
+		"spell_fizzles": 0,
+		"spells_triggered": 0,
+		"spells_paid_with_sanity": 0,
 		"rows_cleared": 0,
 		"cols_cleared": 0,
 		"dead_boards": 0,
@@ -146,11 +142,12 @@ func _simulate_once(
 	sanity_rules.configure(sanity_document, seed)
 	_sync_sanity_rules(sanity_rules, player)
 	var trigger_history: Array[Dictionary] = []
+	var mp := int(player_config.get("mp", 70))
 	var event_index := 0
 	for turn in range(1, max_turns + 1):
 		stats.turns = turn
 		player.clear_armor()
-		var weapon_triggers := 0
+		var spell_triggers := 0
 		if not board_session.is_empty() and not _board_simulator.begin_session_turn(board_session):
 			stats.outcome = "invalid_board"
 			break
@@ -175,32 +172,23 @@ func _simulate_once(
 				stats.dead_boards = int(stats.dead_boards) + 1
 				_sync_sanity_rules(sanity_rules, player)
 			else:
-				# 同一次放置造成的 Col → Row 連續效果共用鎖定；目標死亡後不在序列中自動改鎖。
-				var selected_index := _first_living_index(enemies)
-				for col in event.get("cols", []):
-					var col_index := int(col)
-					if col_index < 0 or col_index >= col_items.size() or col_items[col_index] == null:
+				stats.rows_cleared = int(stats.rows_cleared) + event.get("rows", []).size()
+				stats.cols_cleared = int(stats.cols_cleared) + event.get("cols", []).size()
+				for spell in event.get("spells", []):
+					if not spell is BattleItem:
 						continue
-					var magic_item := col_items[col_index]
-					var base_cost := magic_item.sanity_cost if magic_item.sanity_cost > 0 else 3
-					player.spend_sanity(sanity_rules.modify_magic_cost(base_cost), "magic:%s" % magic_item.content_id)
-					_sync_sanity_rules(sanity_rules, player)
+					var cost := sanity_rules.modify_spell_mp_cost(spell.mp_cost)
+					if mp < cost:
+						player.spend_sanity(cost, "spell:fallback:%s" % spell.content_id)
+						stats.spells_paid_with_sanity = int(stats.spells_paid_with_sanity) + 1
+					else:
+						mp -= cost
+						stats.mp_spent = int(stats.mp_spent) + cost
+					stats.spells_triggered = int(stats.spells_triggered) + 1
+					_execute_spell(spell, player, enemies, _first_living_index(enemies), spell_triggers, trigger_history, turn)
+					spell_triggers += 1
 					if _outcome_name(player, enemies) != "active":
 						break
-					_execute_item(magic_item, player, enemies, selected_index, "col", col_index, weapon_triggers, trigger_history, turn)
-					stats.cols_cleared = int(stats.cols_cleared) + 1
-					if _outcome_name(player, enemies) != "active":
-						break
-				if _outcome_name(player, enemies) == "active":
-					for row in event.get("rows", []):
-						var row_index := int(row)
-						if row_index < 0 or row_index >= row_items.size() or row_items[row_index] == null:
-							continue
-						_execute_item(row_items[row_index], player, enemies, selected_index, "row", row_index, weapon_triggers, trigger_history, turn)
-						stats.rows_cleared = int(stats.rows_cleared) + 1
-						weapon_triggers += 1
-						if _outcome_name(player, enemies) != "active":
-							break
 			if _outcome_name(player, enemies) != "active":
 				break
 		if str(stats.outcome) == "invalid_board":
@@ -246,6 +234,7 @@ func _simulate_once(
 			break
 	stats.player_hp_end = player.hp
 	stats.player_sanity_end = player.sanity
+	stats.player_mp_end = mp
 	stats.enemies_alive_end = _living_count(enemies)
 	for active_enemy in enemies:
 		active_enemy.free()
@@ -274,35 +263,33 @@ func _create_enemies(encounter: Dictionary, enemy_definitions: Dictionary, stats
 	return enemies
 
 
-func _execute_item(
-	item: BattleItem,
+func _execute_spell(
+	spell: BattleItem,
 	player: Entity,
 	enemies: Array[Entity],
 	selected_index: int,
-	axis: String,
-	index: int,
-	weapon_triggers: int,
+	spell_triggers: int,
 	trigger_history: Array[Dictionary],
 	turn: int
 ) -> void:
+	if selected_index < 0 or selected_index >= enemies.size() or enemies[selected_index] == null or enemies[selected_index].is_dead:
+		selected_index = _first_living_index(enemies)
 	var context := BattleEffectContext.new()
 	context.user = player
-	context.trigger_axis = axis
-	context.trigger_index = index
-	context.weapon_trigger_count = weapon_triggers
+	context.spell_trigger_count = spell_triggers
 	context.trigger_history = trigger_history.duplicate(true)
 	context.battle_state = {"turn": turn, "action_points": 0, "encounter_id": "batch"}
-	if item.effect_scope == "self":
+	if spell.effect_scope == "self":
 		context.primary_target = player
 		context.targets = [player]
-		item.execute_with_context(player, player, context)
+		spell.execute_with_context(player, player, context)
 	else:
 		context.primary_target = enemies[selected_index] if selected_index >= 0 else null
-		context.targets = _target_resolver.resolve(item.effect_scope, enemies, selected_index)
+		context.targets = _target_resolver.resolve(spell.effect_scope, enemies, selected_index)
 		for target in context.targets:
 			if target != null and not target.is_dead:
-				item.execute_with_context(target, player, context)
-	trigger_history.append({"item_id": item.content_id, "axis": axis, "index": index, "target_count": context.targets.size()})
+				spell.execute_with_context(target, player, context)
+	trigger_history.append({"spell_id": spell.content_id, "target_count": context.targets.size()})
 
 
 func _sync_sanity_rules(rules: SanityRuleEngine, player: Entity) -> void:
@@ -367,11 +354,16 @@ func _summarize_encounter(encounter: Dictionary, trials: Array[Dictionary], max_
 		"damage_blocked": 0,
 		"armor_gained": 0,
 		"sanity_spent": 0,
+		"mp_spent": 0,
+		"spell_fizzles": 0,
+		"spells_triggered": 0,
+		"spells_paid_with_sanity": 0,
 		"rows_cleared": 0,
 		"cols_cleared": 0,
 		"dead_boards": 0,
 		"player_hp_end": 0,
 		"player_sanity_end": 0,
+		"player_mp_end": 0,
 	}
 	var survival_sum := {}
 	for turn in range(1, max_turns + 1):
@@ -382,7 +374,7 @@ func _summarize_encounter(encounter: Dictionary, trials: Array[Dictionary], max_
 			"hp_defeat": totals.hp_defeats = int(totals.hp_defeats) + 1
 			"sanity_defeat": totals.sanity_defeats = int(totals.sanity_defeats) + 1
 			_: totals.timeouts = int(totals.timeouts) + 1
-		for key in ["turns", "damage_dealt", "damage_taken", "damage_blocked", "armor_gained", "sanity_spent", "rows_cleared", "cols_cleared", "dead_boards", "player_hp_end", "player_sanity_end"]:
+		for key in ["turns", "damage_dealt", "damage_taken", "damage_blocked", "armor_gained", "sanity_spent", "mp_spent", "spell_fizzles", "spells_triggered", "spells_paid_with_sanity", "rows_cleared", "cols_cleared", "dead_boards", "player_hp_end", "player_sanity_end", "player_mp_end"]:
 			totals[key] = int(totals[key]) + int(trial.get(key, 0))
 		var final_alive := int(trial.get("enemies_alive_end", 0))
 		for turn in range(1, max_turns + 1):
@@ -406,10 +398,15 @@ func _summarize_encounter(encounter: Dictionary, trials: Array[Dictionary], max_
 		"average_damage_blocked": float(totals.damage_blocked) / float(count),
 		"average_armor_gained": float(totals.armor_gained) / float(count),
 		"average_sanity_spent": float(totals.sanity_spent) / float(count),
+		"average_mp_spent": float(totals.mp_spent) / float(count),
+		"average_spell_fizzles": float(totals.spell_fizzles) / float(count),
+		"average_spells_triggered": float(totals.spells_triggered) / float(count),
+		"average_spells_paid_with_sanity": float(totals.spells_paid_with_sanity) / float(count),
 		"average_rows_cleared": float(totals.rows_cleared) / float(count),
 		"average_cols_cleared": float(totals.cols_cleared) / float(count),
 		"average_dead_boards": float(totals.dead_boards) / float(count),
 		"average_player_hp_end": float(totals.player_hp_end) / float(count),
 		"average_player_sanity_end": float(totals.player_sanity_end) / float(count),
+		"average_player_mp_end": float(totals.player_mp_end) / float(count),
 		"enemy_survival_curve": survival_curve,
 	}

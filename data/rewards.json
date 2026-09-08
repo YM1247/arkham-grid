@@ -1,182 +1,25 @@
 {
   "schema_version": 1,
   "entries": [
-  {
-    "title": "裝備：左輪手槍",
-    "type": "item",
-    "id": "pistol",
-    "weight": 1.4,
-    "min_reward_tier": 1,
-    "slot_kind": "row",
-    "slot_index": 0
-  },
-  {
-    "title": "裝備：霰彈槍",
-    "type": "item",
-    "id": "shotgun",
-    "weight": 1.0,
-    "min_reward_tier": 1,
-    "slot_kind": "row",
-    "slot_index": 1
-  },
-  {
-    "title": "裝備：連發手槍",
-    "type": "item",
-    "id": "burst_pistol",
-    "weight": 1.0,
-    "min_reward_tier": 1,
-    "slot_kind": "row",
-    "slot_index": 2
-  },
-  {
-    "title": "裝備：微型炸藥",
-    "type": "item",
-    "id": "micro_explosive",
-    "weight": 1.0,
-    "min_reward_tier": 1,
-    "slot_kind": "row",
-    "slot_index": 3
-  },
-  {
-    "title": "裝備：狙擊槍",
-    "type": "item",
-    "id": "sniper_rifle",
-    "weight": 1.0,
-    "min_reward_tier": 1,
-    "slot_kind": "row",
-    "slot_index": 0
-  },
-  {
-    "title": "裝備：防彈背心",
-    "type": "item",
-    "id": "vest",
-    "weight": 1.4,
-    "min_reward_tier": 1,
-    "slot_kind": "row",
-    "slot_index": 4
-  },
-  {
-    "title": "裝備：單手盾",
-    "type": "item",
-    "id": "buckler",
-    "weight": 1.0,
-    "min_reward_tier": 1,
-    "slot_kind": "row",
-    "slot_index": 5
-  },
-  {
-    "title": "裝備：加固長外套",
-    "type": "item",
-    "id": "reinforced_coat",
-    "weight": 1.0,
-    "min_reward_tier": 1,
-    "slot_kind": "row",
-    "slot_index": 6
-  },
-  {
-    "title": "裝備：護身臂甲",
-    "type": "item",
-    "id": "guard_bracer",
-    "weight": 1.0,
-    "min_reward_tier": 1,
-    "slot_kind": "row",
-    "slot_index": 7
-  },
-  {
-    "title": "裝備：聖光術",
-    "type": "item",
-    "id": "heal_light",
-    "weight": 1.0,
-    "min_reward_tier": 1,
-    "slot_kind": "col",
-    "slot_index": 0
-  },
-  {
-    "title": "裝備：轉守為攻",
-    "type": "item",
-    "id": "offense_from_guard",
-    "weight": 1.0,
-    "min_reward_tier": 1,
-    "slot_kind": "col",
-    "slot_index": 1
-  },
-  {
-    "title": "裝備：祈願",
-    "type": "item",
-    "id": "wish",
-    "weight": 1.0,
-    "min_reward_tier": 1,
-    "slot_kind": "col",
-    "slot_index": 2
-  },
-  {
-    "title": "裝備：身強體壯",
-    "type": "item",
-    "id": "stout_body",
-    "weight": 1.0,
-    "min_reward_tier": 1,
-    "slot_kind": "col",
-    "slot_index": 3
-  },
-  {
-    "title": "裝備：暗影刺",
-    "type": "item",
-    "id": "dark_spike",
-    "weight": 1.4,
-    "min_reward_tier": 1,
-    "slot_kind": "col",
-    "slot_index": 4
-  },
-  {
-    "title": "裝備：中毒術",
-    "type": "item",
-    "id": "poison_spell",
-    "weight": 1.0,
-    "min_reward_tier": 1,
-    "slot_kind": "col",
-    "slot_index": 5
-  },
-  {
-    "title": "裝備：劣化",
-    "type": "item",
-    "id": "degrade",
-    "weight": 1.0,
-    "min_reward_tier": 1,
-    "slot_kind": "col",
-    "slot_index": 6
-  },
-  {
-    "title": "裝備：毒滿地",
-    "type": "item",
-    "id": "poison_cloud",
-    "weight": 1.0,
-    "min_reward_tier": 1,
-    "slot_kind": "col",
-    "slot_index": 7
-  },
-  {
-    "title": "特殊方塊：星點石板",
-    "type": "block",
-    "id": "special_dot",
-    "weight": 0.8,
-    "min_reward_tier": 2,
-    "min_battles_won": 1
-  },
-  {
-    "title": "特殊方塊：雙星石板",
-    "type": "block",
-    "id": "special_domino",
-    "weight": 0.8,
-    "min_reward_tier": 2,
-    "min_battles_won": 1
-  },
-  {
-    "title": "特殊方塊：十字石板",
-    "type": "block",
-    "id": "special_cross",
-    "weight": 0.6,
-    "min_reward_tier": 3,
-    "min_battles_won": 2
-  }
+    {"title":"咒文：秘銀飛矢","type":"spell","id":"pistol","weight":1.4,"min_reward_tier":1},
+    {"title":"咒文：裂界波","type":"spell","id":"shotgun","weight":1.0,"min_reward_tier":1},
+    {"title":"咒文：迴響咒","type":"spell","id":"burst_pistol","weight":1.0,"min_reward_tier":1},
+    {"title":"咒文：虛空震爆","type":"spell","id":"micro_explosive","weight":0.8,"min_reward_tier":1},
+    {"title":"咒文：深淵凝視","type":"spell","id":"sniper_rifle","weight":0.8,"min_reward_tier":1},
+    {"title":"咒文：守護刻印","type":"spell","id":"vest","weight":1.4,"min_reward_tier":1},
+    {"title":"咒文：鐵壁符文","type":"spell","id":"buckler","weight":1.0,"min_reward_tier":1},
+    {"title":"咒文：石膚術","type":"spell","id":"reinforced_coat","weight":1.0,"min_reward_tier":1},
+    {"title":"咒文：微光護符","type":"spell","id":"guard_bracer","weight":1.0,"min_reward_tier":1},
+    {"title":"咒文：縫命微光","type":"spell","id":"heal_light","weight":0.7,"min_reward_tier":1},
+    {"title":"咒文：狂戰祕印","type":"spell","id":"offense_from_guard","weight":0.9,"min_reward_tier":1},
+    {"title":"咒文：再生低語","type":"spell","id":"wish","weight":0.8,"min_reward_tier":1},
+    {"title":"咒文：巨靈附體","type":"spell","id":"stout_body","weight":0.8,"min_reward_tier":1},
+    {"title":"咒文：暗影尖刺","type":"spell","id":"dark_spike","weight":1.2,"min_reward_tier":1},
+    {"title":"咒文：腐毒烙印","type":"spell","id":"poison_spell","weight":1.0,"min_reward_tier":1},
+    {"title":"咒文：衰敗低語","type":"spell","id":"degrade","weight":1.0,"min_reward_tier":1},
+    {"title":"咒文：瘴霧儀式","type":"spell","id":"poison_cloud","weight":0.8,"min_reward_tier":1},
+    {"title":"特殊形狀：星點石板","type":"block","id":"special_dot","weight":0.8,"min_reward_tier":2,"min_battles_won":1},
+    {"title":"特殊形狀：雙星石板","type":"block","id":"special_domino","weight":0.8,"min_reward_tier":2,"min_battles_won":1},
+    {"title":"特殊形狀：十字石板","type":"block","id":"special_cross","weight":0.6,"min_reward_tier":3,"min_battles_won":2}
   ]
 }

@@ -120,10 +120,10 @@
       [0, 0]
     ],
     "tier": 2,
-    "weight": 0.45,
+      "weight": 0.16,
     "tags": ["special", "small", "precision"],
     "special": true,
-    "smart_score_bonus": 18
+      "smart_score_bonus": 2
   },
   {
     "id": "special_domino",
@@ -134,10 +134,10 @@
       [1, 0]
     ],
     "tier": 2,
-    "weight": 0.6,
+      "weight": 0.25,
     "tags": ["special", "small", "wide", "filler"],
     "special": true,
-    "smart_score_bonus": 12
+      "smart_score_bonus": 2
   },
   {
     "id": "special_cross",
@@ -151,10 +151,10 @@
       [0, -1]
     ],
     "tier": 3,
-    "weight": 0.35,
+      "weight": 0.18,
     "tags": ["special", "combo", "cross", "awkward"],
     "special": true,
-    "smart_score_bonus": 20
+      "smart_score_bonus": 4
   }
   ]
 }

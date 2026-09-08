@@ -27,28 +27,30 @@ func _run() -> void:
 		float(report.average_battles_won),
 		float(report.average_battles_reached),
 	])
-	print("- HP/SAN/超時/無效 Run：%d/%d/%d/%d｜結束平均 HP/SAN：%.1f/%.1f" % [
+	print("- HP/SAN/超時/無效 Run：%d/%d/%d/%d｜結束平均 HP/SAN/MP：%.1f/%.1f/%.1f" % [
 		int(report.hp_defeats),
 		int(report.sanity_defeats),
 		int(report.timeouts),
 		int(report.invalid_runs),
 		float(report.average_hp_end),
 		float(report.average_sanity_end),
+		float(report.average_mp_end),
 	])
-	print("- 平均獎勵／升級／特殊方塊：%.2f/%.2f/%.2f｜放置／死盤：%.1f/%.2f" % [
+	print("- 平均獎勵／新增咒文／特殊方塊：%.2f/%.2f/%.2f｜放置／死盤：%.1f/%.2f" % [
 		float(report.average_rewards),
-		float(report.average_upgrades),
+		float(report.average_spells_taken),
 		float(report.average_special_blocks),
 		float(report.average_board_placements),
 		float(report.average_dead_boards),
 	])
 	for point in report.pressure_curve:
-		print("  戰鬥 %d｜抵達 %.1f%%｜抵達後勝率 %.1f%%｜戰後 HP/SAN %.1f/%.1f｜回合 %.2f" % [
+		print("  戰鬥 %d｜抵達 %.1f%%｜抵達後勝率 %.1f%%｜戰後 HP/SAN/MP %.1f/%.1f/%.1f｜回合 %.2f" % [
 			int(point.battle),
 			100.0 * float(point.reached_rate),
 			100.0 * float(point.win_rate_when_reached),
 			float(point.average_hp_after),
 			float(point.average_sanity_after),
+			float(point.average_mp_after),
 			float(point.average_turns),
 		])
 	print("FULL RUN PRESSURE SIMULATION OK")

@@ -1,24 +1,10 @@
 class_name BattleItem extends Resource
 
-# 定義四種裝備類型
-enum ItemType {
-	WEAPON,    # 武器 (橫列 1-4)
-	EQUIPMENT, # 裝備 (橫列 5-8)
-	PRAYER,    # 祈禱 (直行 1-4)
-	CURSE      # 詛咒 (直行 5-8)
-}
-
-enum AxisType {
-	PHYSICAL,
-	MAGIC
-}
-
 @export_group("基本資料")
 @export var content_id: String = ""
-@export var item_name: String = "未命名道具"
+@export var spell_name: String = "未命名咒文"
 @export var icon: Texture2D
-@export var item_type: ItemType # 遷移相容欄位
-@export var axis_type: AxisType = AxisType.PHYSICAL
+@export var icon_text: String = "✦"
 @export var logic: String = ""
 @export var rarity: String = "common"
 @export var tier: int = 1
@@ -27,7 +13,7 @@ enum AxisType {
 @export var upgrade_to: String = ""
 @export var combine_count: int = 0
 @export var tags: Array[String] = []
-@export var sanity_cost: int = 0
+@export var mp_cost: int = 0
 @export var effect_scope: String = "single"
 @export var status_effects_self: Array[Dictionary] = []
 @export var status_effects_target: Array[Dictionary] = []
@@ -37,8 +23,9 @@ func get_effect_tooltip(header: String = "") -> String:
 	var lines: Array[String] = []
 	if header != "":
 		lines.append(header)
-	lines.append(item_name)
-	lines.append("%s｜Tier %d｜成本 %d" % [_get_rarity_name(rarity), tier, balance_cost])
+	lines.append(spell_name)
+	lines.append("%s咒文｜Tier %d｜MP %d" % [_get_rarity_name(rarity), tier, mp_cost])
+	lines.append("MP 不足時改以同額 Sanity 支付")
 	if description != "":
 		lines.append(description)
 	lines.append("範圍：%s" % _get_effect_scope_name(effect_scope))
@@ -58,14 +45,19 @@ func get_effect_tooltip(header: String = "") -> String:
 		lines.append("自身：%s%d" % [_get_status_display_name(str(effect.get("id", ""))), int(effect.get("amount", 0))])
 	for effect in status_effects_target:
 		lines.append("目標：%s%d" % [_get_status_display_name(str(effect.get("id", ""))), int(effect.get("amount", 0))])
-	if axis_type == AxisType.MAGIC:
-		var cost = sanity_cost if sanity_cost > 0 else 3
-		var adjusted_cost := int(get_meta("sanity_adjusted_cost", cost))
-		lines.append("Sanity 消耗：%d%s" % [adjusted_cost, "（基礎 %d）" % cost if adjusted_cost != cost else ""])
-		var preview := str(get_meta("sanity_preview", ""))
-		if not preview.is_empty():
-			lines.append(preview)
 	return "\n".join(lines)
+
+
+func get_icon_color() -> Color:
+	if "ailment" in tags:
+		return Color(0.82, 0.48, 1.0)
+	if "ward" in tags:
+		return Color(0.4, 0.85, 1.0)
+	if "risk" in tags:
+		return Color(1.0, 0.45, 0.55)
+	if logic == "attack" or logic == "conditional_attack":
+		return Color(1.0, 0.68, 0.3)
+	return Color(0.95, 0.9, 0.35)
 
 func _get_rarity_name(value: String) -> String:
 	match value:

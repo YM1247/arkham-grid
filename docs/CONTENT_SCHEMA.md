@@ -6,7 +6,9 @@
 
 目前已註冊的內容清單是方塊、道具、敵人意圖、敵人、遭遇、獎勵與事件。可複製範例位於 `data/templates/`。玩家、Run、地圖與 Sanity 是系統設定文件，不把整份文件當成可重複內容項目。
 
-事件依 `CONTENT-006` 使用 `events.json`：每筆事件至少兩個選項，選項以 `costs`／`results` 定義 HP、Sanity、金錢的非負整數變化。商店與休息仍以地圖 `content_id` 進入佔位流程；在 `CONTENT-007` 決定互動結構前不建立正式 schema。
+事件、商店與休息依 `CONTENT-006`／`CONTENT-007` 分別使用 `events.json`、`shops.json`、`rests.json`，並共用選項 schema：每筆內容至少兩個選項，選項以 `costs`／`results` 定義 HP、Sanity、MP、金錢的非負整數變化。
+
+`meta_progression.json` 保存全新玩家的共享 Meta 預設值。職業、方塊與咒文解鎖 ID 必須唯一且引用有效內容；新增內容不會因出現在其他 JSON 就自動解鎖，必須明確加入初始白名單或由後續 Meta 獎勵解鎖。
 
 ## ID 規則
 

@@ -24,6 +24,8 @@ func execute(intent: Dictionary, actor: Entity, player: Entity) -> Dictionary:
 		"status_self":
 			actor.add_status(str(intent.get("status_id", "")), int(intent.get("amount", 0)))
 			return {"executed": true, "action": action}
+		"idle":
+			return {"executed": true, "amount": 0, "action": action}
 		_:
 			push_error("未知敵人意圖 action：%s" % action)
 			return {"executed": false, "action": action}

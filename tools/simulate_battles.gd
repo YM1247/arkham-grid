@@ -26,8 +26,7 @@ func _run() -> void:
 		enemy_index,
 		intent_index,
 		registry.get_document("player"),
-		registry.get_items(run_config.get("row_items", [])),
-		registry.get_items(run_config.get("col_items", [])),
+		registry.get_spells(run_config.get("spell_pool", [])),
 		registry.get_blocks(run_config.get("block_pool", [])),
 		run_config.get("board_growth_rules", {}),
 		registry.get_document("sanity"),
@@ -42,14 +41,21 @@ func _run() -> void:
 	print("- 策略：%s" % report.policy)
 	for encounter in report.encounters:
 		print("- %s %s" % [encounter.encounter_id, encounter.name])
-		print("  勝率：%.1f%%｜平均回合：%.2f｜HP/SAN 結束：%.1f/%.1f｜HP/SAN 敗：%d/%d｜超時：%d" % [
+		print("  勝率：%.1f%%｜平均回合：%.2f｜HP/SAN/MP 結束：%.1f/%.1f/%.1f｜HP/SAN 敗：%d/%d｜超時：%d" % [
 			100.0 * float(encounter.win_rate),
 			float(encounter.average_turns),
 			float(encounter.average_player_hp_end),
 			float(encounter.average_player_sanity_end),
+			float(encounter.average_player_mp_end),
 			int(encounter.hp_defeats),
 			int(encounter.sanity_defeats),
 			int(encounter.timeouts),
+		])
+		print("  咒文觸發／Sanity 代付／失敗／MP 消耗：%.1f/%.1f/%.1f/%.1f" % [
+			float(encounter.average_spells_triggered),
+			float(encounter.average_spells_paid_with_sanity),
+			float(encounter.average_spell_fizzles),
+			float(encounter.average_mp_spent),
 		])
 		print("  傷害 dealt/taken/blocked：%.1f/%.1f/%.1f｜護甲：%.1f｜Sanity 消耗：%.1f" % [
 			float(encounter.average_damage_dealt),

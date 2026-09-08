@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "initial_shared_currency": 0,
+  "initial_unlocked_profession_ids": ["investigator"],
+  "initial_unlocked_block_ids": [
+    "shape_L", "shape_T", "shape_I", "shape_O",
+    "shape_S", "shape_Z", "shape_J", "shape_short_I",
+    "special_dot", "special_domino", "special_cross"
+  ],
+  "initial_unlocked_spell_ids": [
+    "pistol", "shotgun", "burst_pistol", "micro_explosive", "sniper_rifle",
+    "vest", "buckler", "reinforced_coat", "guard_bracer", "heal_light",
+    "offense_from_guard", "wish", "stout_body", "dark_spike", "poison_spell",
+    "degrade", "poison_cloud", "pistol_engraved", "vest_reinforced", "dark_spike_deep"
+  ]
+}

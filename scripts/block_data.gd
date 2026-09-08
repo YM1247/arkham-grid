@@ -13,18 +13,30 @@ class_name BlockData extends Resource
 @export var tags: Array[String] = []
 @export var is_special: bool = false
 @export var smart_score_bonus: int = 0
+@export var spell: BattleItem
+@export var effect_cell: Vector2i = Vector2i(0, 0)
 
 
 func rotated(steps: int) -> BlockData:
 	var normalized_steps := posmod(steps, 4)
 	var result := duplicate(true) as BlockData
 	var rotated_cells: Array[Vector2i] = cells.duplicate()
+	var rotated_effect_cell := effect_cell
 	for _step in range(normalized_steps):
 		for i in range(rotated_cells.size()):
 			var cell := rotated_cells[i]
 			rotated_cells[i] = Vector2i(-cell.y, cell.x)
+		rotated_effect_cell = Vector2i(-rotated_effect_cell.y, rotated_effect_cell.x)
 	result.cells = rotated_cells
+	result.effect_cell = rotated_effect_cell
 	result.set_meta("rotation_steps", normalized_steps)
+	return result
+
+
+func with_spell(value: BattleItem, marked_cell: Vector2i) -> BlockData:
+	var result := duplicate(true) as BlockData
+	result.spell = value
+	result.effect_cell = marked_cell
 	return result
 
 

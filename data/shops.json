@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "entries": [
+    {
+      "id": "prototype_shop",
+      "title": "暮巷補給商",
+      "description": "披著舊斗篷的商人把三只封蠟小瓶排在木箱上。他不問來歷，只認仍能流通的錢幣。",
+      "options": [
+        {
+          "id": "buy_tonic",
+          "label": "購買止血酊",
+          "description": "處理尚未癒合的傷口。生命回復不會超過上限。",
+          "costs": {"currency": 15},
+          "results": {"hp": 18},
+          "result_text": "藥液灼燒著傷口，但你的步伐重新穩定下來。"
+        },
+        {
+          "id": "buy_incense",
+          "label": "購買靜心香",
+          "description": "暫時驅散縈繞不去的低語。理智回復不會超過上限。",
+          "costs": {"currency": 15},
+          "results": {"sanity": 15},
+          "result_text": "冷冽香氣蓋過潮濕巷道的氣味，低語也隨之遠去。"
+        },
+        {
+          "id": "buy_mana_vial",
+          "label": "購買魔力瓶",
+          "description": "補充咒文所需的 MP。回復不會超過上限。",
+          "costs": {"currency": 12},
+          "results": {"mp": 35},
+          "result_text": "瓶中微光滲入指尖，枯竭的術式再次有了回應。"
+        },
+        {
+          "id": "leave_shop",
+          "label": "離開商店",
+          "description": "不進行交易，保留目前資源。",
+          "costs": {},
+          "results": {},
+          "result_text": "商人收起木箱，像從未在巷中出現過。"
+        }
+      ]
+    }
+  ]
+}

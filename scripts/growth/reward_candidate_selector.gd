@@ -4,7 +4,7 @@ extends RefCounted
 const RARITY_TIER := {"common": 1, "uncommon": 2, "rare": 3}
 
 
-func pick(rewards: Array, item_definitions: Dictionary, block_definitions: Dictionary, context: Dictionary, count: int, rng: RandomNumberGenerator) -> Array:
+func pick(rewards: Array, spell_definitions: Dictionary, block_definitions: Dictionary, context: Dictionary, count: int, rng: RandomNumberGenerator) -> Array:
 	var pool: Array[Dictionary] = []
 	var seen_ids := {}
 	for value in rewards:
@@ -14,7 +14,7 @@ func pick(rewards: Array, item_definitions: Dictionary, block_definitions: Dicti
 		var content_id := str(reward.get("id", ""))
 		if content_id.is_empty() or seen_ids.has(content_id):
 			continue
-		if not _is_eligible(reward, item_definitions, block_definitions, context):
+		if not _is_eligible(reward, spell_definitions, block_definitions, context):
 			continue
 		seen_ids[content_id] = true
 		pool.append(reward)
@@ -26,7 +26,7 @@ func pick(rewards: Array, item_definitions: Dictionary, block_definitions: Dicti
 	return selected
 
 
-func _is_eligible(reward: Dictionary, item_defs: Dictionary, block_defs: Dictionary, context: Dictionary) -> bool:
+func _is_eligible(reward: Dictionary, spell_defs: Dictionary, block_defs: Dictionary, context: Dictionary) -> bool:
 	if int(context.get("battles_won", 0)) < int(reward.get("min_battles_won", 0)):
 		return false
 	if int(context.get("reward_tier", 1)) < int(reward.get("min_reward_tier", 1)):
@@ -35,14 +35,29 @@ func _is_eligible(reward: Dictionary, item_defs: Dictionary, block_defs: Diction
 		if str(required_id) not in context.get("unlocked_reward_ids", []):
 			return false
 	var definition: Dictionary
-	if str(reward.get("type", "")) == "item":
-		definition = item_defs.get(str(reward.get("id", "")), {})
+	var reward_type := str(reward.get("type", ""))
+	var reward_id := str(reward.get("id", ""))
+	if reward_type == "spell":
+		var meta_spells = context.get("meta_unlocked_spell_ids", [])
+		if meta_spells is Array and not meta_spells.is_empty() and reward_id not in meta_spells:
+			return false
+		definition = spell_defs.get(reward_id, {})
 		if RARITY_TIER.get(str(definition.get("rarity", "common")), 1) > int(context.get("reward_tier", 1)):
 			return false
-	else:
-		definition = block_defs.get(str(reward.get("id", "")), {})
+	elif reward_type == "block":
+		var meta_blocks = context.get("meta_unlocked_block_ids", [])
+		if meta_blocks is Array and not meta_blocks.is_empty() and reward_id not in meta_blocks:
+			return false
+		# 特殊形狀只需解鎖一次，避免重複份數讓低格數方塊壟斷手牌。
+		if reward_id in context.get("unlocked_reward_ids", []):
+			return false
+		definition = block_defs.get(reward_id, {})
 		if int(definition.get("tier", 1)) > int(context.get("reward_tier", 1)):
 			return false
+	else:
+		return false
+	if definition.is_empty():
+		return false
 	return true
 
 

@@ -5,7 +5,7 @@
     {"id": "fractured", "display_name": "崩解", "threshold": 25, "effect_count": 2}
   ],
   "source_labels": {
-    "magic": "施放魔法",
+    "spell": "咒文",
     "dead_board": "盤面無路",
     "enemy_intent": "敵人精神攻擊",
     "event": "事件",
@@ -15,9 +15,9 @@
     {
       "id": "obsessive_ritual",
       "display_name": "儀式執著",
-      "description": "每次魔法額外消耗 1 Sanity。",
+      "description": "每道咒文額外消耗 1 MP。",
       "amount": 1,
-      "behavior_resource": "res://resources/sanity/magic_cost.tres"
+      "behavior_resource": "res://resources/sanity/spell_mp_cost.tres"
     },
     {
       "id": "claustrophobic_grid",
@@ -43,10 +43,9 @@
   ],
   "simulation": {
     "path_battles": 6,
-    "magic_uses_per_battle": 2,
     "dead_boards_per_run": 1,
     "enemy_sanity_hits_per_run": 2,
-    "enemy_sanity_hit": 6,
+    "enemy_sanity_hit": 4,
     "rest_recovery": 100,
     "acceptance_min_sanity_before_rest": 15,
     "acceptance_max_sanity_before_rest": 55

@@ -14,6 +14,7 @@ var drag_enabled := true
 # --- 初始化 ---
 func set_data(data: BlockData):
 	block_data = data
+	tooltip_text = block_data.spell.get_effect_tooltip("此方塊的咒文") if block_data != null and block_data.spell != null else ""
 	_redraw_shape()
 
 func set_drag_enabled(enabled: bool):
@@ -42,6 +43,18 @@ func _redraw_shape():
 		rect.position = (Vector2(cell_pos) * (CELL_SIZE + Vector2(SPACING, SPACING))) + centering_offset
 		
 		add_child(rect)
+		if block_data.spell != null and cell_pos == block_data.effect_cell:
+			var rune := Label.new()
+			rune.text = block_data.spell.icon_text
+			rune.tooltip_text = block_data.spell.get_effect_tooltip("方塊咒文")
+			rune.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			rune.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+			rune.add_theme_font_size_override("font_size", 30)
+			rune.add_theme_color_override("font_color", block_data.spell.get_icon_color())
+			rune.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			rune.size = CELL_SIZE
+			rune.position = rect.position
+			add_child(rune)
 	
 	# 【建議】把最小尺寸設大一點，確保能包住位移後的方塊 (3x3 格子約 220x220)
 	custom_minimum_size = Vector2(230, 230)
@@ -81,7 +94,7 @@ func _get_drag_data(at_position):
 	var preview_wrapper = Control.new()
 	var visual_content = Control.new()
 	for child in get_children():
-		if child is ColorRect:
+		if child is ColorRect or child is Label:
 			var dup = child.duplicate()
 			visual_content.add_child(dup)
 	
@@ -100,5 +113,5 @@ func _get_drag_data(at_position):
 
 func _set_shape_visible(is_visible: bool) -> void:
 	for child in get_children():
-		if child is ColorRect:
+		if child is ColorRect or child is Label:
 			child.visible = is_visible

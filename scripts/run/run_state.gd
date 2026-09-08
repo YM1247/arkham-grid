@@ -1,25 +1,27 @@
 class_name RunState
 extends Resource
 
-const SCHEMA_VERSION := 4
+const SCHEMA_VERSION := 5
 
 @export var seed: int = 0
 @export var player_name: String = "調查員"
+@export var profession_id: String = "investigator"
 @export var hp: int = 80
 @export var max_hp: int = 80
 @export var sanity: int = 70
 @export var max_sanity: int = 100
+@export var mp: int = 70
+@export var max_mp: int = 100
 @export var action_points: int = 5
 @export var board_cells: Array[String] = []
+@export var board_spell_ids: Array[String] = []
 @export var hand_ids: Array[String] = []
 @export var hand_state: Array[Dictionary] = []
 @export var block_pool_ids: Array[String] = []
-@export var row_item_ids: Array[String] = []
-@export var col_item_ids: Array[String] = []
+@export var spell_pool_ids: Array[String] = []
 @export var encounter_index: int = 0
 @export var battles_won: int = 0
 @export var selected_reward_ids: Array[String] = []
-@export var item_inventory: Dictionary = {}
 @export var currency: int = 0
 @export var battle_reports: Array[Dictionary] = []
 @export var flow_state: int = 0
@@ -37,17 +39,16 @@ func to_dict() -> Dictionary:
 	return {
 		"schema_version": SCHEMA_VERSION,
 		"seed": seed,
-		"player": {"name": player_name, "hp": hp, "max_hp": max_hp, "sanity": sanity, "max_sanity": max_sanity, "action_points": action_points},
+		"player": {"name": player_name, "profession_id": profession_id, "hp": hp, "max_hp": max_hp, "sanity": sanity, "max_sanity": max_sanity, "mp": mp, "max_mp": max_mp, "action_points": action_points},
 		"board_cells": board_cells.duplicate(),
+		"board_spell_ids": board_spell_ids.duplicate(),
 		"hand_ids": hand_ids.duplicate(),
 		"hand_state": hand_state.duplicate(true),
 		"block_pool_ids": block_pool_ids.duplicate(),
-		"row_item_ids": row_item_ids.duplicate(),
-		"col_item_ids": col_item_ids.duplicate(),
+		"spell_pool_ids": spell_pool_ids.duplicate(),
 		"encounter_index": encounter_index,
 		"battles_won": battles_won,
 		"selected_reward_ids": selected_reward_ids.duplicate(),
-		"item_inventory": item_inventory.duplicate(true),
 		"currency": currency,
 		"battle_reports": battle_reports.duplicate(true),
 		"flow_state": flow_state,
@@ -69,21 +70,23 @@ static func from_dict(data: Dictionary) -> RunState:
 	var player: Dictionary = data.get("player", {})
 	state.seed = int(data.get("seed", 0))
 	state.player_name = str(player.get("name", "調查員"))
+	state.profession_id = str(player.get("profession_id", "investigator"))
 	state.hp = int(player.get("hp", 80))
 	state.max_hp = int(player.get("max_hp", 80))
 	state.sanity = int(player.get("sanity", 70))
 	state.max_sanity = int(player.get("max_sanity", 100))
+	state.mp = int(player.get("mp", 70))
+	state.max_mp = int(player.get("max_mp", 100))
 	state.action_points = int(player.get("action_points", 5))
 	state.board_cells = _strings(data.get("board_cells", []))
+	state.board_spell_ids = _strings(data.get("board_spell_ids", []))
 	state.hand_ids = _strings(data.get("hand_ids", []))
 	state.hand_state = _dictionaries(data.get("hand_state", []))
 	state.block_pool_ids = _strings(data.get("block_pool_ids", []))
-	state.row_item_ids = _strings(data.get("row_item_ids", []))
-	state.col_item_ids = _strings(data.get("col_item_ids", []))
+	state.spell_pool_ids = _strings(data.get("spell_pool_ids", []))
 	state.encounter_index = int(data.get("encounter_index", 0))
 	state.battles_won = int(data.get("battles_won", 0))
 	state.selected_reward_ids = _strings(data.get("selected_reward_ids", []))
-	state.item_inventory = _string_int_dictionary(data.get("item_inventory", {}))
 	state.currency = int(data.get("currency", 0))
 	state.battle_reports = _dictionaries(data.get("battle_reports", []))
 	state.flow_state = int(data.get("flow_state", 0))

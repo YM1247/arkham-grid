@@ -3,9 +3,11 @@
   "entries": [
     {"id": "attack", "display_name": "攻擊", "action": "damage", "multiplier": 1.0},
     {"id": "heavy_attack", "display_name": "重擊", "action": "damage", "multiplier": 1.5},
-    {"id": "guard", "display_name": "防禦", "action": "armor", "amount": 10},
-    {"id": "sanity_attack", "display_name": "精神侵蝕", "action": "sanity_damage", "amount": 6},
+    {"id": "guard", "display_name": "防禦", "action": "armor", "amount": 8},
+    {"id": "sanity_attack", "display_name": "精神侵蝕", "action": "sanity_damage", "amount": 5},
     {"id": "debuff_player", "display_name": "詛咒", "action": "status_player", "status_id": "weak", "amount": 2},
-    {"id": "buff_self", "display_name": "蓄勢", "action": "status_self", "status_id": "strength", "amount": 2}
+    {"id": "buff_self", "display_name": "蓄勢", "action": "status_self", "status_id": "strength", "amount": 2},
+    {"id": "watch", "display_name": "窺視", "action": "idle"},
+    {"id": "brace", "display_name": "凝神防備", "action": "status_self", "status_id": "hard", "amount": 2}
   ]
 }

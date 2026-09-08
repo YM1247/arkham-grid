@@ -4,9 +4,10 @@ extends RefCounted
 const RESOURCE_LABELS := {
 	"hp": "HP",
 	"sanity": "Sanity",
+	"mp": "MP",
 	"currency": "金錢",
 }
-const RESOURCE_KEYS := ["hp", "sanity", "currency"]
+const RESOURCE_KEYS := ["hp", "sanity", "mp", "currency"]
 
 
 func preview_choices(event_definition: Dictionary, state: Dictionary) -> Array[Dictionary]:
@@ -41,7 +42,7 @@ func preview_choice(option: Dictionary, state: Dictionary) -> Dictionary:
 			reason = "%s 不足" % RESOURCE_LABELS[key]
 		var maximum := int(state.get("max_%s" % key, current - cost + reward))
 		var final_value := current - cost + reward
-		if key in ["hp", "sanity"]:
+		if key in ["hp", "sanity", "mp"]:
 			final_value = mini(final_value, maximum)
 		changes[key] = maxi(final_value, 0)
 		deltas[key] = int(changes[key]) - current

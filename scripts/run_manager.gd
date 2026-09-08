@@ -3,12 +3,12 @@ class_name RunManager
 
 const EncounterDifficultyCalculatorScript = preload("res://scripts/growth/encounter_difficulty_calculator.gd")
 const RewardCandidateSelectorScript = preload("res://scripts/growth/reward_candidate_selector.gd")
-const EquipmentGrowthServiceScript = preload("res://scripts/growth/equipment_growth_service.gd")
 const RunStateMachineScript = preload("res://scripts/run/run_state_machine.gd")
 const LayeredMapGeneratorScript = preload("res://scripts/run/layered_map_generator.gd")
 const RunNodeResultScript = preload("res://scripts/run/run_node_result.gd")
 const EventChoiceResolverScript = preload("res://scripts/run/event_choice_resolver.gd")
 const SaveGameServiceScript = preload("res://scripts/save/save_game_service.gd")
+const ProfileSaveServiceScript = preload("res://scripts/save/profile_save_service.gd")
 
 @export var battle_manager_path: NodePath
 @export var tablet_path: NodePath
@@ -33,7 +33,7 @@ var enemies: Array = []
 var encounters: Array = []
 var reward_pool: Array = []
 var block_resources := {}
-var item_resources := {}
+var spell_resources := {}
 var current_enemy_index := 0
 var current_encounter_index := 0
 var battles_won := 0
@@ -43,9 +43,7 @@ var content := ContentRegistry.new()
 var run_state := RunState.new()
 var difficulty_calculator = EncounterDifficultyCalculatorScript.new()
 var reward_selector = RewardCandidateSelectorScript.new()
-var equipment_growth = EquipmentGrowthServiceScript.new()
 var current_difficulty: Dictionary = {}
-var _pending_equipment_id := ""
 var _latest_report_index := -1
 var flow = RunStateMachineScript.new()
 var map_generator = LayeredMapGeneratorScript.new()
@@ -53,10 +51,14 @@ var runtime_map: Dictionary = {}
 var map_node_index: Dictionary = {}
 var event_choice_resolver = EventChoiceResolverScript.new()
 var save_service
+var profile_service
+var settings_state := SettingsState.new()
+var meta_state := MetaState.new()
 
 func _ready() -> void:
 	var configured_save_directory := str(ProjectSettings.get_setting("arkham_grid/testing/save_directory", save_directory))
 	save_service = SaveGameServiceScript.new(configured_save_directory)
+	profile_service = ProfileSaveServiceScript.new(configured_save_directory)
 	battle_manager = get_node_or_null(battle_manager_path)
 	tablet = get_node_or_null(tablet_path)
 	result_label = get_node_or_null(result_label_path) as Label
@@ -75,6 +77,7 @@ func _ready() -> void:
 			push_error("資料驗證失敗：%s" % error)
 		_set_result_text("資料載入失敗，請查看錯誤輸出。")
 		return
+	_load_profile_data()
 	if battle_manager.has_signal("battle_finished"):
 		battle_manager.battle_finished.connect(_on_battle_finished)
 	else:
@@ -95,47 +98,108 @@ func _load_run_data() -> void:
 	encounters = content.get_entries("encounters")
 	reward_pool = content.get_entries("rewards")
 	block_resources = content.block_resources
-	item_resources = content.item_resources
+	spell_resources = content.spell_resources
+
+
+func _load_profile_data() -> void:
+	var settings_result: Dictionary = profile_service.load_settings()
+	if bool(settings_result.get("ok", false)) and settings_result.get("state") is SettingsState:
+		settings_state = settings_result.state
+	else:
+		settings_state = SettingsState.new()
+		if not profile_service.save_settings(settings_state):
+			push_warning("無法建立設定檔：%s" % profile_service.last_error)
+	var meta_result: Dictionary = profile_service.load_meta()
+	if bool(meta_result.get("ok", false)) and meta_result.get("state") is MetaState:
+		var loaded_meta: MetaState = meta_result.state
+		var reference_errors := content.validate_meta_state_references(loaded_meta)
+		if reference_errors.is_empty():
+			meta_state = loaded_meta
+		else:
+			push_warning("Meta 內容引用失效，本次使用預設值且不覆寫來源：%s" % "; ".join(reference_errors))
+			meta_state = MetaState.from_defaults(content.get_document("meta_progression"))
+	else:
+		meta_state = MetaState.from_defaults(content.get_document("meta_progression"))
+		if not profile_service.save_meta(meta_state):
+			push_warning("無法建立 Meta 存檔：%s" % profile_service.last_error)
+	_apply_settings()
+
+
+func _apply_settings() -> void:
+	TranslationServer.set_locale(settings_state.locale)
+	if DisplayServer.get_name() != "headless":
+		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN if settings_state.fullscreen else DisplayServer.WINDOW_MODE_WINDOWED)
+	for bus_name in ["Master", "Music", "SFX"]:
+		var bus_index := AudioServer.get_bus_index(bus_name)
+		if bus_index < 0:
+			continue
+		var linear := settings_state.master_volume
+		if bus_name == "Music":
+			linear *= settings_state.music_volume
+		elif bus_name == "SFX":
+			linear *= settings_state.sfx_volume
+		AudioServer.set_bus_volume_db(bus_index, linear_to_db(maxf(linear, 0.0001)))
+
+
+func save_settings() -> bool:
+	_apply_settings()
+	return profile_service.save_settings(settings_state)
+
+
+func unlock_meta_content(kind: String, id: String) -> bool:
+	var valid := false
+	match kind:
+		"profession": valid = id == str(content.get_document("player").get("profession_id", ""))
+		"block": valid = content.get_block(id) != null
+		"spell": valid = content.get_spell(id) != null
+	if not valid:
+		return false
+	var changed := meta_state.unlock_profession(id) if kind == "profession" else meta_state.unlock_block(id) if kind == "block" else meta_state.unlock_spell(id)
+	return profile_service.save_meta(meta_state) if changed else true
 
 func _apply_run_config() -> void:
 	var config := content.get_document("run_config")
 	var player_config := content.get_document("player")
 	run_state.seed = int(config.get("seed", Time.get_unix_time_from_system()))
 	run_state.player_name = str(player_config.get("name", "調查員"))
+	run_state.profession_id = str(player_config.get("profession_id", "investigator"))
+	if run_state.profession_id not in meta_state.unlocked_profession_ids and not meta_state.unlocked_profession_ids.is_empty():
+		run_state.profession_id = meta_state.unlocked_profession_ids[0]
 	run_state.max_hp = int(player_config.get("max_hp", 80))
 	run_state.hp = int(player_config.get("hp", run_state.max_hp))
 	run_state.max_sanity = int(player_config.get("max_sanity", 100))
 	run_state.sanity = int(player_config.get("sanity", 70))
+	run_state.max_mp = int(player_config.get("max_mp", 100))
+	run_state.mp = int(player_config.get("mp", 70))
 	run_state.action_points = int(player_config.get("action_points", 5))
-	run_state.block_pool_ids = _strings(config.get("block_pool", []))
-	run_state.row_item_ids = _strings(config.get("row_items", []))
-	run_state.col_item_ids = _strings(config.get("col_items", []))
+	run_state.block_pool_ids = _filter_meta_unlocked(config.get("block_pool", []), meta_state.unlocked_block_ids)
+	run_state.spell_pool_ids = _filter_meta_unlocked(config.get("spell_pool", []), meta_state.unlocked_spell_ids)
 	if battle_manager.has_method("configure_player"):
 		battle_manager.configure_player(
 			run_state.player_name, run_state.max_hp, run_state.hp,
-			run_state.max_sanity, run_state.sanity, run_state.action_points
+			run_state.max_sanity, run_state.sanity, run_state.action_points,
+			run_state.max_mp, run_state.mp
 		)
 	if battle_manager.has_method("configure_sanity_rules"):
 		battle_manager.configure_sanity_rules(content.get_document("sanity"), run_state.seed, run_state.sanity_effect_ids, run_state.sanity_history)
 	
 	if tablet.has_method("set_block_pool"):
 		tablet.set_block_pool(content.get_blocks(run_state.block_pool_ids))
+	if tablet.has_method("set_spell_pool"):
+		tablet.set_spell_pool(content.get_spells(run_state.spell_pool_ids))
 	if tablet.has_method("set_board_growth_rules"):
 		tablet.set_board_growth_rules(config.get("board_growth_rules", {}))
 	
-	if battle_manager.has_method("set_loadout"):
-		battle_manager.set_loadout(
-			content.get_items(run_state.row_item_ids),
-			content.get_items(run_state.col_item_ids)
-		)
 
 func start_new_run() -> void:
 	run_state = RunState.new()
 	current_encounter_index = 0
 	battles_won = 0
 	_latest_report_index = -1
-	_pending_equipment_id = ""
 	_apply_run_config()
+	meta_state.runs_started += 1
+	if not profile_service.save_meta(meta_state):
+		push_warning("無法更新 Meta Run 計數：%s" % profile_service.last_error)
 	rng.seed = run_state.seed
 	if tablet.has_method("set_rng_seed"):
 		tablet.set_rng_seed(run_state.seed ^ 0x41C64E6D)
@@ -198,52 +262,52 @@ func select_map_node(node_id: String) -> bool:
 
 func _execute_nonbattle_node(node: Dictionary) -> void:
 	var node_type := str(node.get("type", ""))
-	var changes := {}
-	match node_type:
-		"rest":
-			if battle_manager.has_method("change_player_sanity"):
-				battle_manager.change_player_sanity(run_state.max_sanity - run_state.sanity, "rest")
-			changes = {"hp": run_state.max_hp, "sanity": run_state.max_sanity}
-			_set_result_text("休息完成：HP 與 Sanity 已回復，盤面完整保留。")
-		"shop":
-			_set_result_text("商店節點原型：盤面完整保留。")
-		"event":
-			_show_event_node(node)
-			return
-	_complete_current_node(changes)
+	if node_type in ["event", "shop", "rest"]:
+		_show_choice_node(node)
+		return
+	push_error("未知的非戰鬥節點類型：%s" % node_type)
+	_complete_current_node()
 
 
 func _show_event_node(node: Dictionary) -> void:
-	var event_definition := content.get_definition("events", str(node.get("content_id", "")))
-	if event_definition.is_empty() or event_view == null or not event_view.has_method("render"):
-		push_error("事件內容或介面不存在：%s" % node.get("content_id", ""))
+	_show_choice_node(node)
+
+
+func _show_choice_node(node: Dictionary) -> void:
+	var node_type := str(node.get("type", ""))
+	var definition_kind: String = {"event": "events", "shop": "shops", "rest": "rests"}.get(node_type, "")
+	var definition := content.get_definition(definition_kind, str(node.get("content_id", "")))
+	if definition_kind.is_empty() or definition.is_empty() or event_view == null or not event_view.has_method("render"):
+		push_error("%s 節點內容或介面不存在：%s" % [node_type, node.get("content_id", "")])
 		_complete_current_node()
 		return
 	var state := _get_event_resource_state()
-	var previews: Array[Dictionary] = event_choice_resolver.preview_choices(event_definition, state)
-	event_view.render(event_definition, previews, state)
+	var previews: Array[Dictionary] = event_choice_resolver.preview_choices(definition, state)
+	event_view.render(definition, previews, state)
 
 
 func _on_event_choice_selected(option_id: String) -> void:
 	if flow.current_state != flow.State.NODE:
 		return
 	var node: Dictionary = map_node_index.get(run_state.current_node_id, {})
-	if str(node.get("type", "")) != "event":
+	var node_type := str(node.get("type", ""))
+	var definition_kind: String = {"event": "events", "shop": "shops", "rest": "rests"}.get(node_type, "")
+	if definition_kind.is_empty():
 		return
-	var event_definition := content.get_definition("events", str(node.get("content_id", "")))
-	var result: Dictionary = event_choice_resolver.resolve_choice(event_definition, option_id, _get_event_resource_state())
+	var definition := content.get_definition(definition_kind, str(node.get("content_id", "")))
+	var result: Dictionary = event_choice_resolver.resolve_choice(definition, option_id, _get_event_resource_state())
 	if not bool(result.get("valid", false)) or not bool(result.get("affordable", false)):
-		_set_result_text("事件選項無法執行：%s" % result.get("reason", "未知原因"))
+		_set_result_text("節點選項無法執行：%s" % result.get("reason", "未知原因"))
 		return
-	var result_text := str(result.get("result_text", "事件已完成。"))
+	var result_text := str(result.get("result_text", "節點已完成。"))
 	var changes: Dictionary = result.get("changes", {}).duplicate(true)
 	var sanity_delta := int(result.get("deltas", {}).get("sanity", 0))
 	if sanity_delta != 0 and battle_manager.has_method("change_player_sanity"):
-		battle_manager.change_player_sanity(sanity_delta, "event:%s:%s" % [event_definition.get("id", ""), option_id])
+		battle_manager.change_player_sanity(sanity_delta, "%s:%s:%s" % [node_type, definition.get("id", ""), option_id])
 		changes.erase("sanity")
 	_hide_event()
 	_complete_current_node(changes)
-	_set_result_text("事件結果：%s" % result_text)
+	_set_result_text("%s結果：%s" % [_node_type_label(node_type), result_text])
 
 
 func _get_event_resource_state() -> Dictionary:
@@ -253,8 +317,14 @@ func _get_event_resource_state() -> Dictionary:
 		"max_hp": run_state.max_hp,
 		"sanity": run_state.sanity,
 		"max_sanity": run_state.max_sanity,
+		"mp": run_state.mp,
+		"max_mp": run_state.max_mp,
 		"currency": run_state.currency,
 	}
+
+
+func _node_type_label(node_type: String) -> String:
+	return {"event": "事件", "shop": "商店", "rest": "休息"}.get(node_type, "節點")
 
 
 func _hide_event() -> void:
@@ -284,9 +354,11 @@ func _apply_node_result(result) -> void:
 		match str(key):
 			"hp": run_state.hp = clampi(int(result.state_changes[key]), 0, run_state.max_hp)
 			"sanity": run_state.sanity = clampi(int(result.state_changes[key]), 0, run_state.max_sanity)
+			"mp": run_state.mp = clampi(int(result.state_changes[key]), 0, run_state.max_mp)
 			"currency": run_state.currency = maxi(int(result.state_changes[key]), 0)
-	if result.state_changes.has("hp") or result.state_changes.has("sanity"):
-		battle_manager.configure_player(run_state.player_name, run_state.max_hp, run_state.hp, run_state.max_sanity, run_state.sanity, run_state.action_points)
+	var mp_restore := int(content.get_document("run_config").get("mp_restore_per_node", 35))
+	run_state.mp = mini(run_state.mp + mp_restore, run_state.max_mp)
+	battle_manager.configure_player(run_state.player_name, run_state.max_hp, run_state.hp, run_state.max_sanity, run_state.sanity, run_state.action_points, run_state.max_mp, run_state.mp)
 	var node_id := str(result.node_id)
 	var node: Dictionary = map_node_index.get(node_id, {})
 	if node_id not in run_state.completed_node_ids:
@@ -308,6 +380,9 @@ func _finish_run(victory: bool, reason: String) -> void:
 	if flow.current_state != target_state:
 		flow.transition(target_state)
 	run_state.flow_state = flow.current_state
+	meta_state.runs_completed += 1
+	if not profile_service.save_meta(meta_state):
+		push_warning("無法更新 Meta 完成計數：%s" % profile_service.last_error)
 	_hide_rewards()
 	_hide_event()
 	if map_container != null:
@@ -385,43 +460,39 @@ func _on_reward_selected(index: int) -> void:
 	if index < 0 or index >= current_rewards.size():
 		return
 	var reward = current_rewards[index]
-	var acquired_item_id := _apply_reward(reward)
+	_apply_reward(reward)
 	_record_reward(str(reward.get("id", "")))
-	if acquired_item_id.is_empty():
-		_complete_current_node()
-	else:
-		_show_equipment_choices(acquired_item_id)
+	_complete_current_node()
 
 func _apply_reward(reward: Dictionary) -> String:
 	var reward_type = str(reward.get("type", ""))
 	var reward_id = str(reward.get("id", ""))
-	var resource = block_resources.get(reward_id) if reward_type == "block" else item_resources.get(reward_id)
+	var resource = block_resources.get(reward_id) if reward_type == "block" else spell_resources.get(reward_id)
 	if reward_type == "block" and resource is BlockData:
-		var previous_count: int = int(tablet.get_block_pool_count(resource.id)) if tablet.has_method("get_block_pool_count") else 0
 		if tablet.has_method("add_block_to_pool"):
 			tablet.add_block_to_pool(resource)
-		_set_result_text("獲得方塊：%s｜持有 %d，抽取權重提升" % [resource.display_name, previous_count + 1])
-		run_state.block_pool_ids.append(resource.id)
-	elif reward_type == "item" and resource is BattleItem:
-		var growth_result := equipment_growth.add_to_inventory(reward_id, run_state.item_inventory, content.indexes.get("items", {}))
-		var final_id := str(growth_result.get("item_id", reward_id))
-		var final_item := item_resources.get(final_id) as BattleItem
-		var upgrade_text := "（合成升級）" if not growth_result.get("upgrades", []).is_empty() else ""
-		_set_result_text("獲得裝備：%s%s，已放入背包。" % [final_item.item_name if final_item != null else final_id, upgrade_text])
-		run_state.selected_reward_ids.append(reward_id)
-		return final_id
+		_set_result_text("獲得特殊形狀：%s｜已加入方塊池。" % resource.display_name)
+		if resource.id not in run_state.block_pool_ids:
+			run_state.block_pool_ids.append(resource.id)
+	elif reward_type == "spell" and resource is BattleItem:
+		if tablet.has_method("add_spell_to_pool"):
+			tablet.add_spell_to_pool(resource)
+		run_state.spell_pool_ids.append(reward_id)
+		_set_result_text("獲得咒文：%s｜加入方塊咒文池。" % resource.spell_name)
 	run_state.selected_reward_ids.append(reward_id)
 	return ""
 
 func _pick_rewards(count: int) -> Array:
 	return reward_selector.pick(
 		reward_pool,
-		content.indexes.get("items", {}),
+		content.indexes.get("spells", {}),
 		content.indexes.get("blocks", {}),
 		{
 			"battles_won": battles_won,
 			"reward_tier": int(current_difficulty.get("reward_tier", 1)),
 			"unlocked_reward_ids": run_state.selected_reward_ids,
+			"meta_unlocked_spell_ids": meta_state.unlocked_spell_ids,
+			"meta_unlocked_block_ids": meta_state.unlocked_block_ids,
 		},
 		count,
 		rng
@@ -440,23 +511,22 @@ func _get_eligible_reward_pool() -> Array:
 func _get_reward_label(reward: Dictionary) -> String:
 	var title = str(reward.get("title", "未知獎勵"))
 	var reward_type = str(reward.get("type", ""))
-	if reward_type == "item":
-		var item := item_resources.get(str(reward.get("id", ""))) as BattleItem
+	if reward_type == "spell":
+		var item := spell_resources.get(str(reward.get("id", ""))) as BattleItem
 		return "%s\n%s｜Tier %d" % [title, item.rarity if item != null else "common", item.tier if item != null else 1]
 	return title
 
 func _get_reward_tooltip(reward: Dictionary) -> String:
 	var reward_type = str(reward.get("type", ""))
 	var reward_id = str(reward.get("id", ""))
-	if reward_type == "item":
-		var item = item_resources.get(reward_id)
+	if reward_type == "spell":
+		var item = spell_resources.get(reward_id)
 		if item is BattleItem:
 			return item.get_effect_tooltip("獎勵預覽")
 	if reward_type == "block":
 		var block = block_resources.get(reward_id)
 		if block is BlockData:
-			var owned_count: int = int(tablet.get_block_pool_count(block.id)) if tablet != null and tablet.has_method("get_block_pool_count") else 0
-			return "特殊方塊\n%s\n取得後持有 %d 份；重複取得會增加抽取權重。\n標籤：%s" % [block.display_name if block.display_name != "" else block.id, owned_count + 1, ", ".join(block.tags)]
+			return "特殊形狀\n%s\n取得後加入方塊池；同一形狀不重複取得。\n標籤：%s" % [block.display_name if block.display_name != "" else block.id, ", ".join(block.tags)]
 	return str(reward.get("title", "未知獎勵"))
 
 func _hide_rewards() -> void:
@@ -469,44 +539,6 @@ func _clear_reward_buttons() -> void:
 		return
 	for child in reward_buttons_container.get_children():
 		child.queue_free()
-
-func _show_equipment_choices(item_id: String) -> void:
-	_pending_equipment_id = item_id
-	_clear_reward_buttons()
-	var item := item_resources.get(item_id) as BattleItem
-	if item == null:
-		_complete_current_node()
-		return
-	var slot_ids := run_state.row_item_ids if item.axis_type == BattleItem.AxisType.PHYSICAL else run_state.col_item_ids
-	var axis := "Row" if item.axis_type == BattleItem.AxisType.PHYSICAL else "Col"
-	for i in range(slot_ids.size()):
-		var current := item_resources.get(slot_ids[i]) as BattleItem
-		var button := Button.new()
-		button.text = "裝到 %s %d｜目前：%s → %s" % [axis, i + 1, current.item_name if current != null else "空", item.item_name]
-		button.tooltip_text = "%s\n\n換上後\n%s" % [current.get_effect_tooltip("目前") if current != null else "目前為空", item.get_effect_tooltip("新裝備")]
-		button.pressed.connect(_equip_pending_item.bind(i))
-		reward_buttons_container.add_child(button)
-	var keep_button := Button.new()
-	keep_button.text = "保留在背包，繼續前進"
-	keep_button.pressed.connect(_keep_pending_item)
-	reward_buttons_container.add_child(keep_button)
-
-func _equip_pending_item(slot_index: int) -> void:
-	var item := item_resources.get(_pending_equipment_id) as BattleItem
-	if item == null:
-		return
-	if item.axis_type == BattleItem.AxisType.PHYSICAL:
-		run_state.row_item_ids[slot_index] = item.content_id
-		battle_manager.set_row_item(slot_index, item)
-	else:
-		run_state.col_item_ids[slot_index] = item.content_id
-		battle_manager.set_col_item(slot_index, item)
-	_pending_equipment_id = ""
-	_complete_current_node()
-
-func _keep_pending_item() -> void:
-	_pending_equipment_id = ""
-	_complete_current_node()
 
 func _on_reward_skipped(currency_amount: int) -> void:
 	run_state.currency += currency_amount
@@ -567,18 +599,20 @@ func restore_run_state(snapshot: Dictionary) -> bool:
 	flow.current_state = clampi(run_state.flow_state, flow.State.START, flow.State.DEFEAT)
 	if tablet.has_method("set_block_pool"):
 		tablet.set_block_pool(content.get_blocks(run_state.block_pool_ids))
+	if tablet.has_method("set_spell_pool"):
+		tablet.set_spell_pool(content.get_spells(run_state.spell_pool_ids))
 	if tablet.has_method("restore_board_state") and not run_state.board_cells.is_empty():
 		tablet.restore_board_state(run_state.board_cells)
+	if tablet.has_method("restore_board_spell_state") and not run_state.board_spell_ids.is_empty():
+		tablet.restore_board_spell_state(run_state.board_spell_ids, content.spell_resources)
 	if tablet.has_method("restore_hand_state") and not run_state.hand_state.is_empty():
 		tablet.restore_hand_state(run_state.hand_state, content.block_resources)
 	elif tablet.has_method("restore_hand") and not run_state.hand_ids.is_empty():
 		tablet.restore_hand(content.get_blocks(run_state.hand_ids))
 	elif tablet.has_method("restore_hand_state"):
 		tablet.restore_hand_state([], content.block_resources)
-	if battle_manager.has_method("set_loadout"):
-		battle_manager.set_loadout(content.get_items(run_state.row_item_ids), content.get_items(run_state.col_item_ids))
 	if battle_manager.has_method("configure_player"):
-		battle_manager.configure_player(run_state.player_name, run_state.max_hp, run_state.hp, run_state.max_sanity, run_state.sanity, run_state.action_points)
+		battle_manager.configure_player(run_state.player_name, run_state.max_hp, run_state.hp, run_state.max_sanity, run_state.sanity, run_state.action_points, run_state.max_mp, run_state.mp)
 	if battle_manager.has_method("configure_sanity_rules"):
 		battle_manager.configure_sanity_rules(content.get_document("sanity"), run_state.seed, run_state.sanity_effect_ids, run_state.sanity_history)
 	_restore_saved_flow()
@@ -685,12 +719,16 @@ func _capture_runtime_state() -> void:
 	_apply_player_result(player_state)
 	if tablet.has_method("get_board_state"):
 		run_state.board_cells = tablet.get_board_state()
+	if tablet.has_method("get_board_spell_state"):
+		run_state.board_spell_ids = tablet.get_board_spell_state()
 	if tablet.has_method("get_hand_ids"):
 		run_state.hand_ids = tablet.get_hand_ids()
 	if tablet.has_method("get_hand_state"):
 		run_state.hand_state = tablet.get_hand_state()
 	if tablet.has_method("get_block_pool_ids"):
 		run_state.block_pool_ids = tablet.get_block_pool_ids()
+	if tablet.has_method("get_spell_pool_ids"):
+		run_state.spell_pool_ids = tablet.get_spell_pool_ids()
 	if not player_state.is_empty():
 		run_state.sanity_effect_ids = _strings(player_state.get("sanity_effect_ids", []))
 		if player_state.get("sanity_history", []) is Array:
@@ -702,10 +740,21 @@ func _apply_player_result(state: Dictionary) -> void:
 	run_state.max_hp = int(state.get("max_hp", run_state.max_hp))
 	run_state.sanity = int(state.get("sanity", run_state.sanity))
 	run_state.max_sanity = int(state.get("max_sanity", run_state.max_sanity))
+	run_state.mp = int(state.get("mp", run_state.mp))
+	run_state.max_mp = int(state.get("max_mp", run_state.max_mp))
 
 
 func _strings(values) -> Array[String]:
 	var result: Array[String] = []
 	for value in values:
 		result.append(str(value))
+	return result
+
+
+func _filter_meta_unlocked(values, unlocked: Array[String]) -> Array[String]:
+	var result: Array[String] = []
+	for value in values:
+		var id := str(value)
+		if id in unlocked:
+			result.append(id)
 	return result

@@ -14,10 +14,6 @@ enum TurnState {
 
 const MAX_ENEMIES := 5
 
-# 裝備欄：必須在編輯器設定 Size 為 8
-@export var row_items: Array[BattleItem]
-@export var col_items: Array[BattleItem]
-
 @export_group("戰鬥對象")
 @export var player_path: NodePath
 @export var enemy_path: NodePath
@@ -29,7 +25,7 @@ const MAX_ENEMIES := 5
 @export var turn_status_label_path: NodePath
 @export var intent_label_path: NodePath
 @export var end_turn_button_path: NodePath
-@export var equipment_summary_label_path: NodePath
+@export var spell_summary_label_path: NodePath
 
 @export_group("回合設定")
 @export var player_max_action_points: int = 3
@@ -43,7 +39,9 @@ var tablet: Node
 var current_turn := TurnState.PLAYER_TURN
 var current_action_points := 0
 var battle_active := false
-var current_turn_weapon_triggers := 0
+var current_turn_spell_triggers := 0
+var mp := 0
+var max_mp := 100
 var _dynamic_enemies: Array[Entity] = []
 var _enemy_factory := EnemyFactory.new()
 var _enemy_presenter := EnemyRosterPresenter.new()
@@ -60,10 +58,6 @@ var sanity_history: Array[Dictionary] = []
 var _last_sanity_message := ""
 
 func _ready():
-	# 防呆檢查
-	if row_items.size() != 8 or col_items.size() != 8:
-		push_error("BattleManager 設定錯誤：Row/Col Items 陣列大小必須為 8！")
-	
 	player = get_node_or_null(player_path) as Entity
 	enemy = get_node_or_null(enemy_path) as Entity
 	tablet = get_node_or_null(tablet_path)
@@ -92,6 +86,8 @@ func _ready():
 	else:
 		tablet.block_placed.connect(_on_tablet_block_placed)
 		tablet.no_valid_moves.connect(_on_tablet_no_valid_moves)
+		if tablet.has_signal("spell_activated"):
+			tablet.spell_activated.connect(execute_spell)
 	
 	var end_turn_button = get_node_or_null(end_turn_button_path) as Button
 	if end_turn_button == null:
@@ -107,54 +103,30 @@ func _ready():
 func execute_row_effect(index: int):
 	if not battle_active:
 		return
-	if _are_all_enemies_dead():
-		return
-	print("\n>> 觸發橫列 ROW ", index + 1) # 顯示 1-8 比較直觀
-	
-	if index < 0 or index >= row_items.size(): return
-	var item = row_items[index]
-	
-	if item == null:
-		print("   (空欄位)")
-		return
-
-	if item.axis_type != BattleItem.AxisType.PHYSICAL:
-		push_error("Row 只能觸發物理道具：%s" % item.content_id)
-		return
-		
-	_execute_item_on_scope(item, "row", index)
 	_battle_stats.add("rows_cleared")
-	current_turn_weapon_triggers += 1
 
 func execute_col_effect(index: int):
 	if not battle_active:
 		return
-	if _are_all_enemies_dead():
-		return
-	print("\n>> 觸發直行 COL ", index + 1)
-	
-	if index < 0 or index >= col_items.size(): return
-	var item = col_items[index]
-	
-	if item == null:
-		print("   (空欄位)")
-		return
-
-	if item.axis_type != BattleItem.AxisType.MAGIC:
-		push_error("Col 只能觸發魔法道具：%s" % item.content_id)
-		return
-		
-	if player != null and player.has_method("spend_sanity"):
-		var base_cost = item.sanity_cost if item.sanity_cost > 0 else 3
-		var sanity_cost := sanity_rules.modify_magic_cost(base_cost)
-		player.spend_sanity(sanity_cost, "magic:%s" % item.content_id)
-		_settle_battle_outcome()
-		if not battle_active:
-			return
-		
-	# 通過驗證
-	_execute_item_on_scope(item, "col", index)
 	_battle_stats.add("cols_cleared")
+
+
+func execute_spell(spell: BattleItem, board_cell: Vector2i = Vector2i(-1, -1)) -> bool:
+	if not battle_active or spell == null or _are_all_enemies_dead():
+		return false
+	var cost := sanity_rules.modify_spell_mp_cost(spell.mp_cost)
+	if mp < cost:
+		player.spend_sanity(cost, "spell:fallback:%s" % spell.content_id)
+		_battle_stats.add("spells_paid_with_sanity")
+		print("咒文 %s 的 MP 不足，改以 %d Sanity 發動。" % [spell.spell_name, cost])
+	else:
+		mp -= cost
+		_battle_stats.add("mp_spent", cost)
+	_battle_stats.add("spells_triggered")
+	_execute_spell_on_scope(spell, board_cell)
+	current_turn_spell_triggers += 1
+	_update_all_status_labels()
+	return true
 
 func _on_entity_stats_changed(_entity: Entity) -> void:
 	_update_all_status_labels()
@@ -162,7 +134,7 @@ func _on_entity_stats_changed(_entity: Entity) -> void:
 func _on_entity_died(entity: Entity) -> void:
 	print("戰鬥事件：", entity.entity_name, " 死亡。")
 	if entity != player and _get_selected_enemy() == entity:
-		selected_enemy_index = -1
+		selected_enemy_index = _first_living_enemy_index()
 	_update_all_status_labels()
 	_schedule_outcome_check()
 
@@ -208,7 +180,7 @@ func _start_player_turn() -> void:
 	battle_active = true
 	current_turn = TurnState.PLAYER_TURN
 	current_action_points = player_max_action_points
-	current_turn_weapon_triggers = 0
+	current_turn_spell_triggers = 0
 	_battle_stats.add("turns")
 	if player != null:
 		player.clear_armor()
@@ -264,7 +236,7 @@ func _update_all_status_labels() -> void:
 	_update_turn_status_label()
 	_update_intent_label()
 	_update_end_turn_button()
-	_update_equipment_summary_label()
+	_update_spell_summary_label()
 	_update_tablet_slot_labels()
 
 func _update_status_label(label_path: NodePath, entity: Entity) -> void:
@@ -274,6 +246,8 @@ func _update_status_label(label_path: NodePath, entity: Entity) -> void:
 	label.text = "%s HP: %d/%d  ARMOR: %d" % [entity.entity_name, entity.hp, entity.max_hp, entity.armor]
 	if entity.max_sanity > 0:
 		label.text += "  SAN: %d/%d" % [entity.sanity, entity.max_sanity]
+		if entity == player:
+			label.text += "  MP: %d/%d" % [mp, max_mp]
 		if entity == player and not sanity_rules.active_effect_ids.is_empty():
 			label.text += "  [%s：%s]" % [sanity_rules.get_stage_name(entity.sanity), sanity_rules.get_active_summary()]
 	if entity.has_method("get_status_summary"):
@@ -319,59 +293,28 @@ func _update_end_turn_button() -> void:
 		return
 	button.disabled = current_turn != TurnState.PLAYER_TURN or _is_battle_over()
 
-func _update_equipment_summary_label() -> void:
-	var label = get_node_or_null(equipment_summary_label_path) as Label
+func _update_spell_summary_label() -> void:
+	var label = get_node_or_null(spell_summary_label_path) as Label
 	if label == null:
 		return
-	var lines: Array[String] = ["目前裝備"]
-	var tooltip_lines: Array[String] = ["目前裝備效果"]
-	for i in range(row_items.size()):
-		var item = row_items[i]
-		var item_name = item.item_name if item != null else "空"
-		lines.append("Row %d: %s" % [i + 1, item_name])
-		if item != null:
-			tooltip_lines.append(item.get_effect_tooltip("Row %d" % (i + 1)))
-	for i in range(col_items.size()):
-		var item = col_items[i]
-		var item_name = item.item_name if item != null else "空"
-		lines.append("Col %d: %s" % [i + 1, item_name])
-		if item != null:
-			tooltip_lines.append(item.get_effect_tooltip("Col %d" % (i + 1)))
-	label.text = "\n".join(lines)
-	label.tooltip_text = "\n\n".join(tooltip_lines)
+	label.text = "咒文構築｜效果附著於方塊的 ✦ 格"
+	label.tooltip_text = "完成 Row 或 Col 後，被消除的圖標格各觸發一次咒文；MP 不足時改以同額 Sanity 支付。"
 
 func _update_tablet_slot_labels() -> void:
-	_update_magic_previews()
-	if tablet != null and tablet.has_method("set_slot_items"):
-		tablet.set_slot_items(row_items, col_items)
+	pass
 
 func _is_battle_over() -> bool:
 	return (player != null and player.is_dead) or _are_all_enemies_dead() or (player != null and player.max_sanity > 0 and player.sanity <= 0)
 
-func configure_player(player_name: String, max_hp: int, hp: int, max_sanity: int, sanity: int, max_action_points: int) -> void:
+func configure_player(player_name: String, max_hp: int, hp: int, max_sanity: int, sanity: int, max_action_points: int, player_max_mp: int = 100, player_mp: int = 70) -> void:
 	if player == null:
 		return
 	player.entity_name = player_name
 	player.reset_entity(player.entity_name, max_hp, hp, max_sanity, sanity)
 	_sync_sanity_effects()
 	player_max_action_points = max_action_points
-	_update_all_status_labels()
-
-func set_loadout(new_row_items: Array, new_col_items: Array) -> void:
-	row_items = _normalize_item_array(new_row_items)
-	col_items = _normalize_item_array(new_col_items)
-	_update_all_status_labels()
-
-func set_row_item(index: int, item: BattleItem) -> void:
-	if index < 0 or index >= row_items.size():
-		return
-	row_items[index] = item
-	_update_all_status_labels()
-
-func set_col_item(index: int, item: BattleItem) -> void:
-	if index < 0 or index >= col_items.size():
-		return
-	col_items[index] = item
+	max_mp = maxi(player_max_mp, 1)
+	mp = clampi(player_mp, 0, max_mp)
 	_update_all_status_labels()
 
 func start_battle(enemy_name: String, enemy_hp: int, enemy_attack: int) -> void:
@@ -397,7 +340,9 @@ func start_from_input(input: BattleStartInput) -> void:
 		int(state.get("hp", 80)),
 		int(state.get("max_sanity", 100)),
 		int(state.get("sanity", 70)),
-		int(state.get("action_points", player_max_action_points))
+		int(state.get("action_points", player_max_action_points)),
+		int(state.get("max_mp", 100)),
+		int(state.get("mp", 70))
 	)
 	start_encounter(input.enemies)
 
@@ -440,6 +385,8 @@ func get_player_state() -> Dictionary:
 		"max_hp": player.max_hp,
 		"sanity": player.sanity,
 		"max_sanity": player.max_sanity,
+		"mp": mp,
+		"max_mp": max_mp,
 		"sanity_effect_ids": sanity_rules.active_effect_ids.duplicate(),
 		"sanity_history": sanity_history.duplicate(true)
 	}
@@ -476,26 +423,25 @@ func _finish_battle(won: bool, reason: String) -> void:
 	else:
 		battle_lost.emit(reason)
 
-func _execute_item_on_scope(item: BattleItem, axis: String, index: int) -> void:
+func _execute_spell_on_scope(spell: BattleItem, board_cell: Vector2i) -> void:
 	var context := BattleEffectContext.new()
 	context.user = player
-	context.trigger_axis = axis
-	context.trigger_index = index
-	context.weapon_trigger_count = current_turn_weapon_triggers
+	context.effect_cell = board_cell
+	context.spell_trigger_count = current_turn_spell_triggers
 	context.trigger_history = _trigger_history.duplicate(true)
 	context.battle_state = {"turn": current_turn, "action_points": current_action_points, "encounter_id": _current_encounter_id}
-	if item.effect_scope == "self":
+	if spell.effect_scope == "self":
 		context.primary_target = player
 		context.targets = [player]
-		item.execute_with_context(player, player, context)
+		spell.execute_with_context(player, player, context)
 	else:
 		context.primary_target = _get_selected_enemy()
-		context.targets = _target_resolver.resolve(item.effect_scope, enemies, selected_enemy_index)
+		context.targets = _target_resolver.resolve(spell.effect_scope, enemies, selected_enemy_index)
 	for target in context.targets:
 		if target != null and not target.is_dead:
-			if item.effect_scope != "self":
-				item.execute_with_context(target, player, context)
-	_trigger_history.append({"item_id": item.content_id, "axis": axis, "index": index, "target_count": context.targets.size()})
+			if spell.effect_scope != "self":
+				spell.execute_with_context(target, player, context)
+	_trigger_history.append({"spell_id": spell.content_id, "cell": [board_cell.x, board_cell.y], "target_count": context.targets.size()})
 	_settle_battle_outcome()
 
 func _get_targets_for_scope(scope: String) -> Array[Entity]:
@@ -512,6 +458,14 @@ func _get_living_enemies() -> Array[Entity]:
 		if active_enemy != null and not active_enemy.is_dead:
 			living.append(active_enemy)
 	return living
+
+
+func _first_living_enemy_index() -> int:
+	for index in range(enemies.size()):
+		var active_enemy := enemies[index]
+		if active_enemy != null and not active_enemy.is_dead:
+			return index
+	return -1
 
 func _are_all_enemies_dead() -> bool:
 	return not enemies.is_empty() and _get_living_enemies().is_empty()
@@ -590,14 +544,6 @@ func _select_enemy(index: int) -> void:
 	selected_enemy_index = index
 	_update_all_status_labels()
 
-func _normalize_item_array(items: Array) -> Array[BattleItem]:
-	var normalized: Array[BattleItem] = []
-	for i in range(8):
-		if i < items.size() and items[i] is BattleItem:
-			normalized.append(items[i])
-		else:
-			normalized.append(null)
-	return normalized
 
 func _get_status_label_for_entity(entity: Entity) -> Label:
 	if entity == player:
@@ -663,15 +609,3 @@ func _sync_sanity_effects() -> void:
 		return
 	sanity_rules.synchronize(player.sanity)
 	sanity_rules.apply_entity_modifiers(player)
-
-
-func _update_magic_previews() -> void:
-	if player == null:
-		return
-	for item in col_items:
-		if item == null:
-			continue
-		var base_cost := item.sanity_cost if item.sanity_cost > 0 else 3
-		var adjusted_cost := sanity_rules.modify_magic_cost(base_cost)
-		item.set_meta("sanity_adjusted_cost", adjusted_cost)
-		item.set_meta("sanity_preview", sanity_rules.describe_preview(player.sanity, -adjusted_cost))

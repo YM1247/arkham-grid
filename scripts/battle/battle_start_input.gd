@@ -5,8 +5,7 @@ extends Resource
 @export var enemies: Array[Dictionary] = []
 @export var intent_definitions: Dictionary = {}
 @export var player_state: Dictionary = {}
-@export var row_item_ids: Array[String] = []
-@export var col_item_ids: Array[String] = []
+@export var spell_pool_ids: Array[String] = []
 @export var seed: int = 0
 
 
@@ -19,8 +18,7 @@ static func create(id: String, enemy_defs: Array, state: RunState, intents: Arra
 	for intent in intents:
 		if intent is Dictionary:
 			input.intent_definitions[str(intent.get("id", ""))] = intent.duplicate(true)
-	input.player_state = {"name": state.player_name, "hp": state.hp, "max_hp": state.max_hp, "sanity": state.sanity, "max_sanity": state.max_sanity, "action_points": state.action_points}
-	input.row_item_ids = state.row_item_ids.duplicate()
-	input.col_item_ids = state.col_item_ids.duplicate()
+	input.player_state = {"name": state.player_name, "hp": state.hp, "max_hp": state.max_hp, "sanity": state.sanity, "max_sanity": state.max_sanity, "mp": state.mp, "max_mp": state.max_mp, "action_points": state.action_points}
+	input.spell_pool_ids = state.spell_pool_ids.duplicate()
 	input.seed = state.seed
 	return input

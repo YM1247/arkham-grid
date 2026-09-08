@@ -13,9 +13,10 @@ func render(event_definition: Dictionary, previews: Array[Dictionary], state: Di
 	_clear_options()
 	title_label.text = str(event_definition.get("title", "未知事件"))
 	description_label.text = str(event_definition.get("description", ""))
-	resource_label.text = "目前資源｜HP %d/%d｜Sanity %d/%d｜金錢 %d" % [
+	resource_label.text = "目前資源｜HP %d/%d｜Sanity %d/%d｜MP %d/%d｜金錢 %d" % [
 		int(state.get("hp", 0)), int(state.get("max_hp", 0)),
 		int(state.get("sanity", 0)), int(state.get("max_sanity", 0)),
+		int(state.get("mp", 0)), int(state.get("max_mp", 0)),
 		int(state.get("currency", 0)),
 	]
 	var first_available: Button

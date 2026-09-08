@@ -2,6 +2,7 @@ extends VBoxContainer
 
 signal row_activated(row_index: int)
 signal col_activated(col_index: int)
+signal spell_activated(spell: BattleItem, board_cell: Vector2i)
 signal block_placed(block_data: BlockData)
 signal no_valid_moves(penalty: int)
 
@@ -26,6 +27,7 @@ var _current_clear_preview_cells: Array[GridCell] = []
 
 # --- 手牌設定 ---
 @export var block_pool: Array[BlockData] = []
+@export var spell_pool: Array[BattleItem] = []
 @export var hand_size: int = 3
 @export var no_valid_moves_sanity_penalty: int = 10
 @export var seed_board_on_start: bool = true
@@ -36,6 +38,7 @@ var _current_clear_preview_cells: Array[GridCell] = []
 # --- 資料層 (Model) ---
 # 0 或 null 代表空，有東西則存顏色或資料
 var grid_data: Array = [] 
+var grid_spells: Array = []
 var board_model := BoardModel.new(GRID_DIMENSION)
 var smart_hand_scorer := SmartHandScorer.new()
 var friendly_board_generator = preload("res://scripts/board/friendly_board_generator.gd").new()
@@ -73,6 +76,12 @@ func _setup_layout_properties():
 func _init_grid_data():
 	board_model.clear()
 	grid_data = board_model.cells
+	grid_spells.clear()
+	for x in range(GRID_DIMENSION):
+		var column: Array = []
+		column.resize(GRID_DIMENSION)
+		column.fill(null)
+		grid_spells.append(column)
 
 func _generate_tablet():
 	# 1. 生成 Header (直行圖示)
@@ -126,35 +135,60 @@ func refill_hand():
 		push_warning("TableGenerator 沒有設定 block_pool，無法抽牌。")
 		return
 	var current_count := _count_active_hand_blocks()
+	var excluded_ids := {}
+	for held_block in _get_active_hand_block_data():
+		excluded_ids[held_block.id] = true
 	for i in range(current_count, hand_size):
-		_spawn_block(_draw_block_data(i))
+		var drawn := _draw_block_data(i, excluded_ids)
+		if drawn == null:
+			break
+		_spawn_block(drawn)
+		excluded_ids[drawn.id] = true
 	_sync_hand_drag_enabled()
 	_check_no_valid_moves_deferred()
 
-func _draw_block_data(hand_index: int = 0) -> BlockData:
+func _draw_block_data(hand_index: int = 0, excluded_ids: Dictionary = {}) -> BlockData:
+	var selected: BlockData = null
 	if smart_hand_enabled:
-		var smart_block = _draw_smart_block_data(hand_index)
+		var smart_block = _draw_smart_block_data(hand_index, excluded_ids)
 		if smart_block != null:
-			return smart_block
-	return _randomize_block_rotation(_draw_weighted_random_block())
+			selected = smart_block
+	if selected == null:
+		var weighted := _draw_weighted_random_block(excluded_ids)
+		if weighted == null and not excluded_ids.is_empty():
+			weighted = _draw_weighted_random_block()
+		selected = _randomize_block_rotation(weighted)
+	return _attach_random_spell(selected)
 
-func _draw_weighted_random_block() -> BlockData:
+
+func _attach_random_spell(block_data: BlockData) -> BlockData:
+	if block_data == null or spell_pool.is_empty() or block_data.cells.is_empty():
+		return block_data
+	var spell := spell_pool[rng.randi_range(0, spell_pool.size() - 1)] as BattleItem
+	var marked_cell := block_data.cells[rng.randi_range(0, block_data.cells.size() - 1)]
+	return block_data.with_spell(spell, marked_cell)
+
+func _draw_weighted_random_block(excluded_ids: Dictionary = {}) -> BlockData:
 	var total_weight := 0.0
 	for block_data in block_pool:
-		if block_data is BlockData:
+		if block_data is BlockData and not excluded_ids.has(block_data.id):
 			total_weight += maxf(block_data.weight, 0.01)
+	if total_weight <= 0.0:
+		return null
 	var roll = rng.randf_range(0.0, total_weight)
 	var cursor := 0.0
+	var fallback: BlockData = null
 	for block_data in block_pool:
-		if not block_data is BlockData:
+		if not block_data is BlockData or excluded_ids.has(block_data.id):
 			continue
+		fallback = block_data
 		cursor += maxf(block_data.weight, 0.01)
 		if roll <= cursor:
 			return block_data
-	return block_pool.back()
+	return fallback
 
-func _draw_smart_block_data(hand_index: int) -> BlockData:
-	var candidates = _score_block_pool_for_current_board()
+func _draw_smart_block_data(hand_index: int, excluded_ids: Dictionary = {}) -> BlockData:
+	var candidates = _score_block_pool_for_current_board(excluded_ids)
 	if candidates.is_empty():
 		return null
 	if hand_index < directional_hand_min:
@@ -166,10 +200,10 @@ func _draw_smart_block_data(hand_index: int) -> BlockData:
 			return _pick_from_top_candidates(directional_candidates, 3)
 	return _pick_from_top_candidates(candidates, 3)
 
-func _score_block_pool_for_current_board() -> Array:
+func _score_block_pool_for_current_board(excluded_ids: Dictionary = {}) -> Array:
 	var rotated_pool: Array = []
 	for block_data in block_pool:
-		if not block_data is BlockData:
+		if not block_data is BlockData or excluded_ids.has(block_data.id):
 			continue
 		for rotation_steps in range(4):
 			rotated_pool.append(block_data.rotated(rotation_steps))
@@ -184,9 +218,30 @@ func _score_smart_hand_placement(origin_x: int, origin_y: int, block_data: Block
 	return smart_hand_scorer.score_placement(board_model, origin_x, origin_y, block_data)
 
 func _pick_from_top_candidates(candidates: Array, top_count: int) -> BlockData:
-	var pick_count = mini(top_count, candidates.size())
-	var index = rng.randi_range(0, pick_count - 1)
-	return candidates[index].get("block") as BlockData
+	var unique: Array[Dictionary] = []
+	var seen := {}
+	for candidate in candidates:
+		var block := candidate.get("block") as BlockData
+		if block == null or seen.has(block.id):
+			continue
+		seen[block.id] = true
+		unique.append(candidate)
+		if unique.size() >= top_count:
+			break
+	if unique.is_empty():
+		return null
+	var total_weight := 0.0
+	for candidate in unique:
+		var block := candidate.get("block") as BlockData
+		total_weight += maxf(block.weight, 0.01) * float(get_block_pool_count(block.id))
+	var roll := rng.randf_range(0.0, total_weight)
+	var cursor := 0.0
+	for candidate in unique:
+		var block := candidate.get("block") as BlockData
+		cursor += maxf(block.weight, 0.01) * float(get_block_pool_count(block.id))
+		if roll <= cursor:
+			return block
+	return unique.back().get("block") as BlockData
 
 func _clear_hand():
 	for child in hand_area.get_children():
@@ -204,8 +259,30 @@ func set_block_pool(new_block_pool: Array):
 		if block_data is BlockData:
 			block_pool.append(block_data)
 
+
+func set_spell_pool(new_spell_pool: Array) -> void:
+	spell_pool.clear()
+	for spell in new_spell_pool:
+		if spell is BattleItem:
+			spell_pool.append(spell)
+
+
+func add_spell_to_pool(spell: BattleItem) -> void:
+	if spell != null:
+		spell_pool.append(spell)
+
+
+func get_spell_pool_ids() -> Array[String]:
+	var ids: Array[String] = []
+	for spell in spell_pool:
+		if spell != null:
+			ids.append(spell.content_id)
+	return ids
+
 func add_block_to_pool(block_data: BlockData):
 	if block_data == null:
+		return
+	if get_block_pool_count(block_data.id) > 0:
 		return
 	block_pool.append(block_data)
 
@@ -242,6 +319,7 @@ func reset_tablet():
 		if child is GridCell:
 			child.color = Color(0.15, 0.15, 0.15)
 			child.original_color = child.color
+			child.set_spell(null)
 			child.reset_color()
 	if seed_board_on_start:
 		_seed_friendly_board()
@@ -308,6 +386,9 @@ func place_block(origin_x: int, origin_y: int, block_data: BlockData, source_blo
 		# 更新顏色並記住新的「原始顏色」
 		cell_node.color = block_data.color
 		cell_node.original_color = block_data.color
+		if offset == block_data.effect_cell and block_data.spell != null:
+			grid_spells[target_x][target_y] = block_data.spell
+			cell_node.set_spell(block_data.spell)
 	
 	block_placed.emit(block_data)
 	if source_block != null:
@@ -348,6 +429,12 @@ func _execute_clear(rows: Array, cols: Array):
 		for x in range(GRID_DIMENSION):
 			if not Vector2i(x, y) in cells_to_clear:
 				cells_to_clear.append(Vector2i(x, y))
+
+	# 每個被消除的效果格只觸發一次；Row／Col 交會不重複結算。
+	for coord in cells_to_clear:
+		var spell := grid_spells[coord.x][coord.y] as BattleItem
+		if spell != null:
+			spell_activated.emit(spell, coord)
 	
 	# 對這些格子播放閃爍特效
 	for coord in cells_to_clear:
@@ -376,6 +463,7 @@ func _play_flash_effect(x: int, y: int):
 func _clear_cell_data(x: int, y: int):
 	# 1. 清除資料
 	grid_data[x][y] = null
+	grid_spells[x][y] = null
 	
 	# 2. 恢復格子顏色
 	var cell_index = y * GRID_DIMENSION + x
@@ -383,6 +471,7 @@ func _clear_cell_data(x: int, y: int):
 	
 	cell_node.color = Color(0.15, 0.15, 0.15) # 變回深灰色
 	cell_node.original_color = cell_node.color
+	cell_node.set_spell(null)
 
 
 func get_board_state() -> Array[String]:
@@ -403,6 +492,27 @@ func restore_board_state(serialized: Array[String]) -> bool:
 	return true
 
 
+func get_board_spell_state() -> Array[String]:
+	var state: Array[String] = []
+	for y in range(GRID_DIMENSION):
+		for x in range(GRID_DIMENSION):
+			var spell := grid_spells[x][y] as BattleItem
+			state.append(spell.content_id if spell != null else "")
+	return state
+
+
+func restore_board_spell_state(state: Array[String], resources: Dictionary) -> bool:
+	if state.size() != GRID_DIMENSION * GRID_DIMENSION:
+		return false
+	for y in range(GRID_DIMENSION):
+		for x in range(GRID_DIMENSION):
+			var spell := resources.get(state[y * GRID_DIMENSION + x]) as BattleItem
+			grid_spells[x][y] = spell
+			var cell_node = grid_container.get_child(y * GRID_DIMENSION + x) as GridCell
+			cell_node.set_spell(spell)
+	return true
+
+
 func get_hand_ids() -> Array[String]:
 	var ids: Array[String] = []
 	for block_data in _get_active_hand_block_data():
@@ -414,7 +524,12 @@ func get_hand_state() -> Array[Dictionary]:
 	for child in hand_area.get_children():
 		if child.is_queued_for_deletion() or not "block_data" in child or not child.block_data is BlockData:
 			continue
-		state.append({"id": child.block_data.id, "rotation_steps": child.block_data.get_rotation_steps()})
+		state.append({
+			"id": child.block_data.id,
+			"rotation_steps": child.block_data.get_rotation_steps(),
+			"spell_id": child.block_data.spell.content_id if child.block_data.spell != null else "",
+			"effect_cell": [child.block_data.effect_cell.x, child.block_data.effect_cell.y],
+		})
 	return state
 
 
@@ -431,8 +546,19 @@ func restore_hand_state(state: Array, resources: Dictionary) -> void:
 			continue
 		var base := resources.get(str(value.get("id", ""))) as BlockData
 		if base != null:
-			_spawn_block(base.rotated(int(value.get("rotation_steps", 0))))
+			var restored := base.rotated(int(value.get("rotation_steps", 0)))
+			var effect_cell = value.get("effect_cell", [0, 0])
+			if effect_cell is Array and effect_cell.size() == 2:
+				restored = restored.with_spell(_find_spell_in_pool(str(value.get("spell_id", ""))), Vector2i(int(effect_cell[0]), int(effect_cell[1])))
+			_spawn_block(restored)
 	_sync_hand_drag_enabled()
+
+
+func _find_spell_in_pool(spell_id: String) -> BattleItem:
+	for spell in spell_pool:
+		if spell != null and spell.content_id == spell_id:
+			return spell
+	return null
 
 
 func get_block_pool_ids() -> Array[String]:
@@ -504,6 +630,7 @@ func _clear_board_cells():
 		if child is GridCell:
 			child.color = Color(0.15, 0.15, 0.15)
 			child.original_color = child.color
+			child.set_spell(null)
 			child.reset_color()
 
 func _seed_friendly_board():
@@ -526,40 +653,11 @@ func _set_seed_cell(coord: Vector2i, color: Color):
 	cell_node.original_color = color
 	cell_node.reset_color()
 
-func set_slot_items(row_items: Array, col_items: Array):
-	for i in range(mini(row_icons_container.get_child_count(), GRID_DIMENSION)):
-		var item = row_items[i] if i < row_items.size() else null
-		var label = row_icons_container.get_child(i) as Label
-		if label != null:
-			label.text = _get_row_slot_label(i, item)
-			label.tooltip_text = _get_slot_tooltip("Row", i, item)
-	for i in range(mini(col_icons_container.get_child_count(), GRID_DIMENSION)):
-		var item = col_items[i] if i < col_items.size() else null
-		var label = col_icons_container.get_child(i) as Label
-		if label != null:
-			label.text = _get_col_slot_label(i, item)
-			label.tooltip_text = _get_slot_tooltip("Col", i, item)
-
 func _get_row_slot_label(index: int, item: BattleItem) -> String:
-	var slot_type = "武器" if index <= 3 else "裝備"
-	var item_name = item.item_name if item != null else "空"
-	return "R%d\n%s\n%s" % [index + 1, slot_type, item_name]
+	return "R%d" % [index + 1]
 
 func _get_col_slot_label(index: int, item: BattleItem) -> String:
-	var slot_type = "祈禱" if index <= 3 else "詛咒"
-	var item_name = item.item_name if item != null else "空"
-	return "C%d\n%s\n%s" % [index + 1, slot_type, item_name]
-
-func _get_slot_tooltip(axis: String, index: int, item: BattleItem) -> String:
-	var slot_type = _get_slot_type_name(axis, index)
-	if item == null:
-		return "%s %d｜%s\n目前沒有裝備。" % [axis, index + 1, slot_type]
-	return item.get_effect_tooltip("%s %d｜%s" % [axis, index + 1, slot_type])
-
-func _get_slot_type_name(axis: String, index: int) -> String:
-	if axis == "Row":
-		return "物理"
-	return "魔法"
+	return "C%d" % [index + 1]
 
 func _update_clear_line_preview(origin_x: int, origin_y: int, block_data: BlockData):
 	var projected_cells = {}

@@ -2,15 +2,13 @@
   "schema_version": 1,
   "entries": [
     {
-      "title": "範例道具獎勵",
-      "type": "item",
+      "title": "咒文：範例咒文",
+      "type": "spell",
       "id": "pistol",
       "weight": 1.0,
       "min_reward_tier": 1,
       "min_battles_won": 0,
-      "requires_rewards": [],
-      "slot_kind": "row",
-      "slot_index": 0
+      "requires_rewards": []
     }
   ]
 }

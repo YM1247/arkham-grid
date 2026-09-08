@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "entries": [
+    {
+      "id": "rest_example",
+      "title": "休息地點",
+      "description": "休息節點的場景描述。",
+      "options": [
+        {
+          "id": "recover",
+          "label": "休養",
+          "description": "選擇要恢復的資源。",
+          "costs": {},
+          "results": {"hp": 999, "sanity": 999},
+          "result_text": "休養完成後的描述。"
+        },
+        {
+          "id": "leave",
+          "label": "離開",
+          "description": "不額外回復。",
+          "costs": {},
+          "results": {},
+          "result_text": "你離開了休息地點。"
+        }
+      ]
+    }
+  ]
+}
