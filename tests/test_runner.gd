@@ -298,6 +298,14 @@ func _test_enemy_intents_and_speed() -> void:
 	_expect(second.current_intent_id() == "buff_self", "其他敵人意圖索引不應一起前進")
 	first.advance()
 	_expect(first.current_intent_id() == "attack", "意圖 pattern 應循環")
+	var conditional := EnemyIntentState.new()
+	conditional.configure(["attack", "guard"], 0, [
+		{"id": "wounded", "hp_ratio_lte": 0.5, "pattern": ["heavy_attack"]},
+		{"id": "late", "turn_gte": 4, "pattern": ["buff_self"]},
+	])
+	_expect(conditional.current_intent_id(80, 100, 1) == "attack", "條件未成立時應使用基礎意圖")
+	_expect(conditional.current_intent_id(40, 100, 1) == "heavy_attack", "低生命時應切換可預告的條件意圖")
+	_expect(conditional.current_intent_id(80, 100, 4) == "buff_self", "指定回合後應切換條件意圖")
 
 	var slow := _make_entity("慢", 30)
 	var fast := _make_entity("快", 30)
@@ -395,6 +403,9 @@ func _test_phase_13_growth_and_rewards() -> void:
 	var encounter_defs: Array = [registry.get_definition("enemies", "rotting_hound"), registry.get_definition("enemies", "abyss_thrall")]
 	var calculator = EncounterDifficultyCalculatorScript.new()
 	var metrics := calculator.calculate(encounter_defs, registry.get_document("run_config").get("difficulty_model", {}))
+	var early_pressure := calculator.calculate(encounter_defs, registry.get_document("run_config").get("difficulty_model", {}), {"node_depth": 0})
+	var late_pressure := calculator.calculate(encounter_defs, registry.get_document("run_config").get("difficulty_model", {}), {"node_depth": 9})
+	_expect(int(early_pressure.get("turn_limit", 0)) > int(late_pressure.get("turn_limit", 0)) and int(late_pressure.get("turn_limit", 0)) >= 4, "後段節點的戰鬥時限應更嚴格且保留最低行動窗口")
 	_expect(int(metrics.get("strength", 0)) > 0 and int(metrics.get("reward_tier", 0)) >= 1, "encounter 應產生可解釋的強度與獎勵 tier")
 
 	var selector = RewardCandidateSelectorScript.new()
@@ -413,6 +424,11 @@ func _test_phase_13_growth_and_rewards() -> void:
 		candidate_ids.append(candidate_id)
 		unique_candidate_ids[candidate_id] = true
 	_expect(candidate_ids.size() == unique_candidate_ids.size(), "同一次三選一不應出現重複內容")
+	var elite_context := context.duplicate(true)
+	elite_context.reward_tier = 3
+	elite_context.force_block_reward = true
+	var elite_rewards := selector.pick(registry.get_entries("rewards"), registry.indexes.get("spells", {}), registry.indexes.get("blocks", {}), elite_context, 3, first_rng)
+	_expect(elite_rewards.any(func(reward): return str(reward.get("type", "")) == "block"), "菁英獎勵候選應保底包含一個未取得的特殊形狀")
 	var owned_block_context := context.duplicate(true)
 	owned_block_context.unlocked_reward_ids = ["special_dot"]
 	var owned_block_rewards := selector.pick(registry.get_entries("rewards"), registry.indexes.get("spells", {}), registry.indexes.get("blocks", {}), owned_block_context, 20, first_rng)
@@ -462,15 +478,24 @@ func _test_phase_14_run_foundation() -> void:
 	_expect(rest_floor_count > 0, "Boss 前一層應固定為休息節點")
 	var generated_types := {}
 	var normal_floors := {}
+	var normal_content_by_floor := {}
 	for node in generated_a.get("nodes", []):
 		generated_types[str(node.get("type", ""))] = true
 		if str(node.get("type", "")) == "normal_battle":
 			normal_floors[int(node.get("floor", -1))] = true
+			normal_content_by_floor[int(node.get("floor", -1))] = str(node.get("content_id", ""))
 	for required_type in ["normal_battle", "elite", "event", "shop", "rest", "boss"]:
 		_expect(generated_types.has(required_type), "生成路線應包含節點類型：%s" % required_type)
 	var battle_range := _generated_path_battle_range(generated_a)
-	_expect(int(battle_range.get("min", 0)) >= 5 and int(battle_range.get("max", 99)) <= 8, "每條生成路徑應維持 5–8 場戰鬥")
-	_expect(normal_floors.size() == 4, "生成地圖應只保留四層普通戰鬥，避免普通戰鬥節點過多")
+	_expect(int(map_document.get("generation", {}).get("floors", 0)) == 10 and boss_floor == 9, "程序地圖深度應固定為 10 層")
+	_expect(int(battle_range.get("min", 0)) == 7 and int(battle_range.get("max", 0)) == 7, "10 層路線應固定包含 7 場戰鬥")
+	_expect(normal_floors.size() == 5, "10 層地圖應包含五層普通戰鬥")
+	var ordered_normal_floors: Array = normal_content_by_floor.keys()
+	ordered_normal_floors.sort()
+	var ordered_normal_content: Array[String] = []
+	for floor in ordered_normal_floors:
+		ordered_normal_content.append(str(normal_content_by_floor[floor]))
+	_expect(ordered_normal_content == ["encounter_01", "encounter_02", "encounter_04", "encounter_07", "encounter_08"], "10 層地圖的普通遭遇應依進度輪替且不重複後段編成")
 	var state_machine = RunStateMachineScript.new()
 	_expect(state_machine.transition(state_machine.State.MAP), "Run 應可從 START 進入 MAP")
 	_expect(not state_machine.transition(state_machine.State.REWARD), "Run 狀態機應拒絕 MAP 直接跳到 REWARD")
@@ -507,7 +532,7 @@ func _test_phase_15_sanity_rules() -> void:
 	_expect(rules.get_source_label("spell:fallback:pistol") == "咒文", "MP 不足的 Sanity 代付應使用可讀的咒文來源標籤")
 	player.free()
 	var simulation: Dictionary = registry.get_document("sanity").get("simulation", {})
-	var before_rest := 70 - int(simulation.get("dead_boards_per_run", 1)) * 10 - int(simulation.get("enemy_sanity_hits_per_run", 2)) * int(simulation.get("enemy_sanity_hit", 4))
+	var before_rest := 70 - int(simulation.get("dead_boards_per_run", 1)) * 10 - int(simulation.get("enemy_sanity_hits_per_run", 2)) * int(simulation.get("enemy_sanity_hit", 4)) - int(simulation.get("time_pressure_sanity_per_run", 0))
 	_expect(before_rest >= int(simulation.get("acceptance_min_sanity_before_rest", 15)) and before_rest <= int(simulation.get("acceptance_max_sanity_before_rest", 55)), "完整 Run 基準情境的休息前 Sanity 應落在驗收區間")
 
 
@@ -547,7 +572,7 @@ func _test_phase_16_data_driven_events() -> void:
 	_expect(event_definition.get("options", []).size() == 3, "原型事件應提供三個資料化選項")
 	var shop_definition := registry.get_definition("shops", "prototype_shop")
 	var rest_definition := registry.get_definition("rests", "boss_rest")
-	_expect(shop_definition.get("options", []).size() == 4, "商店應提供三種資源交易與離開選項")
+	_expect(shop_definition.get("options", []).size() == 5, "商店應提供資源交易、咒文購買與離開選項")
 	_expect(rest_definition.get("options", []).size() == 3, "休息應提供身心休養、MP 專注與離開選項")
 	var resolver = EventChoiceResolverScript.new()
 	var state := {"hp": 40, "max_hp": 80, "sanity": 70, "max_sanity": 100, "mp": 25, "max_mp": 100, "currency": 20}
@@ -565,6 +590,9 @@ func _test_phase_16_data_driven_events() -> void:
 	_expect(mana_purchase.get("affordable", false) and mana_purchase.get("changes", {}).get("currency") == 8 and mana_purchase.get("changes", {}).get("mp") == 60, "商店應以金錢交換 MP 並保留其他資源")
 	var poor_purchase: Dictionary = resolver.resolve_choice(shop_definition, "buy_tonic", {"hp": 40, "max_hp": 80, "sanity": 70, "max_sanity": 100, "mp": 25, "max_mp": 100, "currency": 14})
 	_expect(not poor_purchase.get("affordable", true), "金錢不足時商店商品應禁用")
+	var spell_purchase: Dictionary = resolver.resolve_choice(shop_definition, "buy_ward_script", {"hp": 40, "max_hp": 80, "sanity": 70, "max_sanity": 100, "mp": 25, "max_mp": 100, "currency": 30})
+	_expect(spell_purchase.get("affordable", false) and spell_purchase.get("changes", {}).get("currency") == 5, "資源足夠時商店應可購買咒文")
+	_expect(spell_purchase.get("grant", {}).get("type") == "spell" and spell_purchase.get("grant", {}).get("id") == "heal_light", "咒文商品應保留資料化授予內容")
 	var deep_rest: Dictionary = resolver.resolve_choice(rest_definition, "deep_rest", state)
 	_expect(deep_rest.get("changes", {}).get("hp") == 80 and deep_rest.get("changes", {}).get("sanity") == 100 and deep_rest.get("changes", {}).get("mp") == 25, "安穩休養應回滿 HP／Sanity 且不額外更動 MP")
 	var focus_rest: Dictionary = resolver.resolve_choice(rest_definition, "focus_ritual", state)
@@ -655,7 +683,7 @@ func _test_phase_16_battle_batch() -> void:
 		intent_index[str(intent.get("id", ""))] = intent
 	var config := registry.get_document("run_config")
 	var simulator = BattleBatchSimulatorScript.new()
-	var options := {"seed": 97531, "battles": 2, "max_turns": 4}
+	var options := {"seed": 97531, "battles": 2, "max_turns": 4, "difficulty_model": config.get("difficulty_model", {})}
 	var arguments := [
 		[registry.get_entries("encounters")[0]],
 		enemy_index,
@@ -689,6 +717,14 @@ func _test_phase_16_battle_batch() -> void:
 	_expect(int(manager._battle_stats.values.get("spells_paid_with_sanity", 0)) == 1 and int(manager._battle_stats.values.get("spell_fizzles", 0)) == 0, "Sanity 代付應獨立記錄且不算咒文失敗")
 	manager.mp = 3
 	_expect(manager.execute_spell(registry.get_spell("pistol")) and manager.mp == 0 and manager.player.sanity == 67 and manager.enemy.hp == hp_before - 20, "MP 足夠時應優先扣除 MP，不消耗 Sanity")
+	manager.turn_limit = 1
+	manager.time_pressure_sanity_base = 2
+	manager.time_pressure_sanity_growth = 2
+	manager._battle_stats.values.turns = 2
+	manager._apply_time_pressure_if_needed()
+	manager._battle_stats.values.turns = 3
+	manager._apply_time_pressure_if_needed()
+	_expect(manager.player.sanity == 61 and int(manager._battle_stats.values.get("time_pressure_sanity", 0)) == 6 and int(manager._battle_stats.values.get("overdue_turns", 0)) == 2, "超過戰鬥時限後應每回合以 2、4…加速扣除 Sanity")
 	manager.player.free()
 	manager.enemy.free()
 	manager.free()
@@ -780,6 +816,19 @@ func _test_main_scene_smoke() -> void:
 	var graph = instance.get_node_or_null("UILayer/MapContainer/Margin/Panel/VBox/Scroll/Graph")
 	_expect(graph != null and graph.get_edge_count() > 0, "地圖畫布應建立可見的節點連線資料")
 	_expect(FileAccess.file_exists(run_manager.save_service.get_run_path()), "新 Run 建立後應寫入單一自動存檔槽")
+	var payment_label := instance.get_node_or_null("UILayer/ScreenMargin/Layout/InfoSection/PlayerStats/PaymentPreviewLabel") as Label
+	var legend_label := instance.get_node_or_null("UILayer/ScreenMargin/Layout/InfoSection/PlayerStats/SpellLegendLabel") as Label
+	var original_mp: int = manager.mp
+	var original_sanity: int = manager.player.sanity
+	manager.mp = 0
+	manager.player.sanity = 2
+	manager._on_payment_preview_changed([run_manager.content.get_spell("pistol")])
+	_expect(payment_label != null and "代付 SAN" in payment_label.text and "理智歸零" in payment_label.text, "支付預覽應顯示 MP 不足的 Sanity 代付與致死警告")
+	manager.mp = original_mp
+	manager.player.sanity = original_sanity
+	manager._toggle_spell_legend()
+	_expect(legend_label != null and legend_label.visible and "秘銀飛矢" in legend_label.text, "咒文圖例應可展開並顯示目前池中的圖標、名稱與效果")
+	manager._toggle_spell_legend()
 	var event_view = instance.get_node_or_null("UILayer/EventView")
 	_expect(event_view != null, "主場景應掛載事件選項介面")
 	if event_view != null:
@@ -790,6 +839,9 @@ func _test_main_scene_smoke() -> void:
 				break
 		_expect(not event_node.is_empty(), "程序地圖應包含可測試的事件節點")
 		if not event_node.is_empty():
+			# 程序地圖會在事件池抽取內容；smoke test 固定為既有事件以驗證指定選項與來源記錄。
+			event_node["content_id"] = "prototype_event"
+			run_manager.map_node_index[str(event_node.get("id", ""))]["content_id"] = "prototype_event"
 			var sanity_before_event: int = run_manager.run_state.sanity
 			var currency_before_event: int = run_manager.run_state.currency
 			run_manager.flow.transition(run_manager.flow.State.NODE)
@@ -815,9 +867,9 @@ func _test_main_scene_smoke() -> void:
 			run_manager.run_state.flow_state = run_manager.flow.current_state
 			run_manager.run_state.current_node_id = str(shop_node.get("id", ""))
 			run_manager._show_choice_node(shop_node)
-			_expect(event_view.visible and event_view.get_option_buttons().size() == 4, "商店節點應使用共用選項介面並顯示四個選項")
+			_expect(event_view.visible and event_view.get_option_buttons().size() == 5, "商店節點應使用共用選項介面並顯示五個選項")
 			run_manager._on_event_choice_selected("buy_mana_vial")
-			_expect(run_manager.run_state.currency == 8 and run_manager.run_state.mp == 90, "商店購買應扣除金錢、回復 MP，再套用固定節點 MP 回復")
+			_expect(run_manager.run_state.currency == 8 and run_manager.run_state.mp == 100, "商店購買應扣除金錢、回復 MP，再套用固定節點 MP 回復")
 			run_manager.start_new_run()
 		var rest_node := {}
 		for candidate in run_manager.runtime_map.get("nodes", []):
@@ -835,7 +887,7 @@ func _test_main_scene_smoke() -> void:
 			run_manager._show_choice_node(rest_node)
 			_expect(event_view.visible and event_view.get_option_buttons().size() == 3, "休息節點應使用共用選項介面並顯示三個選項")
 			run_manager._on_event_choice_selected("deep_rest")
-			_expect(run_manager.run_state.hp == 80 and run_manager.run_state.sanity == 100 and run_manager.run_state.mp == 45, "安穩休養應回滿 HP／Sanity，並保留節點完成的固定 MP 回復")
+			_expect(run_manager.run_state.hp == 80 and run_manager.run_state.sanity == 100 and run_manager.run_state.mp == 60, "安穩休養應回滿 HP／Sanity，並保留節點完成的固定 MP 回復")
 			run_manager.start_new_run()
 	var tablet = manager.tablet
 	var special_block: BlockData = run_manager.content.get_block("special_dot")
@@ -880,7 +932,7 @@ func _test_main_scene_smoke() -> void:
 	run_manager._on_reward_skipped(10)
 	await process_frame
 	_expect(run_manager.flow.current_state == run_manager.flow.State.MAP, "獎勵結算後應返回地圖")
-	_expect(manager.mp == mini(mp_before_node_completion + 35, manager.max_mp), "完成節點後應依設定固定回復 35 MP")
+	_expect(manager.mp == mini(mp_before_node_completion + 50, manager.max_mp), "完成節點後應依設定固定回復 50 MP")
 	var completion_save: Dictionary = run_manager.save_service.load_run()
 	_expect(completion_save.get("ok", false) and completion_save.state.flow_state == run_manager.flow.State.MAP and first_node_id in completion_save.state.completed_node_ids, "節點完成後自動存檔應保存最新地圖進度")
 	_expect(tablet.get_board_state() == board_before_reward, "跨戰鬥、獎勵與地圖節點應完整保留盤面")

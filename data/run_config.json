@@ -6,10 +6,20 @@
     "attack_weight": 2.0,
     "enemy_tier_weight": 12.0,
     "sanity_pressure_weight": 8.0,
-    "reward_tier_thresholds": [65, 120]
+    "reward_tier_thresholds": [65, 120],
+    "time_pressure": {
+      "enabled": true,
+      "base_turns": 3,
+      "strength_per_bonus_turn": 45,
+      "depth_penalty_interval": 2,
+      "minimum_turn_limit": 4,
+      "maximum_turn_limit": 7,
+      "sanity_loss_base": 2,
+      "sanity_loss_growth": 2
+    }
   },
   "skip_reward_currency": 10,
-  "mp_restore_per_node": 35,
+  "mp_restore_per_node": 50,
   "board_growth_rules": {
     "directional_hand_min": 1,
     "friendly_seed_cells": 15,

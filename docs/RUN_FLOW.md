@@ -18,7 +18,7 @@
 
 ## 版本化程序路線
 
-`data/map.json` 使用 `schema_version: 1`。固定 7 節點路線保留作 fallback；正式 runtime 使用 `generation` 參數與 Run seed 建立分層 DAG。
+`data/map.json` 使用 `schema_version: 1`。固定 10 層路線保留作 fallback；正式 runtime 使用 `generation` 參數與 Run seed 建立 10 層分層 DAG。
 
 演算法參考使用者提供的 Godot 4.5 地圖生成專案：分層節點、距離優先連邊、交叉抑制及雙向可達性驗證。整合版本改用注入式 `RandomNumberGenerator`，並輸出 Arkham Grid 的字串 ID、`next_ids`、節點類型與內容引用格式。
 
@@ -26,7 +26,7 @@
 - 每個節點至少有前進連線，下一層每個節點至少有來源。
 - 多個起點都能抵達唯一 Boss。
 - 結構化節點保證事件、商店、菁英、Boss 前免費休息及 Boss。
-- 每條完整路徑包含 5–8 場戰鬥。
+- 每條完整路徑通過 10 個節點，包含 7 場戰鬥。
 
 第一版節點類型為：`normal_battle`、`elite`、`boss`、`event`、`shop`、`rest`。戰鬥類型的 `content_id` 必須引用存在的 encounter，事件必須引用存在的 event；所有 `next_ids`、起點與 Boss 引用都會在啟動前驗證。
 

@@ -30,7 +30,7 @@ func _run() -> void:
 		registry.get_blocks(run_config.get("block_pool", [])),
 		run_config.get("board_growth_rules", {}),
 		registry.get_document("sanity"),
-		{"seed": int(run_config.get("seed", 424242)), "battles": 10, "max_turns": 12}
+		{"seed": int(run_config.get("seed", 424242)), "battles": 10, "max_turns": 12, "difficulty_model": run_config.get("difficulty_model", {})}
 	)
 	if report.has("error"):
 		push_error(str(report.error))
@@ -56,6 +56,10 @@ func _run() -> void:
 			float(encounter.average_spells_paid_with_sanity),
 			float(encounter.average_spell_fizzles),
 			float(encounter.average_mp_spent),
+		])
+		print("  時間壓力 SAN／超時回合：%.1f/%.1f" % [
+			float(encounter.average_time_pressure_sanity),
+			float(encounter.average_overdue_turns),
 		])
 		print("  傷害 dealt/taken/blocked：%.1f/%.1f/%.1f｜護甲：%.1f｜Sanity 消耗：%.1f" % [
 			float(encounter.average_damage_dealt),

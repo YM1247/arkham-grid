@@ -4,7 +4,7 @@
   "generation": {
     "enabled": true,
     "algorithm": "layered_dag",
-    "floors": 9,
+    "floors": 10,
     "columns": 5,
     "start_count": 2,
     "min_nodes_per_floor": 2,
@@ -15,6 +15,7 @@
     "structured_node_types": true,
     "event_floor": 2,
     "elite_floor": 3,
+    "normal_encounter_indices": [0, 1, 3, 4, 5],
     "type_weights": {
       "normal_battle": 45.0,
       "event": 20.0,
@@ -24,22 +25,27 @@
     }
   },
   "content_pools": {
-    "normal_encounters": ["encounter_01", "encounter_02", "encounter_03", "encounter_04"],
+    "normal_encounters": ["encounter_01", "encounter_02", "encounter_03", "encounter_04", "encounter_07", "encounter_08"],
     "elite_encounters": ["encounter_05"],
     "boss_encounters": ["encounter_06"],
-    "event": ["prototype_event"],
+    "event": ["prototype_event", "blood_clock"],
     "shop": ["prototype_shop"],
     "rest": ["boss_rest"]
   },
   "start_node_ids": ["start_a", "start_b"],
   "boss_node_id": "boss_gate",
   "nodes": [
-    {"id": "start_a", "type": "normal_battle", "content_id": "encounter_01", "next_ids": ["event_archive", "shop_alley"]},
-    {"id": "start_b", "type": "normal_battle", "content_id": "encounter_02", "next_ids": ["shop_alley", "rest_chapel"]},
-    {"id": "event_archive", "type": "event", "content_id": "prototype_event", "next_ids": ["elite_ritual"]},
-    {"id": "shop_alley", "type": "shop", "content_id": "prototype_shop", "next_ids": ["elite_ritual", "rest_chapel"]},
-    {"id": "elite_ritual", "type": "elite", "content_id": "encounter_05", "next_ids": ["rest_chapel"]},
-    {"id": "rest_chapel", "type": "rest", "content_id": "boss_rest", "next_ids": ["boss_gate"]},
-    {"id": "boss_gate", "type": "boss", "content_id": "encounter_06", "next_ids": []}
+    {"id": "start_a", "floor": 0, "column": 1, "type": "normal_battle", "content_id": "encounter_01", "next_ids": ["approach_a"]},
+    {"id": "start_b", "floor": 0, "column": 3, "type": "normal_battle", "content_id": "encounter_02", "next_ids": ["approach_b"]},
+    {"id": "approach_a", "floor": 1, "column": 1, "type": "normal_battle", "content_id": "encounter_02", "next_ids": ["event_archive"]},
+    {"id": "approach_b", "floor": 1, "column": 3, "type": "normal_battle", "content_id": "encounter_03", "next_ids": ["event_archive"]},
+    {"id": "event_archive", "floor": 2, "column": 2, "type": "event", "content_id": "prototype_event", "next_ids": ["elite_ritual"]},
+    {"id": "elite_ritual", "floor": 3, "column": 2, "type": "elite", "content_id": "encounter_05", "next_ids": ["grave_crossing"]},
+    {"id": "grave_crossing", "floor": 4, "column": 2, "type": "normal_battle", "content_id": "encounter_04", "next_ids": ["shop_alley"]},
+    {"id": "shop_alley", "floor": 5, "column": 2, "type": "shop", "content_id": "prototype_shop", "next_ids": ["hunted_road"]},
+    {"id": "hunted_road", "floor": 6, "column": 2, "type": "normal_battle", "content_id": "encounter_07", "next_ids": ["choir_hall"]},
+    {"id": "choir_hall", "floor": 7, "column": 2, "type": "normal_battle", "content_id": "encounter_08", "next_ids": ["rest_chapel"]},
+    {"id": "rest_chapel", "floor": 8, "column": 2, "type": "rest", "content_id": "boss_rest", "next_ids": ["boss_gate"]},
+    {"id": "boss_gate", "floor": 9, "column": 2, "type": "boss", "content_id": "encounter_06", "next_ids": []}
   ]
 }

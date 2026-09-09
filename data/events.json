@@ -31,6 +31,37 @@
           "result_text": "你關上門，低語被留在門後。至少現在如此。"
         }
       ]
+    },
+    {
+      "id": "blood_clock",
+      "title": "血色時計",
+      "description": "一座沒有指針的時計在牆中搏動。每一次震顫，都像在提醒你停留得太久。",
+      "options": [
+        {
+          "id": "wind_clock",
+          "label": "替時計上弦",
+          "description": "以血肉換取可出售的異界機芯。",
+          "costs": {"hp": 7},
+          "results": {"currency": 20},
+          "result_text": "齒輪開始轉動，而你的血沿著刻度流入牆後。"
+        },
+        {
+          "id": "listen_ticks",
+          "label": "聆聽節拍",
+          "description": "承受短暫低語，重整咒文迴路。",
+          "costs": {"sanity": 5},
+          "results": {"mp": 30},
+          "result_text": "你記住了不屬於人類心跳的節奏，術式因此重新排列。"
+        },
+        {
+          "id": "break_clock",
+          "label": "砸碎時計",
+          "description": "不取得資源，立刻離開。",
+          "costs": {},
+          "results": {},
+          "result_text": "外殼裂開後，牆裡的搏動仍沒有停止。"
+        }
+      ]
     }
   ]
 }

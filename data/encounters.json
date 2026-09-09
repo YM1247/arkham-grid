@@ -30,6 +30,16 @@
     "id": "encounter_06",
     "name": "深淵守門",
     "enemy_ids": ["abyss_guard", "grave_cultist"]
+  },
+  {
+    "id": "encounter_07",
+    "name": "墓穴追獵",
+    "enemy_ids": ["grave_cultist", "warped_acolyte"]
+  },
+  {
+    "id": "encounter_08",
+    "name": "深淵合唱",
+    "enemy_ids": ["lightless_priest", "grave_cultist"]
   }
   ]
 }

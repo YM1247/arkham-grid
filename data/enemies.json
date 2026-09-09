@@ -9,6 +9,9 @@
     "speed": 8,
     "tier": 1,
     "intent_pattern": ["attack", "buff_self", "attack", "attack"],
+    "intent_rules": [
+      {"id": "late_frenzy", "turn_gte": 4, "pattern": ["heavy_attack", "attack"]}
+    ],
     "sanity_pressure": false
   },
   {
@@ -19,6 +22,9 @@
     "speed": 14,
     "tier": 1,
     "intent_pattern": ["heavy_attack", "attack", "buff_self", "attack"],
+    "intent_rules": [
+      {"id": "wounded_hunt", "hp_ratio_lte": 0.5, "pattern": ["heavy_attack", "attack", "heavy_attack"]}
+    ],
     "sanity_pressure": false
   },
   {
@@ -29,6 +35,9 @@
     "speed": 10,
     "tier": 1,
     "intent_pattern": ["debuff_player", "attack", "heavy_attack", "attack"],
+    "intent_rules": [
+      {"id": "late_ritual", "turn_gte": 4, "pattern": ["sanity_attack", "heavy_attack"]}
+    ],
     "sanity_pressure": false
   },
   {
@@ -39,6 +48,9 @@
     "speed": 9,
     "tier": 2,
     "intent_pattern": ["attack", "brace", "attack", "heavy_attack"],
+    "intent_rules": [
+      {"id": "bloodied_rite", "hp_ratio_lte": 0.5, "pattern": ["buff_self", "heavy_attack", "attack"]}
+    ],
     "sanity_pressure": false
   },
   {
@@ -49,6 +61,9 @@
     "speed": 12,
     "tier": 2,
     "intent_pattern": ["sanity_attack", "attack", "heavy_attack", "attack"],
+    "intent_rules": [
+      {"id": "late_whispers", "turn_gte": 4, "pattern": ["sanity_attack", "heavy_attack", "attack"]}
+    ],
     "sanity_pressure": true
   },
   {
@@ -59,6 +74,9 @@
     "speed": 6,
     "tier": 3,
     "intent_pattern": ["guard", "attack", "heavy_attack", "attack", "brace"],
+    "intent_rules": [
+      {"id": "broken_gate", "hp_ratio_lte": 0.5, "pattern": ["brace", "heavy_attack", "attack"]}
+    ],
     "sanity_pressure": false
   }
   ]

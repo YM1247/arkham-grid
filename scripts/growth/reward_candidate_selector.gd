@@ -19,6 +19,15 @@ func pick(rewards: Array, spell_definitions: Dictionary, block_definitions: Dict
 		seen_ids[content_id] = true
 		pool.append(reward)
 	var selected: Array = []
+	if bool(context.get("force_block_reward", false)):
+		var block_pool: Array[Dictionary] = []
+		for reward in pool:
+			if str(reward.get("type", "")) == "block":
+				block_pool.append(reward)
+		if not block_pool.is_empty():
+			var forced := block_pool[_weighted_index(block_pool, rng)]
+			selected.append(forced)
+			pool.erase(forced)
 	while selected.size() < count and not pool.is_empty():
 		var index := _weighted_index(pool, rng)
 		selected.append(pool[index])

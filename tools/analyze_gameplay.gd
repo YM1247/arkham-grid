@@ -27,6 +27,7 @@ func _run() -> void:
 	var totals := {
 		"runs": 0, "victories": 0.0, "hp_defeats": 0, "sanity_defeats": 0, "timeouts": 0,
 		"hp": 0.0, "sanity": 0.0, "mp": 0.0, "battles": 0.0, "special_blocks": 0.0, "dead_boards": 0.0,
+		"time_pressure_sanity": 0.0, "overdue_turns": 0.0,
 	}
 	print("MULTI-SEED FULL RUN ANALYSIS")
 	for seed in SEEDS:
@@ -46,10 +47,16 @@ func _run() -> void:
 		totals.battles += float(report.average_battles_won) * RUNS_PER_SEED
 		totals.special_blocks += float(report.average_special_blocks) * RUNS_PER_SEED
 		totals.dead_boards += float(report.average_dead_boards) * RUNS_PER_SEED
+		totals.time_pressure_sanity += float(report.average_time_pressure_sanity) * RUNS_PER_SEED
+		totals.overdue_turns += float(report.average_overdue_turns) * RUNS_PER_SEED
 	print("aggregate runs=%d win=%.1f%% hp/san/timeout=%d/%d/%d avg_hp/san/mp=%.1f/%.1f/%.1f battles=%.2f special=%.2f dead=%.2f" % [
 		totals.runs, 100.0 * totals.victories / totals.runs, totals.hp_defeats, totals.sanity_defeats, totals.timeouts,
 		totals.hp / totals.runs, totals.sanity / totals.runs, totals.mp / totals.runs, totals.battles / totals.runs,
 		totals.special_blocks / totals.runs, totals.dead_boards / totals.runs,
+	])
+	print("aggregate time_pressure_sanity=%.2f overdue_turns=%.2f" % [
+		totals.time_pressure_sanity / totals.runs,
+		totals.overdue_turns / totals.runs,
 	])
 	print("MULTI-SEED ENCOUNTER ANALYSIS")
 	for seed in SEEDS:
@@ -57,7 +64,7 @@ func _run() -> void:
 			content.get_entries("encounters"), enemy_index, intent_index, content.get_document("player"),
 			content.get_spells(config.get("spell_pool", [])), content.get_blocks(config.get("block_pool", [])),
 			config.get("board_growth_rules", {}), content.get_document("sanity"),
-			{"seed": seed, "battles": BATTLES_PER_ENCOUNTER, "max_turns": MAX_TURNS}
+			{"seed": seed, "battles": BATTLES_PER_ENCOUNTER, "max_turns": MAX_TURNS, "difficulty_model": config.get("difficulty_model", {})}
 		)
 		var parts: Array[String] = []
 		for encounter in report.encounters:

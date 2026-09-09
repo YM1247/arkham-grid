@@ -31,6 +31,15 @@
           "result_text": "瓶中微光滲入指尖，枯竭的術式再次有了回應。"
         },
         {
+          "id": "buy_ward_script",
+          "label": "購買星界屏障抄本",
+          "description": "將一份非治療型防護咒文加入本局咒文池。",
+          "costs": {"currency": 25},
+          "results": {},
+          "grant": {"type": "spell", "id": "heal_light"},
+          "result_text": "商人燒去抄本上的署名，只留下仍可運作的星界刻痕。"
+        },
+        {
           "id": "leave_shop",
           "label": "離開商店",
           "description": "不進行交易，保留目前資源。",

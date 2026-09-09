@@ -17,13 +17,14 @@ func _init() -> void:
 	var battles_before_rest := maxi(int(model.get("path_battles", 6)) - 1, 0)
 	var dead_board_loss := int(model.get("dead_boards_per_run", 1)) * 10
 	var enemy_loss := int(model.get("enemy_sanity_hits_per_run", 2)) * int(model.get("enemy_sanity_hit", 6))
-	var before_rest := start_sanity - dead_board_loss - enemy_loss
+	var time_pressure_loss := int(model.get("time_pressure_sanity_per_run", 0))
+	var before_rest := start_sanity - dead_board_loss - enemy_loss - time_pressure_loss
 	var minimum := int(model.get("acceptance_min_sanity_before_rest", 15))
 	var maximum := int(model.get("acceptance_max_sanity_before_rest", 55))
 	print("SANITY SIMULATION")
 	print("- 開始：", start_sanity)
 	print("- 休息前戰鬥：", battles_before_rest)
-	print("- 咒文代付：此簡化模型未計（由多種子稽核覆蓋）｜死盤：", dead_board_loss, "｜敵人：", enemy_loss)
+	print("- 咒文代付：此簡化模型未計（由多種子稽核覆蓋）｜死盤：", dead_board_loss, "｜敵人：", enemy_loss, "｜時間：", time_pressure_loss)
 	print("- 休息前：", before_rest, "｜驗收區間：", minimum, "–", maximum)
 	if before_rest < minimum or before_rest > maximum:
 		push_error("SANITY SIMULATION FAILED")

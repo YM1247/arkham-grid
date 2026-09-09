@@ -9,6 +9,7 @@ var _board_simulator = BoardSimulatorScript.new()
 var _intent_executor := EnemyIntentExecutor.new()
 var _target_resolver := TargetResolver.new()
 var _outcome_resolver := BattleOutcomeResolver.new()
+var _difficulty_calculator := EncounterDifficultyCalculator.new()
 
 
 func simulate_encounter_with_session(
@@ -19,7 +20,8 @@ func simulate_encounter_with_session(
 	board_session: Dictionary,
 	sanity_document: Dictionary,
 	seed: int,
-	max_turns: int = DEFAULT_MAX_TURNS
+	max_turns: int = DEFAULT_MAX_TURNS,
+	battle_context: Dictionary = {}
 ) -> Dictionary:
 	if board_session.is_empty():
 		return {"outcome": "invalid_board", "turns": 0}
@@ -32,7 +34,8 @@ func simulate_encounter_with_session(
 		sanity_document,
 		seed,
 		maxi(max_turns, 1),
-		board_session
+		board_session,
+		battle_context
 	)
 
 
@@ -69,9 +72,18 @@ func simulate(
 			return {"error": "無法產生棋盤事件序列"}
 		event_sequences.append(events)
 	var reports: Array[Dictionary] = []
-	for encounter in encounters:
+	for encounter_index in range(encounters.size()):
+		var encounter = encounters[encounter_index]
 		if not encounter is Dictionary:
 			continue
+		var enemy_defs: Array = []
+		for enemy_id in encounter.get("enemy_ids", []):
+			var enemy_def: Dictionary = enemy_definitions.get(str(enemy_id), {})
+			if not enemy_def.is_empty():
+				enemy_defs.append(enemy_def)
+		var depth_by_encounter = options.get("node_depths", [0, 1, 2, 4, 3, 9, 6, 7])
+		var node_depth := int(depth_by_encounter[mini(encounter_index, depth_by_encounter.size() - 1)]) if depth_by_encounter is Array and not depth_by_encounter.is_empty() else encounter_index
+		var battle_context := _difficulty_calculator.calculate(enemy_defs, options.get("difficulty_model", {}), {"node_depth": node_depth})
 		var trials: Array[Dictionary] = []
 		for battle_index in range(battles):
 			trials.append(_simulate_once(
@@ -82,7 +94,9 @@ func simulate(
 				event_sequences[battle_index],
 				sanity_document,
 				seed + battle_index * 104729,
-				max_turns
+				max_turns,
+				{},
+				battle_context
 			))
 		reports.append(_summarize_encounter(encounter, trials, max_turns))
 	return {
@@ -103,7 +117,8 @@ func _simulate_once(
 	sanity_document: Dictionary,
 	seed: int,
 	max_turns: int,
-	board_session: Dictionary = {}
+	board_session: Dictionary = {},
+	battle_context: Dictionary = {}
 ) -> Dictionary:
 	var stats := {
 		"outcome": "timeout",
@@ -117,6 +132,9 @@ func _simulate_once(
 		"spell_fizzles": 0,
 		"spells_triggered": 0,
 		"spells_paid_with_sanity": 0,
+		"time_pressure_sanity": 0,
+		"overdue_turns": 0,
+		"turn_limit": maxi(int(battle_context.get("turn_limit", 0)), 0),
 		"rows_cleared": 0,
 		"cols_cleared": 0,
 		"dead_boards": 0,
@@ -143,9 +161,24 @@ func _simulate_once(
 	_sync_sanity_rules(sanity_rules, player)
 	var trigger_history: Array[Dictionary] = []
 	var mp := int(player_config.get("mp", 70))
+	var turn_limit := maxi(int(battle_context.get("turn_limit", 0)), 0)
+	var pressure_base := maxi(int(battle_context.get("time_pressure_sanity_base", 0)), 0)
+	var pressure_growth := maxi(int(battle_context.get("time_pressure_sanity_growth", 0)), 0)
 	var event_index := 0
 	for turn in range(1, max_turns + 1):
 		stats.turns = turn
+		if turn_limit > 0 and turn > turn_limit:
+			var overdue_turn := turn - turn_limit
+			var pressure_loss := pressure_base + (overdue_turn - 1) * pressure_growth
+			var sanity_before := player.sanity
+			player.spend_sanity(pressure_loss, "battle_time:%s" % encounter.get("id", ""))
+			stats.time_pressure_sanity = int(stats.time_pressure_sanity) + sanity_before - player.sanity
+			stats.overdue_turns = int(stats.overdue_turns) + 1
+			_sync_sanity_rules(sanity_rules, player)
+			if _outcome_name(player, enemies) != "active":
+				stats.outcome = _outcome_name(player, enemies)
+				_record_survival(stats, turn, enemies)
+				break
 		player.clear_armor()
 		var spell_triggers := 0
 		if not board_session.is_empty() and not _board_simulator.begin_session_turn(board_session):
@@ -207,7 +240,7 @@ func _simulate_once(
 					continue
 				active_enemy.clear_armor()
 				var intent_state := active_enemy.get_meta("intent_state") as EnemyIntentState
-				var intent_id := intent_state.current_intent_id()
+				var intent_id := intent_state.current_intent_id(active_enemy.hp, active_enemy.max_hp, turn)
 				var intent: Dictionary = intent_definitions.get(intent_id, {})
 				if intent.is_empty():
 					stats.outcome = "invalid_intent"
@@ -256,7 +289,7 @@ func _create_enemies(encounter: Dictionary, enemy_definitions: Dictionary, stats
 		enemy.set_meta("speed", int(enemy_def.get("speed", 0)))
 		enemy.set_meta("spawn_index", enemies.size())
 		var intent_state := EnemyIntentState.new()
-		intent_state.configure(enemy_def.get("intent_pattern", []))
+		intent_state.configure(enemy_def.get("intent_pattern", []), 0, enemy_def.get("intent_rules", []))
 		enemy.set_meta("intent_state", intent_state)
 		enemy.damage_resolved.connect(func(_entity: Entity, hp_damage: int, _blocked_damage: int): stats.damage_dealt = int(stats.damage_dealt) + hp_damage)
 		enemies.append(enemy)
@@ -358,6 +391,8 @@ func _summarize_encounter(encounter: Dictionary, trials: Array[Dictionary], max_
 		"spell_fizzles": 0,
 		"spells_triggered": 0,
 		"spells_paid_with_sanity": 0,
+		"time_pressure_sanity": 0,
+		"overdue_turns": 0,
 		"rows_cleared": 0,
 		"cols_cleared": 0,
 		"dead_boards": 0,
@@ -374,7 +409,7 @@ func _summarize_encounter(encounter: Dictionary, trials: Array[Dictionary], max_
 			"hp_defeat": totals.hp_defeats = int(totals.hp_defeats) + 1
 			"sanity_defeat": totals.sanity_defeats = int(totals.sanity_defeats) + 1
 			_: totals.timeouts = int(totals.timeouts) + 1
-		for key in ["turns", "damage_dealt", "damage_taken", "damage_blocked", "armor_gained", "sanity_spent", "mp_spent", "spell_fizzles", "spells_triggered", "spells_paid_with_sanity", "rows_cleared", "cols_cleared", "dead_boards", "player_hp_end", "player_sanity_end", "player_mp_end"]:
+		for key in ["turns", "damage_dealt", "damage_taken", "damage_blocked", "armor_gained", "sanity_spent", "mp_spent", "spell_fizzles", "spells_triggered", "spells_paid_with_sanity", "time_pressure_sanity", "overdue_turns", "rows_cleared", "cols_cleared", "dead_boards", "player_hp_end", "player_sanity_end", "player_mp_end"]:
 			totals[key] = int(totals[key]) + int(trial.get(key, 0))
 		var final_alive := int(trial.get("enemies_alive_end", 0))
 		for turn in range(1, max_turns + 1):
@@ -402,6 +437,8 @@ func _summarize_encounter(encounter: Dictionary, trials: Array[Dictionary], max_
 		"average_spell_fizzles": float(totals.spell_fizzles) / float(count),
 		"average_spells_triggered": float(totals.spells_triggered) / float(count),
 		"average_spells_paid_with_sanity": float(totals.spells_paid_with_sanity) / float(count),
+		"average_time_pressure_sanity": float(totals.time_pressure_sanity) / float(count),
+		"average_overdue_turns": float(totals.overdue_turns) / float(count),
 		"average_rows_cleared": float(totals.rows_cleared) / float(count),
 		"average_cols_cleared": float(totals.cols_cleared) / float(count),
 		"average_dead_boards": float(totals.dead_boards) / float(count),

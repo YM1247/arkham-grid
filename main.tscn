@@ -112,6 +112,21 @@ text = "End Turn"
 layout_mode = 2
 text = "咒文構築"
 
+[node name="PaymentPreviewLabel" type="Label" parent="UILayer/ScreenMargin/Layout/InfoSection/PlayerStats"]
+layout_mode = 2
+text = "拖曳方塊可預覽咒文支付"
+autowrap_mode = 2
+
+[node name="SpellLegendButton" type="Button" parent="UILayer/ScreenMargin/Layout/InfoSection/PlayerStats"]
+layout_mode = 2
+text = "展開咒文圖例"
+
+[node name="SpellLegendLabel" type="Label" parent="UILayer/ScreenMargin/Layout/InfoSection/PlayerStats"]
+visible = false
+layout_mode = 2
+text = "咒文圖例"
+autowrap_mode = 2
+
 [node name="RewardPanel" parent="UILayer/ScreenMargin/Layout/InfoSection/PlayerStats" instance=ExtResource("12_reward")]
 layout_mode = 2
 
@@ -145,6 +160,9 @@ turn_status_label_path = NodePath("../UILayer/ScreenMargin/Layout/InfoSection/Pl
 intent_label_path = NodePath("../UILayer/ScreenMargin/Layout/InfoSection/EnemyContainer/IntentLabel")
 end_turn_button_path = NodePath("../UILayer/ScreenMargin/Layout/InfoSection/PlayerStats/EndTurnButton")
 spell_summary_label_path = NodePath("../UILayer/ScreenMargin/Layout/InfoSection/PlayerStats/SpellLabel")
+payment_preview_label_path = NodePath("../UILayer/ScreenMargin/Layout/InfoSection/PlayerStats/PaymentPreviewLabel")
+spell_legend_button_path = NodePath("../UILayer/ScreenMargin/Layout/InfoSection/PlayerStats/SpellLegendButton")
+spell_legend_label_path = NodePath("../UILayer/ScreenMargin/Layout/InfoSection/PlayerStats/SpellLegendLabel")
 player_max_action_points = 3
 enemy_attack_damage = 8
 

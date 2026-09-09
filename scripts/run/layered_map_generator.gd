@@ -113,7 +113,9 @@ func _assign_types_and_content(nodes: Dictionary, floors: Array, template: Dicti
 	var config: Dictionary = template.get("generation", {})
 	var weights: Dictionary = config.get("type_weights", {})
 	var pools: Dictionary = template.get("content_pools", {})
+	var normal_content_index := 0
 	for floor in range(floors.size()):
+		var floor_has_normal_battle := false
 		for local_index in range(floors[floor].size()):
 			var id: int = floors[floor][local_index]
 			var type := "normal_battle"
@@ -138,7 +140,13 @@ func _assign_types_and_content(nodes: Dictionary, floors: Array, template: Dicti
 					if nodes[previous_id].type == "rest" and type == "rest":
 						type = "normal_battle"
 			nodes[id].type = type
-			nodes[id].content_id = _pick_content(type, floor, pools)
+			var normal_sequence = config.get("normal_encounter_indices", [])
+			var normal_pool_index := int(normal_sequence[normal_content_index]) if normal_sequence is Array and normal_content_index < normal_sequence.size() else normal_content_index
+			var content_index := normal_pool_index if type == "normal_battle" else floor
+			nodes[id].content_id = _pick_content(type, content_index, pools)
+			floor_has_normal_battle = floor_has_normal_battle or type == "normal_battle"
+		if floor_has_normal_battle:
+			normal_content_index += 1
 
 
 func _pick_content(type: String, floor: int, pools: Dictionary) -> String:

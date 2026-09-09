@@ -10,7 +10,7 @@ Phase 13 成長欄位：
 
 - 咒文：`rarity`、`tier`、`balance_cost`、`mp_cost`；可升級項目另填 `upgrade_to` 與 `combine_count`，升級結果以 `upgrade_from` 反向引用來源。
 - 獎勵：`weight`、`min_reward_tier`，以及選用的 `min_battles_won`、`requires_rewards`。
-- 關卡難度：`run_config.json.difficulty_model` 保存公式係數與 reward tier 門檻。
+- 關卡難度：`run_config.json.difficulty_model` 保存公式係數、reward tier 門檻，以及依強度／節點深度計算的戰鬥時限與逾時 Sanity 壓力。
 - 棋盤成長：`run_config.json.board_growth_rules` 保存智慧手牌方向保證數與程序友善盤面參數。
 - 程序路線：`map.json.generation` 保存分層 DAG 參數與類型權重，`content_pools` 保存 encounter 引用；固定 `nodes` 作為 fallback。Run seed 決定完整地圖。
 - JSON 決定組合與數值；`.tres` 只選擇效果行為原型。
@@ -18,7 +18,7 @@ Phase 13 成長欄位：
 ## 檔案用途
 
 - `player.json`：職業 ID、玩家初始生命、理智、MP 與 AP。
-- `enemies.json`：普通戰鬥會輪流使用的敵人資料。
+- `enemies.json`：敵人數值、基礎意圖循環及依 HP／回合切換的條件式意圖。
 - `intents.json`：敵人意圖顯示名稱、action 與數值。
 - `encounters.json`：每場戰鬥會出現的敵人組合。
 - `blocks.json`：方塊形狀、顏色、格子座標與抽取權重；不綁定咒文。
@@ -27,7 +27,7 @@ Phase 13 成長欄位：
 - `meta_progression.json`：共享 Meta 貨幣，以及職業、方塊、咒文的初始解鎖白名單。
 - `rewards.json`：戰鬥勝利後三選一獎勵池。
 - `events.json`：事件標題、場景描述、多個選項，以及各選項的資源代價與結果。
-- `shops.json`：商店場景、商品選項、金錢成本與資源補給結果。
+- `shops.json`：商店場景、商品選項、金錢成本、資源補給與咒文／特殊形狀授予。
 - `rests.json`：休息場景與 HP／Sanity／MP 恢復選項。
 
 ## JSON／`.tres` 責任
@@ -80,7 +80,7 @@ python3 tools/validate_data.py
 ## 新增事件、商店或休息
 
 1. 依節點類型在 `events.json`、`shops.json` 或 `rests.json` 新增唯一 `id`、`title`、`description` 與至少兩個 `options`。
-2. 每個選項需要唯一 `id`、`label`、`result_text`，並以 `costs`、`results` 物件定義數值。
+2. 每個選項需要唯一 `id`、`label`、`result_text`，並以 `costs`、`results` 物件定義數值；可選 `grant` 以 `type` 與 `id` 授予咒文或特殊形狀。
 3. 第一版資源鍵只接受 `hp`、`sanity`、`mp`、`currency`，數量必須是非負整數。
 4. HP 或 Sanity 不可因支付代價降至 0；不足的選項會在介面中禁用。HP、Sanity 與 MP 回復不超過對應上限。
 5. 將內容 ID 加入 `map.json.content_pools` 的對應類型；固定地圖節點的 `content_id` 也必須引用同一 ID。
@@ -91,7 +91,7 @@ python3 tools/validate_data.py
 1. 在 `enemies.json` 新增唯一 `id`。
 2. `hp` 與 `attack` 需符合 `docs/NUMERIC_MODEL.md` 的戰鬥序列曲線。
 3. `speed` 是不顯示給玩家的正整數，越高越早行動；同速依 encounter 生成順序。
-4. `intent_pattern` 必須引用 `intents.json` 的有效 ID，每名敵人會獨立循環自己的索引。
+4. `intent_pattern` 必須引用 `intents.json` 的有效 ID，每名敵人會獨立循環自己的索引。可選 `intent_rules` 使用 `turn_gte` 或 `hp_ratio_lte` 與替代 `pattern`；規則依陣列順序判定。
 5. Encounter 最多同時引用 5 名敵人。
 6. `sanity_pressure` 標記該敵人是否會施加 Sanity 壓力。
 7. 敵人不記錄 `reward_tier`；獎勵級別由關卡難度決定。

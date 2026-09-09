@@ -293,6 +293,10 @@ func _validate_references() -> void:
 	for enemy in definitions.get("enemies", []):
 		for intent_id in enemy.get("intent_pattern", []):
 			_require_id("intents", str(intent_id), "enemy %s.intent_pattern" % enemy.get("id", ""))
+		for rule in enemy.get("intent_rules", []):
+			if rule is Dictionary:
+				for intent_id in rule.get("pattern", []):
+					_require_id("intents", str(intent_id), "enemy %s.intent_rules" % enemy.get("id", ""))
 	for reward in definitions.get("rewards", []):
 		var reward_type := str(reward.get("type", ""))
 		if reward_type == "spell":
@@ -319,6 +323,21 @@ func _validate_references() -> void:
 		_require_id("shops", str(shop_id), "map.content_pools.shop")
 	for rest_id in content_pools.get("rest", []):
 		_require_id("rests", str(rest_id), "map.content_pools.rest")
+	for kind in ["events", "shops", "rests"]:
+		for definition in definitions.get(kind, []):
+			for option in definition.get("options", []):
+				if not option is Dictionary:
+					continue
+				var grant = option.get("grant", {})
+				if not grant is Dictionary or grant.is_empty():
+					continue
+				var grant_type := str(grant.get("type", ""))
+				if grant_type == "spell":
+					_require_id("spells", str(grant.get("id", "")), "%s option grant" % kind)
+				elif grant_type == "block":
+					_require_id("blocks", str(grant.get("id", "")), "%s option grant" % kind)
+				else:
+					errors.append("%s option grant type 不合法：%s" % [kind, grant_type])
 	var meta_config: Dictionary = documents.get("meta_progression", {})
 	for block_id in meta_config.get("initial_unlocked_block_ids", []):
 		_require_id("blocks", str(block_id), "meta_progression.initial_unlocked_block_ids")
@@ -376,6 +395,18 @@ func _validate_values() -> void:
 			for intent in pattern:
 				if str(intent) not in INTENTS:
 					errors.append("enemy %s 使用未知 intent：%s" % [id, intent])
+		var rule_ids := {}
+		for rule in enemy.get("intent_rules", []):
+			if not rule is Dictionary or str(rule.get("id", "")).is_empty() or rule_ids.has(str(rule.get("id", ""))):
+				errors.append("enemy %s intent_rules 必須包含唯一非空 id" % id)
+				continue
+			rule_ids[str(rule.get("id", ""))] = true
+			var has_condition: bool = rule.has("turn_gte") or rule.has("hp_ratio_lte")
+			if not has_condition or (rule.has("turn_gte") and int(rule.get("turn_gte", 0)) <= 0) or (rule.has("hp_ratio_lte") and (float(rule.get("hp_ratio_lte", 0.0)) <= 0.0 or float(rule.get("hp_ratio_lte", 0.0)) > 1.0)):
+				errors.append("enemy %s intent rule %s 條件不合法" % [id, rule.get("id", "")])
+			var rule_pattern = rule.get("pattern", [])
+			if not rule_pattern is Array or rule_pattern.is_empty():
+				errors.append("enemy %s intent rule %s pattern 必須是非空陣列" % [id, rule.get("id", "")])
 	for intent in definitions.get("intents", []):
 		var id := str(intent.get("id", ""))
 		var action := str(intent.get("action", ""))
@@ -432,6 +463,17 @@ func _validate_values() -> void:
 		errors.append("run_config.spell_pool 必須是非空陣列")
 	if int(config.get("mp_restore_per_node", -1)) < 0:
 		errors.append("run_config.mp_restore_per_node 不可為負數")
+	var time_pressure = config.get("difficulty_model", {}).get("time_pressure", {})
+	if not time_pressure is Dictionary:
+		errors.append("run_config.difficulty_model.time_pressure 必須是物件")
+	elif bool(time_pressure.get("enabled", false)):
+		for field in ["base_turns", "strength_per_bonus_turn", "depth_penalty_interval", "minimum_turn_limit", "maximum_turn_limit", "sanity_loss_base", "sanity_loss_growth"]:
+			if int(time_pressure.get(field, -1)) < 0:
+				errors.append("time_pressure.%s 必須是非負整數" % field)
+		if int(time_pressure.get("strength_per_bonus_turn", 0)) <= 0 or int(time_pressure.get("depth_penalty_interval", 0)) <= 0:
+			errors.append("time_pressure 強度與深度除數必須大於 0")
+		if int(time_pressure.get("maximum_turn_limit", 0)) < int(time_pressure.get("minimum_turn_limit", 0)):
+			errors.append("time_pressure 最大時限不得小於最小時限")
 	for reward in definitions.get("rewards", []):
 		if str(reward.get("type", "")) == "block":
 			var block := get_definition("blocks", str(reward.get("id", "")))
@@ -484,6 +526,9 @@ func _validate_choice_definitions() -> void:
 				option_ids[option_id] = true
 				if str(option.get("label", "")).is_empty() or str(option.get("result_text", "")).is_empty():
 					errors.append("%s %s option %s 的 label / result_text 不可為空" % [label, definition_id, option_id])
+				var grant = option.get("grant", {})
+				if not grant is Dictionary:
+					errors.append("%s %s option %s.grant 必須是物件" % [label, definition_id, option_id])
 				for field in ["costs", "results"]:
 					var resources = option.get(field)
 					if not resources is Dictionary:
@@ -731,6 +776,17 @@ func _validate_map_document(map_document: Dictionary) -> void:
 			if seen.has(str(content_id)):
 				errors.append("map.content_pools.%s 含有重複 ID：%s" % [pool_name, content_id])
 			seen[str(content_id)] = true
+	if bool(generation.get("structured_node_types", false)):
+		var normal_sequence = generation.get("normal_encounter_indices", [])
+		var normal_pool = content_pools.get("normal_encounters", [])
+		var expected_normal_floors := maxi(int(generation.get("floors", 0)) - 5, 0)
+		if not normal_sequence is Array or normal_sequence.size() != expected_normal_floors:
+			errors.append("map.generation.normal_encounter_indices 必須逐一對應結構化普通戰鬥樓層")
+		elif normal_pool is Array:
+			for index in normal_sequence:
+				if not (index is int or index is float) or int(index) < 0 or int(index) >= normal_pool.size():
+					errors.append("map.generation.normal_encounter_indices 含有超出普通遭遇池的索引")
+					break
 	for node in nodes:
 		var pool_name: String = node_pool_names.get(str(node.get("type", "")), "")
 		var pool = content_pools.get(pool_name, [])

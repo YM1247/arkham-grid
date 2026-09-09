@@ -8,6 +8,7 @@
     "spell": "咒文",
     "dead_board": "盤面無路",
     "enemy_intent": "敵人精神攻擊",
+    "battle_time": "戰鬥超時",
     "event": "事件",
     "rest": "休息"
   },
@@ -42,10 +43,11 @@
     }
   ],
   "simulation": {
-    "path_battles": 6,
+    "path_battles": 7,
     "dead_boards_per_run": 1,
     "enemy_sanity_hits_per_run": 2,
     "enemy_sanity_hit": 4,
+    "time_pressure_sanity_per_run": 10,
     "rest_recovery": 100,
     "acceptance_min_sanity_before_rest": 15,
     "acceptance_max_sanity_before_rest": 55

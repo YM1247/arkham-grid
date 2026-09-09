@@ -104,8 +104,12 @@ func apply_entity_modifiers(entity: Entity) -> void:
 
 
 func modify_spell_mp_cost(value: int) -> int:
+	return modify_spell_mp_cost_for_effects(value, active_effect_ids)
+
+
+func modify_spell_mp_cost_for_effects(value: int, effect_ids: Array) -> int:
 	var result := value
-	for effect_id in active_effect_ids:
+	for effect_id in effect_ids:
 		var behavior = _behaviors.get(effect_id)
 		if behavior != null:
 			result = behavior.modify_spell_mp_cost(_effect_index.get(effect_id, {}), result)

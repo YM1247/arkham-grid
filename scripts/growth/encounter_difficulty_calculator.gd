@@ -2,7 +2,7 @@ class_name EncounterDifficultyCalculator
 extends RefCounted
 
 
-func calculate(enemy_defs: Array, model: Dictionary) -> Dictionary:
+func calculate(enemy_defs: Array, model: Dictionary, context: Dictionary = {}) -> Dictionary:
 	var total_hp := 0
 	var total_attack := 0
 	var tier_sum := 0
@@ -27,7 +27,7 @@ func calculate(enemy_defs: Array, model: Dictionary) -> Dictionary:
 		for threshold in thresholds:
 			if strength >= int(threshold):
 				reward_tier += 1
-	return {
+	var result := {
 		"strength": strength,
 		"reward_tier": reward_tier,
 		"enemy_count": enemy_defs.size(),
@@ -35,3 +35,22 @@ func calculate(enemy_defs: Array, model: Dictionary) -> Dictionary:
 		"total_attack": total_attack,
 		"sanity_pressure_count": sanity_count,
 	}
+	var time_pressure: Dictionary = model.get("time_pressure", {})
+	if bool(time_pressure.get("enabled", false)):
+		var strength_step := maxi(int(time_pressure.get("strength_per_bonus_turn", 45)), 1)
+		var depth_interval := maxi(int(time_pressure.get("depth_penalty_interval", 3)), 1)
+		var node_depth := maxi(int(context.get("node_depth", 0)), 0)
+		var depth_penalty := floori(float(node_depth) / float(depth_interval))
+		var turn_limit := int(time_pressure.get("base_turns", 3)) + ceili(float(strength) / float(strength_step)) - depth_penalty
+		turn_limit = clampi(
+			turn_limit,
+			maxi(int(time_pressure.get("minimum_turn_limit", 4)), 1),
+			maxi(int(time_pressure.get("maximum_turn_limit", 7)), 1)
+		)
+		result.merge({
+			"node_depth": node_depth,
+			"turn_limit": turn_limit,
+			"time_pressure_sanity_base": maxi(int(time_pressure.get("sanity_loss_base", 2)), 0),
+			"time_pressure_sanity_growth": maxi(int(time_pressure.get("sanity_loss_growth", 2)), 0),
+		}, true)
+	return result

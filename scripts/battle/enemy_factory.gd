@@ -14,6 +14,6 @@ func create(enemy_def: Dictionary, template: Entity, parent: Node, index: int) -
 	instance.set_meta("speed", int(enemy_def.get("speed", 0)))
 	instance.set_meta("spawn_index", index)
 	var intent_state := EnemyIntentState.new()
-	intent_state.configure(enemy_def.get("intent_pattern", ["attack"]))
+	intent_state.configure(enemy_def.get("intent_pattern", ["attack"]), 0, enemy_def.get("intent_rules", []))
 	instance.set_meta("intent_state", intent_state)
 	return instance

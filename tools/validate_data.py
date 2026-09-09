@@ -274,6 +274,23 @@ def main():
     validate_choice_definitions(events, "event", errors)
     validate_choice_definitions(shops, "shop", errors)
     validate_choice_definitions(rests, "rest", errors)
+    for label, definitions in (("event", events), ("shop", shops), ("rest", rests)):
+        for definition in definitions:
+            for option in definition.get("options", []):
+                grant = option.get("grant", {})
+                if not isinstance(grant, dict):
+                    errors.append(f"{label} {definition.get('id')} option {option.get('id')}.grant 必須是物件")
+                    continue
+                if not grant:
+                    continue
+                grant_type = grant.get("type")
+                grant_id = grant.get("id")
+                if grant_type == "spell" and grant_id not in spell_ids:
+                    errors.append(f"{label} option grant 引用不存在咒文：{grant_id}")
+                elif grant_type == "block" and grant_id not in block_ids:
+                    errors.append(f"{label} option grant 引用不存在方塊：{grant_id}")
+                elif grant_type not in {"spell", "block"}:
+                    errors.append(f"{label} option grant type 不合法：{grant_type}")
 
     if not isinstance(meta_progression.get("initial_shared_currency"), int) or meta_progression.get("initial_shared_currency", -1) < 0:
         errors.append("meta_progression.initial_shared_currency 必須是非負整數")
@@ -395,6 +412,26 @@ def main():
                     errors.append(f"enemy {enemy_id} 使用未知 intent：{intent}")
                 if intent not in intent_ids:
                     errors.append(f"enemy {enemy_id} 引用不存在 intent：{intent}")
+        rule_ids = set()
+        for rule in enemy.get("intent_rules", []):
+            if not isinstance(rule, dict) or not isinstance(rule.get("id"), str) or not rule.get("id") or rule.get("id") in rule_ids:
+                errors.append(f"enemy {enemy_id} intent_rules 必須包含唯一非空 id")
+                continue
+            rule_ids.add(rule["id"])
+            has_condition = "turn_gte" in rule or "hp_ratio_lte" in rule
+            if not has_condition:
+                errors.append(f"enemy {enemy_id} intent rule {rule['id']} 缺少條件")
+            if "turn_gte" in rule and (not isinstance(rule["turn_gte"], int) or rule["turn_gte"] <= 0):
+                errors.append(f"enemy {enemy_id} intent rule {rule['id']} turn_gte 不合法")
+            if "hp_ratio_lte" in rule and (not isinstance(rule["hp_ratio_lte"], (int, float)) or not 0 < rule["hp_ratio_lte"] <= 1):
+                errors.append(f"enemy {enemy_id} intent rule {rule['id']} hp_ratio_lte 不合法")
+            rule_pattern = rule.get("pattern")
+            if not isinstance(rule_pattern, list) or not rule_pattern:
+                errors.append(f"enemy {enemy_id} intent rule {rule['id']} pattern 必須是非空陣列")
+            else:
+                for intent in rule_pattern:
+                    if intent not in intent_ids:
+                        errors.append(f"enemy {enemy_id} intent rule {rule['id']} 引用不存在 intent：{intent}")
         if not isinstance(enemy.get("sanity_pressure"), bool):
             errors.append(f"enemy {enemy_id} sanity_pressure 必須是布林值")
 
@@ -564,6 +601,15 @@ def main():
                     if rest_id not in rest_ids:
                         errors.append(f"map.content_pools.rest 引用不存在 rest：{rest_id}")
 
+        if generation.get("structured_node_types", False):
+            normal_sequence = generation.get("normal_encounter_indices", [])
+            normal_pool = content_pools.get("normal_encounters", [])
+            expected_normal_floors = max(int(generation.get("floors", 0)) - 5, 0)
+            if not isinstance(normal_sequence, list) or len(normal_sequence) != expected_normal_floors:
+                errors.append("map.generation.normal_encounter_indices 必須逐一對應結構化普通戰鬥樓層")
+            elif not isinstance(normal_pool, list) or any(not isinstance(index, int) or index < 0 or index >= len(normal_pool) for index in normal_sequence):
+                errors.append("map.generation.normal_encounter_indices 含有超出普通遭遇池的索引")
+
         node_pool_names = {
             "normal_battle": "normal_encounters",
             "elite": "elite_encounters",
@@ -620,6 +666,18 @@ def main():
                 errors.append(f"run_config.spell_pool 引用不存在咒文：{spell_id}")
     if not isinstance(run_config.get("mp_restore_per_node"), int) or run_config.get("mp_restore_per_node", -1) < 0:
         errors.append("run_config.mp_restore_per_node 必須是非負整數")
+    time_pressure = run_config.get("difficulty_model", {}).get("time_pressure")
+    if not isinstance(time_pressure, dict):
+        errors.append("run_config.difficulty_model.time_pressure 必須是物件")
+    elif time_pressure.get("enabled", False):
+        fields = ("base_turns", "strength_per_bonus_turn", "depth_penalty_interval", "minimum_turn_limit", "maximum_turn_limit", "sanity_loss_base", "sanity_loss_growth")
+        for field in fields:
+            if not isinstance(time_pressure.get(field), int) or time_pressure.get(field, -1) < 0:
+                errors.append(f"time_pressure.{field} 必須是非負整數")
+        if time_pressure.get("strength_per_bonus_turn", 0) <= 0 or time_pressure.get("depth_penalty_interval", 0) <= 0:
+            errors.append("time_pressure 強度與深度除數必須大於 0")
+        if time_pressure.get("maximum_turn_limit", 0) < time_pressure.get("minimum_turn_limit", 0):
+            errors.append("time_pressure 最大時限不得小於最小時限")
 
     for reward in rewards:
         reward_type = reward.get("type")

@@ -5,6 +5,7 @@ signal col_activated(col_index: int)
 signal spell_activated(spell: BattleItem, board_cell: Vector2i)
 signal block_placed(block_data: BlockData)
 signal no_valid_moves(penalty: int)
+signal payment_preview_changed(spells: Array)
 
 # --- 設定參數 ---
 # 這裡的大小要跟 GridCell 的大小一致
@@ -364,6 +365,7 @@ func clear_preview():
 	for cell in _current_clear_preview_cells:
 		cell.set_clear_preview(false)
 	_current_clear_preview_cells.clear()
+	payment_preview_changed.emit([])
 
 # 執行放置 (原本的函數，稍微修改)
 func place_block(origin_x: int, origin_y: int, block_data: BlockData, source_block: Node = null):
@@ -693,6 +695,26 @@ func _update_clear_line_preview(origin_x: int, origin_y: int, block_data: BlockD
 	for y in rows_to_clear:
 		for x in range(GRID_DIMENSION):
 			_add_clear_preview_cell(x, y)
+
+	var spells_to_trigger: Array = []
+	var seen_cells := {}
+	var placed_effect_cell := Vector2i(origin_x, origin_y) + block_data.effect_cell
+	for x in cols_to_clear:
+		for y in range(GRID_DIMENSION):
+			_collect_preview_spell(Vector2i(x, y), placed_effect_cell, block_data, seen_cells, spells_to_trigger)
+	for y in rows_to_clear:
+		for x in range(GRID_DIMENSION):
+			_collect_preview_spell(Vector2i(x, y), placed_effect_cell, block_data, seen_cells, spells_to_trigger)
+	payment_preview_changed.emit(spells_to_trigger)
+
+
+func _collect_preview_spell(coord: Vector2i, placed_effect_cell: Vector2i, block_data: BlockData, seen_cells: Dictionary, output: Array) -> void:
+	if seen_cells.has(coord):
+		return
+	seen_cells[coord] = true
+	var spell := block_data.spell if coord == placed_effect_cell else grid_spells[coord.x][coord.y] as BattleItem
+	if spell != null:
+		output.append(spell)
 
 func _add_clear_preview_cell(x: int, y: int):
 	var cell_index = y * GRID_DIMENSION + x

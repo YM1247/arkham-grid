@@ -9,6 +9,10 @@
       "speed": 8,
       "tier": 1,
       "intent_pattern": ["attack"],
+      "intent_rules": [
+        {"id": "late_phase", "turn_gte": 4, "pattern": ["heavy_attack", "attack"]},
+        {"id": "wounded_phase", "hp_ratio_lte": 0.5, "pattern": ["buff_self", "attack"]}
+      ],
       "sanity_pressure": false
     }
   ]

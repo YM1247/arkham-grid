@@ -15,6 +15,15 @@
           "result_text": "交易完成後的描述。"
         },
         {
+          "id": "buy_spell",
+          "label": "購買咒文",
+          "description": "將指定咒文加入本局咒文池。",
+          "costs": {"currency": 25},
+          "results": {},
+          "grant": {"type": "spell", "id": "pistol"},
+          "result_text": "你取得了一份咒文抄本。"
+        },
+        {
           "id": "leave",
           "label": "離開",
           "description": "不進行交易。",

@@ -64,15 +64,17 @@ func _simulate_once(content: ContentRegistry, seed: int, max_turns: int) -> Dict
 	var rewards_taken := 0
 	var spells_taken := 0
 	var special_blocks := 0
+	var time_pressure_sanity := 0
+	var overdue_turns := 0
 	var outcome := "route_incomplete"
 	var failed_encounter_id := ""
 	var enemy_index: Dictionary = content.indexes.get("enemies", {})
 	var intent_index: Dictionary = content.indexes.get("intents", {})
-	var mp_restore_per_node := maxi(int(run_config.get("mp_restore_per_node", 35)), 0)
+	var mp_restore_per_node := maxi(int(run_config.get("mp_restore_per_node", 50)), 0)
 	for node in route:
 		var node_type := str(node.get("type", ""))
 		if node_type in ["event", "shop", "rest"]:
-			if not _apply_first_affordable_choice(content, node, player_state):
+			if not _apply_first_affordable_choice(content, node, player_state, board_session):
 				outcome = "invalid_node_content"
 				break
 			if node_type == "rest":
@@ -86,6 +88,8 @@ func _simulate_once(content: ContentRegistry, seed: int, max_turns: int) -> Dict
 		if encounter.is_empty():
 			outcome = "invalid_encounter"
 			break
+		var enemy_defs := _get_enemy_definitions(encounter, enemy_index)
+		var difficulty := _difficulty_calculator.calculate(enemy_defs, run_config.get("difficulty_model", {}), {"node_depth": int(node.get("floor", 0))})
 		var battle_result := _battle_simulator.simulate_encounter_with_session(
 			encounter,
 			enemy_index,
@@ -94,11 +98,14 @@ func _simulate_once(content: ContentRegistry, seed: int, max_turns: int) -> Dict
 			board_session,
 			content.get_document("sanity"),
 			seed,
-			max_turns
+			max_turns,
+			difficulty
 		)
 		player_state.hp = int(battle_result.get("player_hp_end", player_state.get("hp", 0)))
 		player_state.sanity = int(battle_result.get("player_sanity_end", player_state.get("sanity", 0)))
 		player_state.mp = int(battle_result.get("player_mp_end", player_state.get("mp", 0)))
+		time_pressure_sanity += int(battle_result.get("time_pressure_sanity", 0))
+		overdue_turns += int(battle_result.get("overdue_turns", 0))
 		battle_curve.append({
 			"battle": battle_curve.size() + 1,
 			"encounter_id": str(encounter.get("id", "")),
@@ -110,6 +117,9 @@ func _simulate_once(content: ContentRegistry, seed: int, max_turns: int) -> Dict
 			"mp": int(player_state.mp),
 			"damage_taken": int(battle_result.get("damage_taken", 0)),
 			"sanity_spent": int(battle_result.get("sanity_spent", 0)),
+			"turn_limit": int(battle_result.get("turn_limit", 0)),
+			"overdue_turns": int(battle_result.get("overdue_turns", 0)),
+			"time_pressure_sanity": int(battle_result.get("time_pressure_sanity", 0)),
 		})
 		if str(battle_result.get("outcome", "")) != "victory":
 			outcome = str(battle_result.get("outcome", "invalid"))
@@ -120,8 +130,6 @@ func _simulate_once(content: ContentRegistry, seed: int, max_turns: int) -> Dict
 			_restore_mp(player_state, mp_restore_per_node)
 			outcome = "victory"
 			break
-		var enemy_defs := _get_enemy_definitions(encounter, enemy_index)
-		var difficulty := _difficulty_calculator.calculate(enemy_defs, run_config.get("difficulty_model", {}))
 		var candidates := _reward_selector.pick(
 			content.get_entries("rewards"),
 			content.indexes.get("spells", {}),
@@ -130,6 +138,7 @@ func _simulate_once(content: ContentRegistry, seed: int, max_turns: int) -> Dict
 				"battles_won": battles_won,
 				"reward_tier": int(difficulty.get("reward_tier", 1)),
 				"unlocked_reward_ids": selected_reward_ids,
+				"force_block_reward": node_type == "elite",
 			},
 			3,
 			rng
@@ -166,6 +175,8 @@ func _simulate_once(content: ContentRegistry, seed: int, max_turns: int) -> Dict
 		"mp_end": int(player_state.get("mp", 0)),
 		"board_placements": int(board_session.get("placements", 0)),
 		"dead_boards": int(board_session.get("dead_boards", 0)),
+		"time_pressure_sanity": time_pressure_sanity,
+		"overdue_turns": overdue_turns,
 		"battle_curve": battle_curve,
 	}
 
@@ -207,7 +218,7 @@ func _restore_mp(player_state: Dictionary, amount: int) -> void:
 	player_state.mp = mini(int(player_state.get("mp", 0)) + amount, int(player_state.get("max_mp", 100)))
 
 
-func _apply_first_affordable_choice(content: ContentRegistry, node: Dictionary, player_state: Dictionary) -> bool:
+func _apply_first_affordable_choice(content: ContentRegistry, node: Dictionary, player_state: Dictionary, board_session: Dictionary) -> bool:
 	var node_type := str(node.get("type", ""))
 	var definition_kind: String = {"event": "events", "shop": "shops", "rest": "rests"}.get(node_type, "")
 	var definition := content.get_definition(definition_kind, str(node.get("content_id", "")))
@@ -218,6 +229,13 @@ func _apply_first_affordable_choice(content: ContentRegistry, node: Dictionary, 
 			continue
 		for key in preview.get("changes", {}):
 			player_state[key] = int(preview.changes[key])
+		var grant: Dictionary = preview.get("grant", {})
+		var grant_id := str(grant.get("id", ""))
+		match str(grant.get("type", "")):
+			"spell":
+				_board_simulator.add_session_spell(board_session, content.get_spell(grant_id))
+			"block":
+				_board_simulator.add_session_block(board_session, content.get_block(grant_id))
 		return true
 	return false
 
@@ -240,6 +258,8 @@ func _summarize(results: Array[Dictionary], seed: int, max_turns: int) -> Dictio
 		"mp_end": 0,
 		"board_placements": 0,
 		"dead_boards": 0,
+		"time_pressure_sanity": 0,
+		"overdue_turns": 0,
 	}
 	var maximum_battles := 0
 	for result in results:
@@ -250,7 +270,7 @@ func _summarize(results: Array[Dictionary], seed: int, max_turns: int) -> Dictio
 			"sanity_defeat": totals.sanity_defeats = int(totals.sanity_defeats) + 1
 			"timeout": totals.timeouts = int(totals.timeouts) + 1
 			_: totals.invalid = int(totals.invalid) + 1
-		for key in ["battles_won", "battles_reached", "rests", "rewards_taken", "spells_taken", "special_blocks", "hp_end", "sanity_end", "mp_end", "board_placements", "dead_boards"]:
+		for key in ["battles_won", "battles_reached", "rests", "rewards_taken", "spells_taken", "special_blocks", "hp_end", "sanity_end", "mp_end", "board_placements", "dead_boards", "time_pressure_sanity", "overdue_turns"]:
 			totals[key] = int(totals[key]) + int(result.get(key, 0))
 	var pressure_curve: Array[Dictionary] = []
 	for battle_index in range(maximum_battles):
@@ -302,6 +322,8 @@ func _summarize(results: Array[Dictionary], seed: int, max_turns: int) -> Dictio
 		"average_mp_end": float(totals.mp_end) / float(count),
 		"average_board_placements": float(totals.board_placements) / float(count),
 		"average_dead_boards": float(totals.dead_boards) / float(count),
+		"average_time_pressure_sanity": float(totals.time_pressure_sanity) / float(count),
+		"average_overdue_turns": float(totals.overdue_turns) / float(count),
 		"pressure_curve": pressure_curve,
 		"runs_detail": results,
 	}

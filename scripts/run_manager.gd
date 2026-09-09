@@ -301,11 +301,14 @@ func _on_event_choice_selected(option_id: String) -> void:
 		return
 	var result_text := str(result.get("result_text", "節點已完成。"))
 	var changes: Dictionary = result.get("changes", {}).duplicate(true)
+	var grant: Dictionary = result.get("grant", {})
 	var sanity_delta := int(result.get("deltas", {}).get("sanity", 0))
 	if sanity_delta != 0 and battle_manager.has_method("change_player_sanity"):
 		battle_manager.change_player_sanity(sanity_delta, "%s:%s:%s" % [node_type, definition.get("id", ""), option_id])
 		changes.erase("sanity")
 	_hide_event()
+	if not grant.is_empty():
+		_apply_choice_grant(grant)
 	_complete_current_node(changes)
 	_set_result_text("%s結果：%s" % [_node_type_label(node_type), result_text])
 
@@ -320,7 +323,24 @@ func _get_event_resource_state() -> Dictionary:
 		"mp": run_state.mp,
 		"max_mp": run_state.max_mp,
 		"currency": run_state.currency,
+		"block_pool_ids": run_state.block_pool_ids.duplicate(),
 	}
+
+
+func _apply_choice_grant(grant: Dictionary) -> void:
+	var grant_type := str(grant.get("type", ""))
+	var grant_id := str(grant.get("id", ""))
+	if grant_type == "spell":
+		var spell := spell_resources.get(grant_id) as BattleItem
+		if spell != null:
+			tablet.add_spell_to_pool(spell)
+			run_state.spell_pool_ids.append(grant_id)
+	elif grant_type == "block":
+		var block := block_resources.get(grant_id) as BlockData
+		if block != null and grant_id not in run_state.block_pool_ids:
+			tablet.add_block_to_pool(block)
+			run_state.block_pool_ids.append(grant_id)
+			run_state.selected_reward_ids.append(grant_id)
 
 
 func _node_type_label(node_type: String) -> String:
@@ -356,7 +376,7 @@ func _apply_node_result(result) -> void:
 			"sanity": run_state.sanity = clampi(int(result.state_changes[key]), 0, run_state.max_sanity)
 			"mp": run_state.mp = clampi(int(result.state_changes[key]), 0, run_state.max_mp)
 			"currency": run_state.currency = maxi(int(result.state_changes[key]), 0)
-	var mp_restore := int(content.get_document("run_config").get("mp_restore_per_node", 35))
+	var mp_restore := int(content.get_document("run_config").get("mp_restore_per_node", 50))
 	run_state.mp = mini(run_state.mp + mp_restore, run_state.max_mp)
 	battle_manager.configure_player(run_state.player_name, run_state.max_hp, run_state.hp, run_state.max_sanity, run_state.sanity, run_state.action_points, run_state.max_mp, run_state.mp)
 	var node_id := str(result.node_id)
@@ -400,9 +420,14 @@ func _start_encounter(encounter_id: String) -> void:
 		_finish_run(false, "找不到遭遇：%s" % encounter_id)
 		return
 	var encounter_enemies = _build_encounter_enemies(encounter)
-	current_difficulty = difficulty_calculator.calculate(encounter_enemies, content.get_document("run_config").get("difficulty_model", {}))
-	_set_result_text("遭遇：%s｜強度 %d｜獎勵 Tier %d" % [str(encounter.get("name", "未知遭遇")), int(current_difficulty.get("strength", 0)), int(current_difficulty.get("reward_tier", 1))])
-	battle_manager.start_from_input(BattleStartInput.create(encounter_id, encounter_enemies, run_state, content.get_entries("intents")))
+	var current_node: Dictionary = map_node_index.get(run_state.current_node_id, {})
+	current_difficulty = difficulty_calculator.calculate(
+		encounter_enemies,
+		content.get_document("run_config").get("difficulty_model", {}),
+		{"node_depth": int(current_node.get("floor", 0))}
+	)
+	_set_result_text("遭遇：%s｜強度 %d｜獎勵 Tier %d｜安全時限 %d 回合" % [str(encounter.get("name", "未知遭遇")), int(current_difficulty.get("strength", 0)), int(current_difficulty.get("reward_tier", 1)), int(current_difficulty.get("turn_limit", 0))])
+	battle_manager.start_from_input(BattleStartInput.create(encounter_id, encounter_enemies, run_state, content.get_entries("intents"), current_difficulty))
 
 func _on_battle_won() -> void:
 	battles_won += 1
@@ -493,6 +518,7 @@ func _pick_rewards(count: int) -> Array:
 			"unlocked_reward_ids": run_state.selected_reward_ids,
 			"meta_unlocked_spell_ids": meta_state.unlocked_spell_ids,
 			"meta_unlocked_block_ids": meta_state.unlocked_block_ids,
+			"force_block_reward": str(map_node_index.get(run_state.current_node_id, {}).get("type", "")) == "elite",
 		},
 		count,
 		rng

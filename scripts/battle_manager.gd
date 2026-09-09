@@ -26,6 +26,9 @@ const MAX_ENEMIES := 5
 @export var intent_label_path: NodePath
 @export var end_turn_button_path: NodePath
 @export var spell_summary_label_path: NodePath
+@export var payment_preview_label_path: NodePath
+@export var spell_legend_button_path: NodePath
+@export var spell_legend_label_path: NodePath
 
 @export_group("回合設定")
 @export var player_max_action_points: int = 3
@@ -56,6 +59,9 @@ var _battle_stats = BattleStatisticsScript.new()
 var sanity_rules = SanityRuleEngineScript.new()
 var sanity_history: Array[Dictionary] = []
 var _last_sanity_message := ""
+var turn_limit := 0
+var time_pressure_sanity_base := 0
+var time_pressure_sanity_growth := 0
 
 func _ready():
 	player = get_node_or_null(player_path) as Entity
@@ -88,12 +94,17 @@ func _ready():
 		tablet.no_valid_moves.connect(_on_tablet_no_valid_moves)
 		if tablet.has_signal("spell_activated"):
 			tablet.spell_activated.connect(execute_spell)
+		if tablet.has_signal("payment_preview_changed"):
+			tablet.payment_preview_changed.connect(_on_payment_preview_changed)
 	
 	var end_turn_button = get_node_or_null(end_turn_button_path) as Button
 	if end_turn_button == null:
 		push_error("BattleManager 設定錯誤：找不到 End Turn Button。")
 	else:
 		end_turn_button.pressed.connect(end_player_turn)
+	var legend_button := get_node_or_null(spell_legend_button_path) as Button
+	if legend_button != null:
+		legend_button.pressed.connect(_toggle_spell_legend)
 	
 	_update_all_status_labels()
 	_start_player_turn()
@@ -182,6 +193,10 @@ func _start_player_turn() -> void:
 	current_action_points = player_max_action_points
 	current_turn_spell_triggers = 0
 	_battle_stats.add("turns")
+	_apply_time_pressure_if_needed()
+	_settle_battle_outcome()
+	if not battle_active:
+		return
 	if player != null:
 		player.clear_armor()
 	if tablet != null:
@@ -209,7 +224,7 @@ func _execute_enemy_turn() -> void:
 			continue
 		active_enemy.clear_armor()
 		var intent_state := active_enemy.get_meta("intent_state") as EnemyIntentState if active_enemy.has_meta("intent_state") else null
-		var intent_id := intent_state.current_intent_id() if intent_state != null else ""
+		var intent_id := intent_state.current_intent_id(active_enemy.hp, active_enemy.max_hp, int(_battle_stats.values.get("turns", 1))) if intent_state != null else ""
 		var intent: Dictionary = _intent_definitions.get(intent_id, {})
 		if intent.is_empty():
 			push_error("敵人 %s 使用未註冊 intent：%s" % [active_enemy.entity_name, intent_id])
@@ -237,6 +252,7 @@ func _update_all_status_labels() -> void:
 	_update_intent_label()
 	_update_end_turn_button()
 	_update_spell_summary_label()
+	_update_spell_legend()
 	_update_tablet_slot_labels()
 
 func _update_status_label(label_path: NodePath, entity: Entity) -> void:
@@ -268,7 +284,13 @@ func _update_turn_status_label() -> void:
 		var sanity_warning = ""
 		if player != null and player.max_sanity > 0 and player.sanity > 0 and player.sanity < 30:
 			sanity_warning = "  理智不穩"
-		label.text = "玩家回合  AP: %d/%d%s" % [current_action_points, player_max_action_points, sanity_warning]
+		var current_battle_turn := int(_battle_stats.values.get("turns", 0))
+		var deadline_text := ""
+		if turn_limit > 0:
+			deadline_text = "  時限: %d/%d" % [current_battle_turn, turn_limit]
+			if current_battle_turn > turn_limit:
+				deadline_text += "（SAN 壓力累積）"
+		label.text = "玩家回合  AP: %d/%d%s%s" % [current_action_points, player_max_action_points, deadline_text, sanity_warning]
 	else:
 		label.text = "敵人回合"
 
@@ -282,7 +304,7 @@ func _update_intent_label() -> void:
 	var lines: Array[String] = ["敵人意圖"]
 	for active_enemy in _get_enemy_action_order():
 		var intent_state := active_enemy.get_meta("intent_state") as EnemyIntentState if active_enemy.has_meta("intent_state") else null
-		var intent_id := intent_state.current_intent_id() if intent_state != null else ""
+		var intent_id := intent_state.current_intent_id(active_enemy.hp, active_enemy.max_hp, int(_battle_stats.values.get("turns", 1))) if intent_state != null else ""
 		var intent: Dictionary = _intent_definitions.get(intent_id, {})
 		lines.append("%s：%s" % [active_enemy.entity_name, intent.get("display_name", intent_id)])
 	label.text = "\n".join(lines)
@@ -299,6 +321,70 @@ func _update_spell_summary_label() -> void:
 		return
 	label.text = "咒文構築｜效果附著於方塊的 ✦ 格"
 	label.tooltip_text = "完成 Row 或 Col 後，被消除的圖標格各觸發一次咒文；MP 不足時改以同額 Sanity 支付。"
+
+
+func _on_payment_preview_changed(spells: Array) -> void:
+	var label := get_node_or_null(payment_preview_label_path) as Label
+	if label == null:
+		return
+	if spells.is_empty():
+		label.text = "拖曳方塊可預覽咒文支付"
+		label.remove_theme_color_override("font_color")
+		return
+	var projected_mp := mp
+	var projected_sanity := player.sanity if player != null else 0
+	var mp_cost := 0
+	var sanity_cost := 0
+	var names: Array[String] = []
+	for value in spells:
+		if not value is BattleItem:
+			continue
+		var spell := value as BattleItem
+		var projected_effects: Array = sanity_rules.preview(player.sanity, projected_sanity - player.sanity).get("effects", []) if player != null else sanity_rules.active_effect_ids
+		var cost := sanity_rules.modify_spell_mp_cost_for_effects(spell.mp_cost, projected_effects)
+		if projected_mp >= cost:
+			projected_mp -= cost
+			mp_cost += cost
+		else:
+			sanity_cost += cost
+			projected_sanity -= cost
+		names.append("%s%s" % [spell.icon_text, spell.spell_name])
+	label.text = "消除預覽：%s\n支付 MP %d｜代付 SAN %d" % ["、".join(names), mp_cost, sanity_cost]
+	if sanity_cost > 0:
+		var fatal := player != null and projected_sanity <= 0
+		label.add_theme_color_override("font_color", Color(1.0, 0.25, 0.25) if fatal else Color(1.0, 0.65, 0.25))
+		if fatal:
+			label.text += "｜警告：將導致理智歸零"
+	else:
+		label.add_theme_color_override("font_color", Color(0.45, 0.9, 1.0))
+
+
+func _toggle_spell_legend() -> void:
+	var legend := get_node_or_null(spell_legend_label_path) as Label
+	var button := get_node_or_null(spell_legend_button_path) as Button
+	if legend == null:
+		return
+	_update_spell_legend()
+	legend.visible = not legend.visible
+	if button != null:
+		button.text = "收合咒文圖例" if legend.visible else "展開咒文圖例"
+
+
+func _update_spell_legend() -> void:
+	var legend := get_node_or_null(spell_legend_label_path) as Label
+	if legend == null or tablet == null:
+		return
+	var unique := {}
+	var lines: Array[String] = ["目前咒文圖例"]
+	for value in tablet.spell_pool:
+		if not value is BattleItem:
+			continue
+		var spell := value as BattleItem
+		if unique.has(spell.content_id):
+			continue
+		unique[spell.content_id] = true
+		lines.append("%s  %s｜MP %d｜%s" % [spell.icon_text, spell.spell_name, sanity_rules.modify_spell_mp_cost(spell.mp_cost), spell.description])
+	legend.text = "\n".join(lines)
 
 func _update_tablet_slot_labels() -> void:
 	pass
@@ -332,6 +418,9 @@ func start_from_input(input: BattleStartInput) -> void:
 		push_error("BattleManager 收到空的 BattleStartInput。")
 		return
 	_current_encounter_id = input.encounter_id
+	turn_limit = input.turn_limit
+	time_pressure_sanity_base = input.time_pressure_sanity_base
+	time_pressure_sanity_growth = input.time_pressure_sanity_growth
 	_intent_definitions = input.intent_definitions.duplicate(true)
 	var state := input.player_state
 	configure_player(
@@ -361,6 +450,9 @@ func start_encounter(enemy_defs: Array) -> void:
 	selected_enemy_index = 0
 	_trigger_history.clear()
 	_battle_stats.reset(_current_encounter_id)
+	_battle_stats.values["turn_limit"] = turn_limit
+	_battle_stats.values["time_pressure_sanity"] = 0
+	_battle_stats.values["overdue_turns"] = 0
 	for i in range(enemy_defs.size()):
 		var enemy_def = enemy_defs[i]
 		if not enemy_def is Dictionary:
@@ -520,6 +612,22 @@ func _settle_battle_outcome() -> void:
 		BattleOutcomeResolver.Outcome.SANITY_DEFEAT:
 			_finish_battle(false, "Sanity 歸零")
 
+
+func _apply_time_pressure_if_needed() -> void:
+	if player == null or turn_limit <= 0:
+		return
+	var battle_turn := int(_battle_stats.values.get("turns", 0))
+	if battle_turn <= turn_limit:
+		return
+	var overdue_turn := battle_turn - turn_limit
+	var loss := time_pressure_sanity_base + (overdue_turn - 1) * time_pressure_sanity_growth
+	if loss <= 0:
+		return
+	var sanity_before := player.sanity
+	player.spend_sanity(loss, "battle_time:%s" % _current_encounter_id)
+	_battle_stats.add("time_pressure_sanity", sanity_before - player.sanity)
+	_battle_stats.add("overdue_turns")
+
 func _clear_dynamic_enemies() -> void:
 	for active_enemy in _dynamic_enemies:
 		if is_instance_valid(active_enemy):
@@ -531,7 +639,7 @@ func _update_enemy_status_ui() -> void:
 		if active_enemy == null:
 			continue
 		var state := active_enemy.get_meta("intent_state") as EnemyIntentState if active_enemy.has_meta("intent_state") else null
-		var intent: Dictionary = _intent_definitions.get(state.current_intent_id() if state != null else "", {})
+		var intent: Dictionary = _intent_definitions.get(state.current_intent_id(active_enemy.hp, active_enemy.max_hp, int(_battle_stats.values.get("turns", 1))) if state != null else "", {})
 		active_enemy.set_meta("intent_display", str(intent.get("display_name", "--")))
 	var label = get_node_or_null(enemy_status_label_path) as Label
 	_enemy_presenter.render(label, enemies, selected_enemy_index, _select_enemy)

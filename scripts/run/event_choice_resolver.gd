@@ -24,6 +24,7 @@ func preview_choice(option: Dictionary, state: Dictionary) -> Dictionary:
 		return {"valid": false, "affordable": false, "reason": "選項缺少 ID"}
 	var costs = option.get("costs", {})
 	var results = option.get("results", {})
+	var grant = option.get("grant", {})
 	if not costs is Dictionary or not results is Dictionary:
 		return {"valid": false, "affordable": false, "reason": "代價或結果格式不合法"}
 	var changes := {}
@@ -46,6 +47,9 @@ func preview_choice(option: Dictionary, state: Dictionary) -> Dictionary:
 			final_value = mini(final_value, maximum)
 		changes[key] = maxi(final_value, 0)
 		deltas[key] = int(changes[key]) - current
+	if grant is Dictionary and not grant.is_empty() and str(grant.get("type", "")) == "block" and str(grant.get("id", "")) in state.get("block_pool_ids", []):
+		affordable = false
+		reason = "已擁有此特殊形狀"
 	return {
 		"valid": true,
 		"affordable": affordable,
@@ -58,7 +62,8 @@ func preview_choice(option: Dictionary, state: Dictionary) -> Dictionary:
 		"results": results.duplicate(true),
 		"changes": changes,
 		"deltas": deltas,
-		"summary": _format_summary(costs, results),
+		"grant": grant.duplicate(true) if grant is Dictionary else {},
+		"summary": _format_summary(costs, results, grant),
 	}
 
 
@@ -69,7 +74,7 @@ func resolve_choice(event_definition: Dictionary, option_id: String, state: Dict
 	return {"valid": false, "affordable": false, "reason": "找不到事件選項：%s" % option_id}
 
 
-func _format_summary(costs: Dictionary, results: Dictionary) -> String:
+func _format_summary(costs: Dictionary, results: Dictionary, grant = {}) -> String:
 	var parts: Array[String] = []
 	for key in RESOURCE_KEYS:
 		var amount := int(costs.get(key, 0))
@@ -79,4 +84,6 @@ func _format_summary(costs: Dictionary, results: Dictionary) -> String:
 		var amount := int(results.get(key, 0))
 		if amount > 0:
 			parts.append("獲得 %s %d" % [RESOURCE_LABELS[key], amount])
+	if grant is Dictionary and not grant.is_empty():
+		parts.append("獲得%s：%s" % ["咒文" if str(grant.get("type", "")) == "spell" else "特殊形狀", str(grant.get("id", ""))])
 	return "｜".join(parts) if not parts.is_empty() else "不消耗資源"

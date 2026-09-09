@@ -46,6 +46,6 @@ RunState -> BattleStartInput -> BattleManager -> BattleResult -> RunManager
 - `python3 tools/validate_data.py`：不啟動 Godot 的完整內容、升級鏈、獎勵池與地圖關係驗證。
 - `godot --headless --path . --log-file /tmp/arkham-grid-tests.log --script res://tests/test_runner.gd`：19 組資料、RunState、Run／設定／Meta 磁碟存檔、遷移、非戰鬥節點、棋盤／戰鬥／完整 Run 模擬與主場景測試。
 - `godot --headless --path . --log-file /tmp/arkham-grid-board-simulation.log --script res://tools/simulate_board.gd`：以現行起始池比較智慧手牌與權重隨機，輸出合法手牌／卡片、直接消線、盤面佔用與死盤率。
-- `godot --headless --path . --log-file /tmp/arkham-grid-battle-batch.log --script res://tools/simulate_battles.gd`：跑六個遭遇，輸出勝率、HP／Sanity／MP、咒文觸發與敵人存活曲線。
+- `godot --headless --path . --log-file /tmp/arkham-grid-battle-batch.log --script res://tools/simulate_battles.gd`：跑八個遭遇，輸出勝率、HP／Sanity／MP、咒文觸發、時間壓力與敵人存活曲線。
 - `godot --headless --path . --log-file /tmp/arkham-grid-run-simulation.log --script res://tools/simulate_runs.gd`：跨節點保留盤面、手牌、HP、Sanity、MP 與構築，輸出完整 Run 壓力曲線。
 - 遊戲啟動時 `ContentRegistry.load_all()` 會再次驗證 schema、值域與引用；失敗時不會進入第一場戰鬥。
