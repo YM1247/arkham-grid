@@ -75,6 +75,12 @@ func validate_meta_payload(payload: Dictionary) -> Array[String]:
 		_validate_unique_string_array(payload, key, errors)
 	if payload.get("unlocked_profession_ids") is Array and payload.get("unlocked_profession_ids").is_empty():
 		errors.append("meta.unlocked_profession_ids 不可為空")
+	var history = payload.get("run_history")
+	if not history is Array:
+		errors.append("meta.run_history 必須是陣列")
+	else:
+		for index in range(history.size()):
+			_validate_run_summary(history[index], index, errors)
 	return errors
 
 
@@ -148,7 +154,36 @@ func _migrate_document(document: Dictionary, expected_kind: String) -> Dictionar
 		return {"ok": false, "error": "profile 存檔類型或 payload 無效"}
 	if not _is_integer(envelope.get("saved_at_unix", 0)) or int(envelope.get("saved_at_unix", 0)) < 0:
 		return {"ok": false, "error": "saved_at_unix 必須是非負整數"}
-	return {"ok": true, "payload": envelope.get("payload", {}).duplicate(true), "migrated": migrated}
+	var payload_migration := _migrate_payload(envelope.get("payload", {}), expected_kind)
+	if not bool(payload_migration.get("ok", false)):
+		return payload_migration
+	return {
+		"ok": true,
+		"payload": payload_migration.get("payload", {}),
+		"migrated": migrated or bool(payload_migration.get("migrated", false)),
+	}
+
+
+func _migrate_payload(raw: Dictionary, kind: String) -> Dictionary:
+	var payload := raw.duplicate(true)
+	if kind != "meta":
+		return {"ok": true, "payload": payload, "migrated": false}
+	if not _is_integer(payload.get("schema_version")):
+		return {"ok": false, "error": "MetaState 缺少有效 schema_version"}
+	var version := int(payload.get("schema_version"))
+	if version < 1 or version > MetaState.SCHEMA_VERSION:
+		return {"ok": false, "error": "不支援的 MetaState 版本：%d" % version}
+	var migrated := false
+	while version < MetaState.SCHEMA_VERSION:
+		match version:
+			1:
+				payload["run_history"] = []
+				version = 2
+			_:
+				return {"ok": false, "error": "缺少 MetaState %d 的遷移器" % version}
+		payload["schema_version"] = version
+		migrated = true
+	return {"ok": true, "payload": payload, "migrated": migrated}
 
 
 func _write_atomically(kind: String, envelope: Dictionary) -> bool:
@@ -207,6 +242,21 @@ func _validate_unique_string_array(payload: Dictionary, key: String, errors: Arr
 			errors.append("meta.%s 只能包含唯一非空字串" % key)
 			return
 		seen[str(entry)] = true
+
+
+func _validate_run_summary(value, index: int, errors: Array[String]) -> void:
+	if not value is Dictionary:
+		errors.append("meta.run_history[%d] 必須是物件" % index)
+		return
+	if not _is_integer(value.get("seed")) or absf(float(value.get("seed", 0))) > 9007199254740991.0:
+		errors.append("meta.run_history[%d].seed 必須是 JSON 安全整數" % index)
+	if not value.get("victory") is bool:
+		errors.append("meta.run_history[%d].victory 必須是布林值" % index)
+	if not value.get("reason") is String or str(value.get("reason", "")).is_empty():
+		errors.append("meta.run_history[%d].reason 必須是非空字串" % index)
+	for key in ["completed_nodes", "battles_won", "currency", "hp", "sanity", "mp", "finished_at_unix"]:
+		if not _is_integer(value.get(key)) or int(value.get(key, -1)) < 0:
+			errors.append("meta.run_history[%d].%s 必須是非負整數" % [index, key])
 
 
 func _is_integer(value) -> bool:

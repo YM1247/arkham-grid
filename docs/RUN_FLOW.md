@@ -23,6 +23,7 @@
 演算法參考使用者提供的 Godot 4.5 地圖生成專案：分層節點、距離優先連邊、交叉抑制及雙向可達性驗證。整合版本改用注入式 `RandomNumberGenerator`，並輸出 Arkham Grid 的字串 ID、`next_ids`、節點類型與內容引用格式。
 
 - 同一 seed 生成完全相同的節點、類型、連線與 encounter。
+- 一般 runtime 每次新 Run 產生不同的正整數 seed，並在地圖與結算畫面顯示；固定 seed 模式只供除錯與自動測試使用。
 - 每個節點至少有前進連線，下一層每個節點至少有來源。
 - 多個起點都能抵達唯一 Boss。
 - 結構化節點保證事件、商店、菁英、Boss 前免費休息及 Boss。
@@ -44,6 +45,8 @@
 
 `SaveGameService` 已提供單一 Run 自動槽、版本 envelope、同目錄暫存檔、last-known-good 備份、損壞主檔回退與逐版遷移。存檔會先做嚴格結構驗證；既有主檔若無法解析或遷移，服務會拒絕覆寫，以保留人工復原機會。
 
-RunState v4 保存 RunManager 獎勵 RNG 與 Tablet 抽牌 RNG 的當前狀態。RunManager 在新 Run、節點入口、節點完成與結算時自動保存；啟動時若有有效存檔會自動繼續。`node_entered` checkpoint 已保存玩家選定的 `current_node_id`，恢復時會重啟同一節點，不能回到地圖改選路線；戰鬥中不另存半套敵人狀態，而是回到該安全入口重啟戰鬥。
+RunState v5 保存 RunManager 獎勵 RNG 與 Tablet 抽牌 RNG 的當前狀態。RunManager 在新 Run、節點入口、節點完成與結算時自動保存。正式匯出版本啟動時會續接有效存檔；Godot 編輯器執行則依 `run_config.editor_start_fresh` 預設建立新 Run，避免每次測試都停留在上一局。`node_entered` checkpoint 已保存玩家選定的 `current_node_id`，恢復時會重啟同一節點，不能回到地圖改選路線；戰鬥中不另存半套敵人狀態，而是回到該安全入口重啟戰鬥。
+
+進行中 Run 與歷史紀錄分開保存。`run_autosave.json` 維持單一續玩槽及備份；`meta_progress.json` 的 MetaState v2 另保存最近 20 局的勝敗、結束原因、seed、節點／戰鬥進度、剩餘資源與時間戳。舊 MetaState v1 會自動補入空歷史後升級，不需刪除既有 profile。
 
 若主檔的 JSON、結構或內容引用失效，系統會依序嘗試 last-known-good 備份。成功回退後，損壞主檔會隔離成 `.rejected-*`，再由備份修復主槽，使後續自動保存可以繼續且原始壞檔仍可人工檢查。存檔 envelope 也記錄每份內容文件的 schema version，預留未來 content-ID migration 的判斷依據。

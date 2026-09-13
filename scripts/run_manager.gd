@@ -9,6 +9,7 @@ const RunNodeResultScript = preload("res://scripts/run/run_node_result.gd")
 const EventChoiceResolverScript = preload("res://scripts/run/event_choice_resolver.gd")
 const SaveGameServiceScript = preload("res://scripts/save/save_game_service.gd")
 const ProfileSaveServiceScript = preload("res://scripts/save/profile_save_service.gd")
+const RunSeedPolicyScript = preload("res://scripts/run/run_seed_policy.gd")
 
 @export var battle_manager_path: NodePath
 @export var tablet_path: NodePath
@@ -52,6 +53,7 @@ var map_node_index: Dictionary = {}
 var event_choice_resolver = EventChoiceResolverScript.new()
 var save_service
 var profile_service
+var seed_policy = RunSeedPolicyScript.new()
 var settings_state := SettingsState.new()
 var meta_state := MetaState.new()
 
@@ -90,8 +92,17 @@ func _ready() -> void:
 		event_view.choice_selected.connect(_on_event_choice_selected)
 	if settlement_screen != null and settlement_screen.has_signal("restart_requested"):
 		settlement_screen.restart_requested.connect(start_new_run)
-	if not continue_autosave():
+	if _should_start_fresh_on_launch() or not continue_autosave():
 		start_new_run()
+
+
+func _should_start_fresh_on_launch() -> bool:
+	if not OS.has_feature("editor"):
+		return false
+	var test_save_directory = ProjectSettings.get_setting("arkham_grid/testing/save_directory", null)
+	if test_save_directory != null and not str(test_save_directory).is_empty():
+		return false
+	return bool(content.get_document("run_config").get("editor_start_fresh", true))
 
 func _load_run_data() -> void:
 	enemies = content.get_entries("enemies")
@@ -157,10 +168,10 @@ func unlock_meta_content(kind: String, id: String) -> bool:
 	var changed := meta_state.unlock_profession(id) if kind == "profession" else meta_state.unlock_block(id) if kind == "block" else meta_state.unlock_spell(id)
 	return profile_service.save_meta(meta_state) if changed else true
 
-func _apply_run_config() -> void:
+func _apply_run_config(previous_seed: int = 0) -> void:
 	var config := content.get_document("run_config")
 	var player_config := content.get_document("player")
-	run_state.seed = int(config.get("seed", Time.get_unix_time_from_system()))
+	run_state.seed = seed_policy.choose_seed(config, previous_seed)
 	run_state.player_name = str(player_config.get("name", "調查員"))
 	run_state.profession_id = str(player_config.get("profession_id", "investigator"))
 	if run_state.profession_id not in meta_state.unlocked_profession_ids and not meta_state.unlocked_profession_ids.is_empty():
@@ -192,11 +203,12 @@ func _apply_run_config() -> void:
 	
 
 func start_new_run() -> void:
+	var previous_seed := run_state.seed
 	run_state = RunState.new()
 	current_encounter_index = 0
 	battles_won = 0
 	_latest_report_index = -1
-	_apply_run_config()
+	_apply_run_config(previous_seed)
 	meta_state.runs_started += 1
 	if not profile_service.save_meta(meta_state):
 		push_warning("無法更新 Meta Run 計數：%s" % profile_service.last_error)
@@ -238,7 +250,7 @@ func _show_map() -> void:
 		tablet.set_placement_enabled(false)
 	if map_container != null and map_container.has_method("render"):
 		map_container.render(runtime_map, run_state.available_node_ids, run_state.completed_node_ids, run_state.current_node_id)
-	_set_result_text("選擇下一個路線節點。")
+	_set_result_text("選擇下一個路線節點。Seed：%d" % run_state.seed)
 
 func select_map_node(node_id: String) -> bool:
 	if flow.current_state != flow.State.MAP or node_id not in run_state.available_node_ids:
@@ -396,13 +408,27 @@ func _apply_node_result(result) -> void:
 
 func _finish_run(victory: bool, reason: String) -> void:
 	_capture_runtime_state()
+	var was_finished: bool = flow.current_state in [flow.State.VICTORY, flow.State.DEFEAT]
 	var target_state = flow.State.VICTORY if victory else flow.State.DEFEAT
 	if flow.current_state != target_state:
 		flow.transition(target_state)
 	run_state.flow_state = flow.current_state
-	meta_state.runs_completed += 1
-	if not profile_service.save_meta(meta_state):
-		push_warning("無法更新 Meta 完成計數：%s" % profile_service.last_error)
+	if not was_finished:
+		meta_state.runs_completed += 1
+		meta_state.record_run({
+			"seed": run_state.seed,
+			"victory": victory,
+			"reason": reason,
+			"completed_nodes": run_state.completed_node_ids.size(),
+			"battles_won": battles_won,
+			"currency": run_state.currency,
+			"hp": run_state.hp,
+			"sanity": run_state.sanity,
+			"mp": run_state.mp,
+			"finished_at_unix": int(Time.get_unix_time_from_system()),
+		}, int(content.get_document("run_config").get("run_history_limit", 20)))
+		if not profile_service.save_meta(meta_state):
+			push_warning("無法更新 Meta Run 紀錄：%s" % profile_service.last_error)
 	_hide_rewards()
 	_hide_event()
 	if map_container != null:

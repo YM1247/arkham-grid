@@ -14,6 +14,7 @@ const RunPressureSimulatorScript = preload("res://scripts/run/run_pressure_simul
 const EventChoiceResolverScript = preload("res://scripts/run/event_choice_resolver.gd")
 const SaveGameServiceScript = preload("res://scripts/save/save_game_service.gd")
 const ProfileSaveServiceScript = preload("res://scripts/save/profile_save_service.gd")
+const RunSeedPolicyScript = preload("res://scripts/run/run_seed_policy.gd")
 
 var failures: Array[String] = []
 
@@ -64,6 +65,13 @@ func _test_content_registry() -> void:
 	_expect(registry.get_spell("vest") is EffectSupport, "support JSON 應使用 support.tres 行為")
 	_expect(registry.get_spell("poison_spell") is EffectStatus, "status JSON 應使用 status.tres 行為")
 	_expect(registry.get_spell("pistol").mp_cost == 3 and registry.get_spell("dark_spike").mp_cost == 6, "所有咒文應以 MP 成本取代軸與類型")
+	var seed_policy = RunSeedPolicyScript.new()
+	_expect(seed_policy.choose_seed({"runtime_seed_mode": "fixed", "seed": 13579}) == 13579, "固定 seed 模式應保留可重現的除錯入口")
+	var seed_source := RandomNumberGenerator.new()
+	seed_source.seed = 24680
+	var first_runtime_seed: int = seed_policy.choose_seed({"runtime_seed_mode": "random"}, 0, seed_source)
+	var second_runtime_seed: int = seed_policy.choose_seed({"runtime_seed_mode": "random"}, first_runtime_seed, seed_source)
+	_expect(first_runtime_seed > 0 and second_runtime_seed > 0 and first_runtime_seed != second_runtime_seed, "一般 runtime 每次新 Run 應取得不同的正整數 seed")
 	_expect(registry.get_spell("pistol").icon_text == "⚔" and registry.get_spell("poison_spell").icon_text == "☠", "不同咒文效果應提供可直接辨識的盤面圖標")
 	var icon_cell := GridCell.new()
 	icon_cell.init(0, 0, null)
@@ -248,15 +256,30 @@ func _test_phase_18_profile_foundation() -> void:
 	meta.unlocked_spell_ids.erase("future_spell")
 	meta.shared_currency = 25
 	meta.runs_started = 2
+	meta.record_run({"seed": 111, "victory": false, "reason": "測試敗北", "completed_nodes": 2, "battles_won": 1, "currency": 4, "hp": 0, "sanity": 30, "mp": 5, "finished_at_unix": 100}, 1)
+	meta.record_run({"seed": 222, "victory": true, "reason": "測試勝利", "completed_nodes": 10, "battles_won": 7, "currency": 20, "hp": 12, "sanity": 18, "mp": 3, "finished_at_unix": 200}, 1)
 	_expect(service.save_meta(meta), "Meta 進度應可獨立保存：%s" % service.last_error)
 	var loaded_meta: Dictionary = service.load_meta()
 	_expect(loaded_meta.get("ok", false) and loaded_meta.state.shared_currency == 25 and loaded_meta.state.runs_started == 2, "Meta round-trip 應保留共享貨幣與 Run 統計")
+	_expect(loaded_meta.get("ok", false) and loaded_meta.state.run_history.size() == 1 and loaded_meta.state.run_history[0].seed == 222, "Meta 應保存有上限的近期 Run 摘要")
+	var legacy_meta := meta.to_dict()
+	legacy_meta["schema_version"] = 1
+	legacy_meta.erase("run_history")
+	var legacy_meta_file := FileAccess.open(service.get_primary_path("meta"), FileAccess.WRITE)
+	if legacy_meta_file != null:
+		legacy_meta_file.store_string(JSON.stringify(legacy_meta))
+		legacy_meta_file = null
+	var migrated_meta: Dictionary = service.load_meta()
+	_expect(migrated_meta.get("ok", false) and migrated_meta.get("migrated", false) and migrated_meta.state.run_history.is_empty(), "MetaState v1 應遷移至含 Run 歷史的 v2")
 	var invalid_settings := settings.to_dict()
 	invalid_settings.master_volume = 1.5
 	_expect(not service.validate_settings_payload(invalid_settings).is_empty(), "設定驗證應拒絕超出範圍的音量")
 	var invalid_meta := meta.to_dict()
 	invalid_meta.unlocked_spell_ids.append(invalid_meta.unlocked_spell_ids[0])
 	_expect(not service.validate_meta_payload(invalid_meta).is_empty(), "Meta 驗證應拒絕重複解鎖 ID")
+	invalid_meta = meta.to_dict()
+	invalid_meta.run_history[0].erase("reason")
+	_expect(not service.validate_meta_payload(invalid_meta).is_empty(), "Meta 驗證應拒絕缺少結束原因的 Run 摘要")
 	for kind in ["settings", "meta"]:
 		for path in [service.get_primary_path(kind), service.get_backup_path(kind), service.get_temp_path(kind)]:
 			if FileAccess.file_exists(path):

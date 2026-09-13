@@ -463,6 +463,12 @@ func _validate_values() -> void:
 		errors.append("run_config.spell_pool 必須是非空陣列")
 	if int(config.get("mp_restore_per_node", -1)) < 0:
 		errors.append("run_config.mp_restore_per_node 不可為負數")
+	if str(config.get("runtime_seed_mode", "")) not in RunSeedPolicy.MODES:
+		errors.append("run_config.runtime_seed_mode 必須是 random 或 fixed")
+	if not config.get("editor_start_fresh") is bool:
+		errors.append("run_config.editor_start_fresh 必須是布林值")
+	if int(config.get("run_history_limit", 0)) <= 0:
+		errors.append("run_config.run_history_limit 必須是正整數")
 	var time_pressure = config.get("difficulty_model", {}).get("time_pressure", {})
 	if not time_pressure is Dictionary:
 		errors.append("run_config.difficulty_model.time_pressure 必須是物件")

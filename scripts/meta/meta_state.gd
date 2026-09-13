@@ -1,7 +1,7 @@
 class_name MetaState
 extends Resource
 
-const SCHEMA_VERSION := 1
+const SCHEMA_VERSION := 2
 
 @export var shared_currency := 0
 @export var unlocked_profession_ids: Array[String] = []
@@ -10,6 +10,7 @@ const SCHEMA_VERSION := 1
 @export var achievement_ids: Array[String] = []
 @export var runs_started := 0
 @export var runs_completed := 0
+@export var run_history: Array[Dictionary] = []
 
 
 func to_dict() -> Dictionary:
@@ -22,7 +23,27 @@ func to_dict() -> Dictionary:
 		"achievement_ids": achievement_ids.duplicate(),
 		"runs_started": runs_started,
 		"runs_completed": runs_completed,
+		"run_history": run_history.duplicate(true),
 	}
+
+
+func record_run(summary: Dictionary, maximum_entries: int = 20) -> void:
+	var normalized := {
+		"seed": int(summary.get("seed", 0)),
+		"victory": bool(summary.get("victory", false)),
+		"reason": str(summary.get("reason", "")),
+		"completed_nodes": maxi(int(summary.get("completed_nodes", 0)), 0),
+		"battles_won": maxi(int(summary.get("battles_won", 0)), 0),
+		"currency": maxi(int(summary.get("currency", 0)), 0),
+		"hp": maxi(int(summary.get("hp", 0)), 0),
+		"sanity": maxi(int(summary.get("sanity", 0)), 0),
+		"mp": maxi(int(summary.get("mp", 0)), 0),
+		"finished_at_unix": maxi(int(summary.get("finished_at_unix", Time.get_unix_time_from_system())), 0),
+	}
+	run_history.append(normalized)
+	var overflow := run_history.size() - maxi(maximum_entries, 1)
+	for _index in range(maxi(overflow, 0)):
+		run_history.pop_front()
 
 
 func unlock_profession(id: String) -> bool:
@@ -56,6 +77,7 @@ static func from_dict(data: Dictionary) -> MetaState:
 	state.achievement_ids = _strings(data.get("achievement_ids", []))
 	state.runs_started = int(data.get("runs_started", 0))
 	state.runs_completed = int(data.get("runs_completed", 0))
+	state.run_history = _dictionaries(data.get("run_history", []))
 	return state
 
 
@@ -69,6 +91,7 @@ static func from_defaults(config: Dictionary) -> MetaState:
 		"achievement_ids": [],
 		"runs_started": 0,
 		"runs_completed": 0,
+		"run_history": [],
 	})
 
 
@@ -84,4 +107,13 @@ static func _strings(values) -> Array[String]:
 	if values is Array:
 		for value in values:
 			result.append(str(value))
+	return result
+
+
+static func _dictionaries(values) -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	if values is Array:
+		for value in values:
+			if value is Dictionary:
+				result.append(value.duplicate(true))
 	return result

@@ -12,7 +12,7 @@ Phase 13 成長欄位：
 - 獎勵：`weight`、`min_reward_tier`，以及選用的 `min_battles_won`、`requires_rewards`。
 - 關卡難度：`run_config.json.difficulty_model` 保存公式係數、reward tier 門檻，以及依強度／節點深度計算的戰鬥時限與逾時 Sanity 壓力。
 - 棋盤成長：`run_config.json.board_growth_rules` 保存智慧手牌方向保證數與程序友善盤面參數。
-- 程序路線：`map.json.generation` 保存分層 DAG 參數與類型權重，`content_pools` 保存 encounter 引用；固定 `nodes` 作為 fallback。Run seed 決定完整地圖。
+- 程序路線：`map.json.generation` 保存分層 DAG 參數與類型權重，`content_pools` 保存 encounter 引用；固定 `nodes` 作為 fallback。Run seed 決定完整地圖，一般遊玩每局隨機、測試可切為固定模式。
 - JSON 決定組合與數值；`.tres` 只選擇效果行為原型。
 
 ## 檔案用途
@@ -23,7 +23,7 @@ Phase 13 成長欄位：
 - `encounters.json`：每場戰鬥會出現的敵人組合。
 - `blocks.json`：方塊形狀、顏色、格子座標與抽取權重；不綁定咒文。
 - `spells.json`：所有咒文的盤面圖標、數值、MP 成本、範圍與效果資料。
-- `run_config.json`：開局方塊池、咒文池、每節點 MP 回復與棋盤規則。
+- `run_config.json`：開局方塊池、咒文池、每節點 MP 回復、棋盤規則、runtime seed 模式、編輯器啟動策略與歷史局數上限。
 - `meta_progression.json`：共享 Meta 貨幣，以及職業、方塊、咒文的初始解鎖白名單。
 - `rewards.json`：戰鬥勝利後三選一獎勵池。
 - `events.json`：事件標題、場景描述、多個選項，以及各選項的資源代價與結果。

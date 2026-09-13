@@ -666,6 +666,12 @@ def main():
                 errors.append(f"run_config.spell_pool 引用不存在咒文：{spell_id}")
     if not isinstance(run_config.get("mp_restore_per_node"), int) or run_config.get("mp_restore_per_node", -1) < 0:
         errors.append("run_config.mp_restore_per_node 必須是非負整數")
+    if run_config.get("runtime_seed_mode") not in ("random", "fixed"):
+        errors.append("run_config.runtime_seed_mode 必須是 random 或 fixed")
+    if not isinstance(run_config.get("editor_start_fresh"), bool):
+        errors.append("run_config.editor_start_fresh 必須是布林值")
+    if not isinstance(run_config.get("run_history_limit"), int) or run_config.get("run_history_limit", 0) <= 0:
+        errors.append("run_config.run_history_limit 必須是正整數")
     time_pressure = run_config.get("difficulty_model", {}).get("time_pressure")
     if not isinstance(time_pressure, dict):
         errors.append("run_config.difficulty_model.time_pressure 必須是物件")
