@@ -138,8 +138,36 @@ func get_stage_name(sanity: int) -> String:
 
 
 func get_source_label(source: String) -> String:
-	var prefix := source.get_slice(":", 0)
-	return str(document.get("source_labels", {}).get(prefix, source))
+	return str(document.get("source_labels", {}).get(get_source_key(source), source))
+
+
+func get_source_key(source: String) -> String:
+	return source.get_slice(":", 0)
+
+
+func summarize_losses(history: Array[Dictionary]) -> Dictionary:
+	var result := {}
+	for entry in history:
+		var delta := int(entry.get("delta", 0))
+		if delta >= 0:
+			continue
+		var source_key := get_source_key(str(entry.get("source", "unknown")))
+		result[source_key] = int(result.get(source_key, 0)) - delta
+	return result
+
+
+func get_depletion_source(history: Array[Dictionary]) -> Dictionary:
+	for index in range(history.size() - 1, -1, -1):
+		var entry: Dictionary = history[index]
+		if int(entry.get("delta", 0)) >= 0 or int(entry.get("after", 1)) > 0:
+			continue
+		var source := str(entry.get("source", "unknown"))
+		return {
+			"source": source,
+			"key": get_source_key(source),
+			"label": get_source_label(source),
+		}
+	return {"source": "", "key": "", "label": ""}
 
 
 func _desired_effect_count(sanity: int) -> int:

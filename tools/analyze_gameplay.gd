@@ -28,6 +28,7 @@ func _run() -> void:
 		"runs": 0, "victories": 0.0, "hp_defeats": 0, "sanity_defeats": 0, "timeouts": 0,
 		"hp": 0.0, "sanity": 0.0, "mp": 0.0, "battles": 0.0, "special_blocks": 0.0, "dead_boards": 0.0,
 		"time_pressure_sanity": 0.0, "overdue_turns": 0.0,
+		"sanity_defeat_sources": {},
 	}
 	print("MULTI-SEED FULL RUN ANALYSIS")
 	for seed in SEEDS:
@@ -49,6 +50,7 @@ func _run() -> void:
 		totals.dead_boards += float(report.average_dead_boards) * RUNS_PER_SEED
 		totals.time_pressure_sanity += float(report.average_time_pressure_sanity) * RUNS_PER_SEED
 		totals.overdue_turns += float(report.average_overdue_turns) * RUNS_PER_SEED
+		_merge_counts(totals.sanity_defeat_sources, report.sanity_defeat_sources)
 	print("aggregate runs=%d win=%.1f%% hp/san/timeout=%d/%d/%d avg_hp/san/mp=%.1f/%.1f/%.1f battles=%.2f special=%.2f dead=%.2f" % [
 		totals.runs, 100.0 * totals.victories / totals.runs, totals.hp_defeats, totals.sanity_defeats, totals.timeouts,
 		totals.hp / totals.runs, totals.sanity / totals.runs, totals.mp / totals.runs, totals.battles / totals.runs,
@@ -58,6 +60,7 @@ func _run() -> void:
 		totals.time_pressure_sanity / totals.runs,
 		totals.overdue_turns / totals.runs,
 	])
+	print("aggregate sanity_defeat_sources=%s" % totals.sanity_defeat_sources)
 	print("MULTI-SEED ENCOUNTER ANALYSIS")
 	for seed in SEEDS:
 		var report: Dictionary = battle_simulator.simulate(
@@ -76,3 +79,8 @@ func _run() -> void:
 		print("seed=%d | %s" % [seed, " | ".join(parts)])
 	print("MULTI-SEED GAMEPLAY ANALYSIS OK")
 	quit(0)
+
+
+func _merge_counts(target: Dictionary, source: Dictionary) -> void:
+	for key in source:
+		target[key] = int(target.get(key, 0)) + int(source[key])

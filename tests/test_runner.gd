@@ -257,11 +257,13 @@ func _test_phase_18_profile_foundation() -> void:
 	meta.shared_currency = 25
 	meta.runs_started = 2
 	meta.record_run({"seed": 111, "victory": false, "reason": "測試敗北", "completed_nodes": 2, "battles_won": 1, "currency": 4, "hp": 0, "sanity": 30, "mp": 5, "finished_at_unix": 100}, 1)
-	meta.record_run({"seed": 222, "victory": true, "reason": "測試勝利", "completed_nodes": 10, "battles_won": 7, "currency": 20, "hp": 12, "sanity": 18, "mp": 3, "finished_at_unix": 200}, 1)
+	meta.record_run({"seed": 222, "victory": true, "reason": "測試勝利", "completed_nodes": 10, "battles_won": 7, "currency": 20, "hp": 12, "sanity": 18, "mp": 3, "finished_at_unix": 200, "defeat_source": ""}, 1)
+	_expect(meta.mark_tutorial_seen("battle_time_pressure") and not meta.mark_tutorial_seen("battle_time_pressure"), "首次教學紀錄應只新增一次")
 	_expect(service.save_meta(meta), "Meta 進度應可獨立保存：%s" % service.last_error)
 	var loaded_meta: Dictionary = service.load_meta()
 	_expect(loaded_meta.get("ok", false) and loaded_meta.state.shared_currency == 25 and loaded_meta.state.runs_started == 2, "Meta round-trip 應保留共享貨幣與 Run 統計")
 	_expect(loaded_meta.get("ok", false) and loaded_meta.state.run_history.size() == 1 and loaded_meta.state.run_history[0].seed == 222, "Meta 應保存有上限的近期 Run 摘要")
+	_expect(loaded_meta.get("ok", false) and loaded_meta.state.has_seen_tutorial("battle_time_pressure"), "Meta 應跨 Run 保存已顯示的教學")
 	var legacy_meta := meta.to_dict()
 	legacy_meta["schema_version"] = 1
 	legacy_meta.erase("run_history")
@@ -270,7 +272,18 @@ func _test_phase_18_profile_foundation() -> void:
 		legacy_meta_file.store_string(JSON.stringify(legacy_meta))
 		legacy_meta_file = null
 	var migrated_meta: Dictionary = service.load_meta()
-	_expect(migrated_meta.get("ok", false) and migrated_meta.get("migrated", false) and migrated_meta.state.run_history.is_empty(), "MetaState v1 應遷移至含 Run 歷史的 v2")
+	_expect(migrated_meta.get("ok", false) and migrated_meta.get("migrated", false) and migrated_meta.state.run_history.is_empty() and migrated_meta.state.seen_tutorial_ids.is_empty(), "MetaState v1 應連續遷移至含 Run 歷史與教學進度的 v3")
+	var version_two_meta := meta.to_dict()
+	version_two_meta["schema_version"] = 2
+	version_two_meta.erase("seen_tutorial_ids")
+	for summary in version_two_meta.run_history:
+		summary.erase("defeat_source")
+	var version_two_file := FileAccess.open(service.get_primary_path("meta"), FileAccess.WRITE)
+	if version_two_file != null:
+		version_two_file.store_string(JSON.stringify(version_two_meta))
+		version_two_file = null
+	var migrated_version_two: Dictionary = service.load_meta()
+	_expect(migrated_version_two.get("ok", false) and migrated_version_two.get("migrated", false) and migrated_version_two.state.run_history[0].defeat_source == "", "MetaState v2 應為既有歷史補上死因並遷移至 v3")
 	var invalid_settings := settings.to_dict()
 	invalid_settings.master_volume = 1.5
 	_expect(not service.validate_settings_payload(invalid_settings).is_empty(), "設定驗證應拒絕超出範圍的音量")
@@ -280,6 +293,9 @@ func _test_phase_18_profile_foundation() -> void:
 	invalid_meta = meta.to_dict()
 	invalid_meta.run_history[0].erase("reason")
 	_expect(not service.validate_meta_payload(invalid_meta).is_empty(), "Meta 驗證應拒絕缺少結束原因的 Run 摘要")
+	invalid_meta = meta.to_dict()
+	invalid_meta.seen_tutorial_ids.append("battle_time_pressure")
+	_expect(not service.validate_meta_payload(invalid_meta).is_empty(), "Meta 驗證應拒絕重複的教學進度 ID")
 	for kind in ["settings", "meta"]:
 		for path in [service.get_primary_path(kind), service.get_backup_path(kind), service.get_temp_path(kind)]:
 			if FileAccess.file_exists(path):
@@ -553,6 +569,15 @@ func _test_phase_15_sanity_rules() -> void:
 	player.spend_sanity(6, "enemy_intent:sanity_attack")
 	_expect(record.source == "enemy_intent:sanity_attack", "統一 Sanity 介面應保留敵人意圖來源")
 	_expect(rules.get_source_label("spell:fallback:pistol") == "咒文", "MP 不足的 Sanity 代付應使用可讀的咒文來源標籤")
+	var loss_history: Array[Dictionary] = [
+		{"source": "spell:fallback:pistol", "delta": -3, "after": 4},
+		{"source": "battle_time:encounter_01", "delta": -4, "after": 0},
+		{"source": "rest:boss_rest", "delta": 5, "after": 5},
+	]
+	var losses := rules.summarize_losses(loss_history)
+	var depletion := rules.get_depletion_source(loss_history)
+	_expect(losses == {"spell": 3, "battle_time": 4}, "Sanity 統計應依來源前綴彙總實際損失")
+	_expect(depletion.key == "battle_time" and depletion.label == "戰鬥超時", "Sanity 歸零應記錄最後致死來源與可讀標籤")
 	player.free()
 	var simulation: Dictionary = registry.get_document("sanity").get("simulation", {})
 	var before_rest := 70 - int(simulation.get("dead_boards_per_run", 1)) * 10 - int(simulation.get("enemy_sanity_hits_per_run", 2)) * int(simulation.get("enemy_sanity_hit", 4)) - int(simulation.get("time_pressure_sanity_per_run", 0))
@@ -726,6 +751,7 @@ func _test_phase_16_battle_batch() -> void:
 	_expect(outcomes == 2, "戰鬥批次每次試驗都應歸入勝利、HP／Sanity 失敗或超時")
 	_expect(report.get("enemy_survival_curve", []).size() == 4, "敵人存活曲線應覆蓋指定最大回合數")
 	_expect(report.has("average_mp_spent") and report.has("average_spell_fizzles"), "戰鬥批次應量測咒文 MP 消耗與不足失敗")
+	_expect(report.has("sanity_defeat_sources"), "戰鬥批次應輸出 Sanity 死因分項")
 
 	var manager := preload("res://scripts/battle_manager.gd").new()
 	manager.player = _make_entity("MP 測試玩家", 40, 70)
@@ -748,6 +774,16 @@ func _test_phase_16_battle_batch() -> void:
 	manager._battle_stats.values.turns = 3
 	manager._apply_time_pressure_if_needed()
 	_expect(manager.player.sanity == 61 and int(manager._battle_stats.values.get("time_pressure_sanity", 0)) == 6 and int(manager._battle_stats.values.get("overdue_turns", 0)) == 2, "超過戰鬥時限後應每回合以 2、4…加速扣除 Sanity")
+	manager.sanity_history = [{"source": "battle_time:mp_test", "source_label": "戰鬥超時", "delta": -2, "before": 2, "after": 0, "active_effect_ids": []}]
+	manager._battle_sanity_history_start = 0
+	manager.player.sanity = 0
+	manager.battle_active = true
+	var captured_result := {}
+	manager.battle_finished.connect(func(result: BattleResult): captured_result["value"] = result)
+	manager._finish_battle(false, "Sanity 歸零")
+	var defeat_result := captured_result.get("value") as BattleResult
+	_expect(defeat_result != null and defeat_result.reason == "Sanity 歸零（戰鬥超時）", "Sanity 敗北結算應顯示實際致死來源")
+	_expect(defeat_result != null and defeat_result.statistics.get("sanity_defeat_source") == "battle_time" and defeat_result.statistics.get("sanity_loss_by_source") == {"battle_time": 2}, "戰鬥報告應保存 Sanity 死因與分項損失")
 	manager.player.free()
 	manager.enemy.free()
 	manager.free()
@@ -920,6 +956,8 @@ func _test_main_scene_smoke() -> void:
 	_expect(run_manager.flow.current_state == run_manager.flow.State.MAP, "新 Run 應先進入地圖選擇")
 	var first_node_id: String = run_manager.run_state.available_node_ids[0]
 	_expect(run_manager.select_map_node(first_node_id), "玩家應可選擇生成地圖的起點")
+	_expect(run_manager.meta_state.has_seen_tutorial("battle_time_pressure"), "第一次進入限時戰鬥應顯示並保存時限教學")
+	_expect(run_manager.result_label.text.contains("時限提示"), "首次時限教學應以非阻斷文字顯示在戰鬥資訊區")
 	var entry_save: Dictionary = run_manager.save_service.load_run()
 	_expect(entry_save.get("ok", false) and entry_save.state.flow_state == run_manager.flow.State.NODE and entry_save.state.current_node_id == first_node_id, "節點入口存檔應鎖定已選節點，不允許退回地圖重選")
 	_expect(run_manager.continue_autosave() and run_manager.flow.current_state == run_manager.flow.State.BATTLE and run_manager.run_state.current_node_id == first_node_id, "讀取節點入口存檔時應重啟同一已鎖定節點")

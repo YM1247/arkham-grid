@@ -23,7 +23,7 @@ Phase 13 成長欄位：
 - `encounters.json`：每場戰鬥會出現的敵人組合。
 - `blocks.json`：方塊形狀、顏色、格子座標與抽取權重；不綁定咒文。
 - `spells.json`：所有咒文的盤面圖標、數值、MP 成本、範圍與效果資料。
-- `run_config.json`：開局方塊池、咒文池、每節點 MP 回復、棋盤規則、runtime seed 模式、編輯器啟動策略與歷史局數上限。
+- `run_config.json`：開局方塊池、咒文池、每節點 MP 回復、棋盤規則、首次教學文字、runtime seed 模式、編輯器啟動策略與歷史局數上限。
 - `meta_progression.json`：共享 Meta 貨幣，以及職業、方塊、咒文的初始解鎖白名單。
 - `rewards.json`：戰鬥勝利後三選一獎勵池。
 - `events.json`：事件標題、場景描述、多個選項，以及各選項的資源代價與結果。

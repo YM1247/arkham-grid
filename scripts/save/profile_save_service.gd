@@ -71,7 +71,7 @@ func validate_meta_payload(payload: Dictionary) -> Array[String]:
 	for key in ["shared_currency", "runs_started", "runs_completed"]:
 		if not _is_integer(payload.get(key)) or int(payload.get(key, -1)) < 0:
 			errors.append("meta.%s 必須是非負整數" % key)
-	for key in ["unlocked_profession_ids", "unlocked_block_ids", "unlocked_spell_ids", "achievement_ids"]:
+	for key in ["unlocked_profession_ids", "unlocked_block_ids", "unlocked_spell_ids", "achievement_ids", "seen_tutorial_ids"]:
 		_validate_unique_string_array(payload, key, errors)
 	if payload.get("unlocked_profession_ids") is Array and payload.get("unlocked_profession_ids").is_empty():
 		errors.append("meta.unlocked_profession_ids 不可為空")
@@ -179,6 +179,12 @@ func _migrate_payload(raw: Dictionary, kind: String) -> Dictionary:
 			1:
 				payload["run_history"] = []
 				version = 2
+			2:
+				payload["seen_tutorial_ids"] = []
+				for summary in payload.get("run_history", []):
+					if summary is Dictionary:
+						summary["defeat_source"] = str(summary.get("defeat_source", ""))
+				version = 3
 			_:
 				return {"ok": false, "error": "缺少 MetaState %d 的遷移器" % version}
 		payload["schema_version"] = version
@@ -254,6 +260,8 @@ func _validate_run_summary(value, index: int, errors: Array[String]) -> void:
 		errors.append("meta.run_history[%d].victory 必須是布林值" % index)
 	if not value.get("reason") is String or str(value.get("reason", "")).is_empty():
 		errors.append("meta.run_history[%d].reason 必須是非空字串" % index)
+	if not value.get("defeat_source") is String:
+		errors.append("meta.run_history[%d].defeat_source 必須是字串" % index)
 	for key in ["completed_nodes", "battles_won", "currency", "hp", "sanity", "mp", "finished_at_unix"]:
 		if not _is_integer(value.get(key)) or int(value.get(key, -1)) < 0:
 			errors.append("meta.run_history[%d].%s 必須是非負整數" % [index, key])

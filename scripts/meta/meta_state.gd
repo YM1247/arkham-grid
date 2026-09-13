@@ -1,7 +1,7 @@
 class_name MetaState
 extends Resource
 
-const SCHEMA_VERSION := 2
+const SCHEMA_VERSION := 3
 
 @export var shared_currency := 0
 @export var unlocked_profession_ids: Array[String] = []
@@ -11,6 +11,7 @@ const SCHEMA_VERSION := 2
 @export var runs_started := 0
 @export var runs_completed := 0
 @export var run_history: Array[Dictionary] = []
+@export var seen_tutorial_ids: Array[String] = []
 
 
 func to_dict() -> Dictionary:
@@ -24,6 +25,7 @@ func to_dict() -> Dictionary:
 		"runs_started": runs_started,
 		"runs_completed": runs_completed,
 		"run_history": run_history.duplicate(true),
+		"seen_tutorial_ids": seen_tutorial_ids.duplicate(),
 	}
 
 
@@ -39,11 +41,23 @@ func record_run(summary: Dictionary, maximum_entries: int = 20) -> void:
 		"sanity": maxi(int(summary.get("sanity", 0)), 0),
 		"mp": maxi(int(summary.get("mp", 0)), 0),
 		"finished_at_unix": maxi(int(summary.get("finished_at_unix", Time.get_unix_time_from_system())), 0),
+		"defeat_source": str(summary.get("defeat_source", "")),
 	}
 	run_history.append(normalized)
 	var overflow := run_history.size() - maxi(maximum_entries, 1)
 	for _index in range(maxi(overflow, 0)):
 		run_history.pop_front()
+
+
+func mark_tutorial_seen(id: String) -> bool:
+	if id.is_empty() or id in seen_tutorial_ids:
+		return false
+	seen_tutorial_ids.append(id)
+	return true
+
+
+func has_seen_tutorial(id: String) -> bool:
+	return id in seen_tutorial_ids
 
 
 func unlock_profession(id: String) -> bool:
@@ -78,6 +92,7 @@ static func from_dict(data: Dictionary) -> MetaState:
 	state.runs_started = int(data.get("runs_started", 0))
 	state.runs_completed = int(data.get("runs_completed", 0))
 	state.run_history = _dictionaries(data.get("run_history", []))
+	state.seen_tutorial_ids = _strings(data.get("seen_tutorial_ids", []))
 	return state
 
 
@@ -92,6 +107,7 @@ static func from_defaults(config: Dictionary) -> MetaState:
 		"runs_started": 0,
 		"runs_completed": 0,
 		"run_history": [],
+		"seen_tutorial_ids": [],
 	})
 
 

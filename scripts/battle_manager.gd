@@ -58,6 +58,7 @@ var _outcome_check_scheduled := false
 var _battle_stats = BattleStatisticsScript.new()
 var sanity_rules = SanityRuleEngineScript.new()
 var sanity_history: Array[Dictionary] = []
+var _battle_sanity_history_start := 0
 var _last_sanity_message := ""
 var turn_limit := 0
 var time_pressure_sanity_base := 0
@@ -450,6 +451,7 @@ func start_encounter(enemy_defs: Array) -> void:
 	selected_enemy_index = 0
 	_trigger_history.clear()
 	_battle_stats.reset(_current_encounter_id)
+	_battle_sanity_history_start = sanity_history.size()
 	_battle_stats.values["turn_limit"] = turn_limit
 	_battle_stats.values["time_pressure_sanity"] = 0
 	_battle_stats.values["overdue_turns"] = 0
@@ -508,12 +510,24 @@ func _finish_battle(won: bool, reason: String) -> void:
 	if tablet != null and tablet.has_method("set_placement_enabled"):
 		tablet.set_placement_enabled(false)
 	_update_all_status_labels()
-	var result := BattleResult.create(won, reason, _current_encounter_id, get_player_state(), _battle_stats.snapshot())
+	var statistics := _battle_stats.snapshot()
+	var battle_sanity_history: Array[Dictionary] = []
+	for index in range(_battle_sanity_history_start, sanity_history.size()):
+		battle_sanity_history.append(sanity_history[index])
+	statistics["sanity_loss_by_source"] = sanity_rules.summarize_losses(battle_sanity_history)
+	var final_reason := reason
+	if not won and player != null and player.sanity <= 0:
+		var depletion_source := sanity_rules.get_depletion_source(battle_sanity_history)
+		statistics["sanity_defeat_source"] = str(depletion_source.get("key", ""))
+		statistics["sanity_defeat_source_label"] = str(depletion_source.get("label", ""))
+		if not str(depletion_source.get("label", "")).is_empty():
+			final_reason = "Sanity 歸零（%s）" % depletion_source.get("label", "")
+	var result := BattleResult.create(won, final_reason, _current_encounter_id, get_player_state(), statistics)
 	battle_finished.emit(result)
 	if won:
 		battle_won.emit()
 	else:
-		battle_lost.emit(reason)
+		battle_lost.emit(final_reason)
 
 func _execute_spell_on_scope(spell: BattleItem, board_cell: Vector2i) -> void:
 	var context := BattleEffectContext.new()

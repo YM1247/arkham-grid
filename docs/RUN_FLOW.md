@@ -47,6 +47,8 @@
 
 RunState v5 保存 RunManager 獎勵 RNG 與 Tablet 抽牌 RNG 的當前狀態。RunManager 在新 Run、節點入口、節點完成與結算時自動保存。正式匯出版本啟動時會續接有效存檔；Godot 編輯器執行則依 `run_config.editor_start_fresh` 預設建立新 Run，避免每次測試都停留在上一局。`node_entered` checkpoint 已保存玩家選定的 `current_node_id`，恢復時會重啟同一節點，不能回到地圖改選路線；戰鬥中不另存半套敵人狀態，而是回到該安全入口重啟戰鬥。
 
-進行中 Run 與歷史紀錄分開保存。`run_autosave.json` 維持單一續玩槽及備份；`meta_progress.json` 的 MetaState v2 另保存最近 20 局的勝敗、結束原因、seed、節點／戰鬥進度、剩餘資源與時間戳。舊 MetaState v1 會自動補入空歷史後升級，不需刪除既有 profile。
+進行中 Run 與歷史紀錄分開保存。`run_autosave.json` 維持單一續玩槽及備份；`meta_progress.json` 的 MetaState v3 另保存最近 20 局的勝敗、結束原因、Sanity 死因、seed、節點／戰鬥進度、剩餘資源、時間戳與已看過的教學。舊 MetaState v1／v2 會連續遷移，不需刪除既有 profile。
+
+首次進入有安全時限的戰鬥時，資訊區會顯示一次非阻斷教學，說明超時後的 Sanity 損失會逐回合增加；顯示紀錄保存於 Meta，後續 Run 不再重複干擾節奏。
 
 若主檔的 JSON、結構或內容引用失效，系統會依序嘗試 last-known-good 備份。成功回退後，損壞主檔會隔離成 `.rejected-*`，再由備份修復主槽，使後續自動保存可以繼續且原始壞檔仍可人工檢查。存檔 envelope 也記錄每份內容文件的 schema version，預留未來 content-ID migration 的判斷依據。

@@ -47,6 +47,7 @@ func _run() -> void:
 		float(report.average_overdue_turns),
 		float(report.average_time_pressure_sanity),
 	])
+	print("- Sanity 死因：%s" % report.sanity_defeat_sources)
 	for point in report.pressure_curve:
 		print("  戰鬥 %d｜抵達 %.1f%%｜抵達後勝率 %.1f%%｜戰後 HP/SAN/MP %.1f/%.1f/%.1f｜回合 %.2f" % [
 			int(point.battle),

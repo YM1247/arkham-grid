@@ -61,6 +61,7 @@ func _run() -> void:
 			float(encounter.average_time_pressure_sanity),
 			float(encounter.average_overdue_turns),
 		])
+		print("  Sanity 死因：%s" % encounter.sanity_defeat_sources)
 		print("  傷害 dealt/taken/blocked：%.1f/%.1f/%.1f｜護甲：%.1f｜Sanity 消耗：%.1f" % [
 			float(encounter.average_damage_dealt),
 			float(encounter.average_damage_taken),

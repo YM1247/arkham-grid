@@ -10,6 +10,7 @@ const EventChoiceResolverScript = preload("res://scripts/run/event_choice_resolv
 const SaveGameServiceScript = preload("res://scripts/save/save_game_service.gd")
 const ProfileSaveServiceScript = preload("res://scripts/save/profile_save_service.gd")
 const RunSeedPolicyScript = preload("res://scripts/run/run_seed_policy.gd")
+const TIME_PRESSURE_TUTORIAL_ID := "battle_time_pressure"
 
 @export var battle_manager_path: NodePath
 @export var tablet_path: NodePath
@@ -426,6 +427,7 @@ func _finish_run(victory: bool, reason: String) -> void:
 			"sanity": run_state.sanity,
 			"mp": run_state.mp,
 			"finished_at_unix": int(Time.get_unix_time_from_system()),
+			"defeat_source": _get_latest_defeat_source() if not victory else "",
 		}, int(content.get_document("run_config").get("run_history_limit", 20)))
 		if not profile_service.save_meta(meta_state):
 			push_warning("無法更新 Meta Run 紀錄：%s" % profile_service.last_error)
@@ -452,7 +454,12 @@ func _start_encounter(encounter_id: String) -> void:
 		content.get_document("run_config").get("difficulty_model", {}),
 		{"node_depth": int(current_node.get("floor", 0))}
 	)
-	_set_result_text("遭遇：%s｜強度 %d｜獎勵 Tier %d｜安全時限 %d 回合" % [str(encounter.get("name", "未知遭遇")), int(current_difficulty.get("strength", 0)), int(current_difficulty.get("reward_tier", 1)), int(current_difficulty.get("turn_limit", 0))])
+	var encounter_status := "遭遇：%s｜強度 %d｜獎勵 Tier %d｜安全時限 %d 回合" % [str(encounter.get("name", "未知遭遇")), int(current_difficulty.get("strength", 0)), int(current_difficulty.get("reward_tier", 1)), int(current_difficulty.get("turn_limit", 0))]
+	if int(current_difficulty.get("turn_limit", 0)) > 0 and not meta_state.has_seen_tutorial(TIME_PRESSURE_TUTORIAL_ID):
+		encounter_status += "\n%s" % str(content.get_document("run_config").get("tutorials", {}).get(TIME_PRESSURE_TUTORIAL_ID, ""))
+		if meta_state.mark_tutorial_seen(TIME_PRESSURE_TUTORIAL_ID) and not profile_service.save_meta(meta_state):
+			push_warning("無法保存教學進度：%s" % profile_service.last_error)
+	_set_result_text(encounter_status)
 	battle_manager.start_from_input(BattleStartInput.create(encounter_id, encounter_enemies, run_state, content.get_entries("intents"), current_difficulty))
 
 func _on_battle_won() -> void:
@@ -488,6 +495,12 @@ func _on_battle_finished(result: BattleResult) -> void:
 		_on_battle_won()
 	else:
 		_on_battle_lost(result.reason)
+
+
+func _get_latest_defeat_source() -> String:
+	if _latest_report_index < 0 or _latest_report_index >= run_state.battle_reports.size():
+		return ""
+	return str(run_state.battle_reports[_latest_report_index].get("sanity_defeat_source", ""))
 
 func _show_reward_choices() -> void:
 	if reward_panel != null:

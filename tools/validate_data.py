@@ -672,6 +672,9 @@ def main():
         errors.append("run_config.editor_start_fresh 必須是布林值")
     if not isinstance(run_config.get("run_history_limit"), int) or run_config.get("run_history_limit", 0) <= 0:
         errors.append("run_config.run_history_limit 必須是正整數")
+    tutorials = run_config.get("tutorials")
+    if not isinstance(tutorials, dict) or not isinstance(tutorials.get("battle_time_pressure"), str) or not tutorials.get("battle_time_pressure"):
+        errors.append("run_config.tutorials.battle_time_pressure 必須是非空字串")
     time_pressure = run_config.get("difficulty_model", {}).get("time_pressure")
     if not isinstance(time_pressure, dict):
         errors.append("run_config.difficulty_model.time_pressure 必須是物件")

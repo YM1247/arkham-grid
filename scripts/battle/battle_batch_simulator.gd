@@ -128,6 +128,8 @@ func _simulate_once(
 		"damage_blocked": 0,
 		"armor_gained": 0,
 		"sanity_spent": 0,
+		"sanity_loss_by_source": {},
+		"sanity_defeat_source": "",
 		"mp_spent": 0,
 		"spell_fizzles": 0,
 		"spells_triggered": 0,
@@ -158,6 +160,14 @@ func _simulate_once(
 	var enemies := _create_enemies(encounter, enemy_definitions, stats)
 	var sanity_rules := SanityRuleEngine.new()
 	sanity_rules.configure(sanity_document, seed)
+	player.sanity_changed.connect(func(_entity: Entity, delta: int, source: String, _before: int, after: int):
+		if delta >= 0:
+			return
+		var source_key := sanity_rules.get_source_key(source)
+		stats.sanity_loss_by_source[source_key] = int(stats.sanity_loss_by_source.get(source_key, 0)) - delta
+		if after <= 0:
+			stats.sanity_defeat_source = source_key
+	)
 	_sync_sanity_rules(sanity_rules, player)
 	var trigger_history: Array[Dictionary] = []
 	var mp := int(player_config.get("mp", 70))
@@ -399,6 +409,7 @@ func _summarize_encounter(encounter: Dictionary, trials: Array[Dictionary], max_
 		"player_hp_end": 0,
 		"player_sanity_end": 0,
 		"player_mp_end": 0,
+		"sanity_defeat_sources": {},
 	}
 	var survival_sum := {}
 	for turn in range(1, max_turns + 1):
@@ -407,7 +418,10 @@ func _summarize_encounter(encounter: Dictionary, trials: Array[Dictionary], max_
 		match str(trial.outcome):
 			"victory": totals.victories = int(totals.victories) + 1
 			"hp_defeat": totals.hp_defeats = int(totals.hp_defeats) + 1
-			"sanity_defeat": totals.sanity_defeats = int(totals.sanity_defeats) + 1
+			"sanity_defeat":
+				totals.sanity_defeats = int(totals.sanity_defeats) + 1
+				var source_key := str(trial.get("sanity_defeat_source", "unknown"))
+				totals.sanity_defeat_sources[source_key] = int(totals.sanity_defeat_sources.get(source_key, 0)) + 1
 			_: totals.timeouts = int(totals.timeouts) + 1
 		for key in ["turns", "damage_dealt", "damage_taken", "damage_blocked", "armor_gained", "sanity_spent", "mp_spent", "spell_fizzles", "spells_triggered", "spells_paid_with_sanity", "time_pressure_sanity", "overdue_turns", "rows_cleared", "cols_cleared", "dead_boards", "player_hp_end", "player_sanity_end", "player_mp_end"]:
 			totals[key] = int(totals[key]) + int(trial.get(key, 0))
@@ -426,6 +440,7 @@ func _summarize_encounter(encounter: Dictionary, trials: Array[Dictionary], max_
 		"win_rate": float(totals.victories) / float(count),
 		"hp_defeats": int(totals.hp_defeats),
 		"sanity_defeats": int(totals.sanity_defeats),
+		"sanity_defeat_sources": totals.sanity_defeat_sources.duplicate(true),
 		"timeouts": int(totals.timeouts),
 		"average_turns": float(totals.turns) / float(count),
 		"average_damage_dealt": float(totals.damage_dealt) / float(count),

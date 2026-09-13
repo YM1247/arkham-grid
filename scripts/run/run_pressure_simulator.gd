@@ -68,6 +68,7 @@ func _simulate_once(content: ContentRegistry, seed: int, max_turns: int) -> Dict
 	var overdue_turns := 0
 	var outcome := "route_incomplete"
 	var failed_encounter_id := ""
+	var sanity_defeat_source := ""
 	var enemy_index: Dictionary = content.indexes.get("enemies", {})
 	var intent_index: Dictionary = content.indexes.get("intents", {})
 	var mp_restore_per_node := maxi(int(run_config.get("mp_restore_per_node", 50)), 0)
@@ -120,10 +121,12 @@ func _simulate_once(content: ContentRegistry, seed: int, max_turns: int) -> Dict
 			"turn_limit": int(battle_result.get("turn_limit", 0)),
 			"overdue_turns": int(battle_result.get("overdue_turns", 0)),
 			"time_pressure_sanity": int(battle_result.get("time_pressure_sanity", 0)),
+			"sanity_defeat_source": str(battle_result.get("sanity_defeat_source", "")),
 		})
 		if str(battle_result.get("outcome", "")) != "victory":
 			outcome = str(battle_result.get("outcome", "invalid"))
 			failed_encounter_id = str(encounter.get("id", ""))
+			sanity_defeat_source = str(battle_result.get("sanity_defeat_source", ""))
 			break
 		battles_won += 1
 		if node_type == "boss":
@@ -163,6 +166,7 @@ func _simulate_once(content: ContentRegistry, seed: int, max_turns: int) -> Dict
 		"seed": seed,
 		"outcome": outcome,
 		"failed_encounter_id": failed_encounter_id,
+		"sanity_defeat_source": sanity_defeat_source,
 		"route_nodes": route.size(),
 		"battles_won": battles_won,
 		"battles_reached": battle_curve.size(),
@@ -260,6 +264,7 @@ func _summarize(results: Array[Dictionary], seed: int, max_turns: int) -> Dictio
 		"dead_boards": 0,
 		"time_pressure_sanity": 0,
 		"overdue_turns": 0,
+		"sanity_defeat_sources": {},
 	}
 	var maximum_battles := 0
 	for result in results:
@@ -267,7 +272,10 @@ func _summarize(results: Array[Dictionary], seed: int, max_turns: int) -> Dictio
 		match str(result.get("outcome", "invalid")):
 			"victory": totals.victories = int(totals.victories) + 1
 			"hp_defeat": totals.hp_defeats = int(totals.hp_defeats) + 1
-			"sanity_defeat": totals.sanity_defeats = int(totals.sanity_defeats) + 1
+			"sanity_defeat":
+				totals.sanity_defeats = int(totals.sanity_defeats) + 1
+				var source_key := str(result.get("sanity_defeat_source", "unknown"))
+				totals.sanity_defeat_sources[source_key] = int(totals.sanity_defeat_sources.get(source_key, 0)) + 1
 			"timeout": totals.timeouts = int(totals.timeouts) + 1
 			_: totals.invalid = int(totals.invalid) + 1
 		for key in ["battles_won", "battles_reached", "rests", "rewards_taken", "spells_taken", "special_blocks", "hp_end", "sanity_end", "mp_end", "board_placements", "dead_boards", "time_pressure_sanity", "overdue_turns"]:
@@ -309,6 +317,7 @@ func _summarize(results: Array[Dictionary], seed: int, max_turns: int) -> Dictio
 		"victory_rate": _ratio(int(totals.victories), count),
 		"hp_defeats": int(totals.hp_defeats),
 		"sanity_defeats": int(totals.sanity_defeats),
+		"sanity_defeat_sources": totals.sanity_defeat_sources.duplicate(true),
 		"timeouts": int(totals.timeouts),
 		"invalid_runs": int(totals.invalid),
 		"average_battles_won": float(totals.battles_won) / float(count),

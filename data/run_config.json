@@ -4,6 +4,9 @@
   "runtime_seed_mode": "random",
   "editor_start_fresh": true,
   "run_history_limit": 20,
+  "tutorials": {
+    "battle_time_pressure": "時限提示：請在安全時限內結束戰鬥。超時後每個玩家回合都會損失 Sanity，而且損失會逐回合增加。"
+  },
   "difficulty_model": {
     "hp_weight": 0.35,
     "attack_weight": 2.0,
