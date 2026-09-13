@@ -1,21 +1,37 @@
 extends Control
 class_name Block
 
+signal selection_requested(block: Block)
+
 # --- 設定 ---
 # 這裡的大小必須跟你的棋盤格子一樣大，不然會對不齊
-const CELL_SIZE = Vector2(70, 70) 
+const CELL_SIZE = Vector2(58, 58)
 const SPACING = 4
 
 # 存方塊的資料
 var block_data: BlockData
 var centering_offset = Vector2(CELL_SIZE.x + SPACING, CELL_SIZE.y + SPACING)
 var drag_enabled := true
+var keyboard_selected := false
+var shortcut_number := 0
 
 # --- 初始化 ---
 func set_data(data: BlockData):
 	block_data = data
 	tooltip_text = block_data.spell.get_effect_tooltip("此方塊的咒文") if block_data != null and block_data.spell != null else ""
 	_redraw_shape()
+	queue_redraw()
+
+
+func set_shortcut_number(value: int) -> void:
+	shortcut_number = value
+	_redraw_shape()
+
+
+func set_keyboard_selected(active: bool) -> void:
+	keyboard_selected = active
+	modulate = Color.WHITE if active else Color(1, 1, 1, 1 if drag_enabled else 0.45)
+	queue_redraw()
 
 func set_drag_enabled(enabled: bool):
 	drag_enabled = enabled
@@ -43,6 +59,7 @@ func _redraw_shape():
 		rect.position = (Vector2(cell_pos) * (CELL_SIZE + Vector2(SPACING, SPACING))) + centering_offset
 		
 		add_child(rect)
+		rect.set_meta("shape_visual", true)
 		if block_data.spell != null and cell_pos == block_data.effect_cell:
 			var rune := Label.new()
 			rune.text = block_data.spell.icon_text
@@ -55,9 +72,29 @@ func _redraw_shape():
 			rune.size = CELL_SIZE
 			rune.position = rect.position
 			add_child(rune)
+			rune.set_meta("shape_visual", true)
+
+	var name_label := Label.new()
+	name_label.position = Vector2(4, 176)
+	name_label.size = Vector2(192, 24)
+	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	name_label.text = "%d　%s" % [shortcut_number, block_data.display_name] if shortcut_number > 0 else block_data.display_name
+	name_label.add_theme_font_size_override("font_size", 15)
+	name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(name_label)
 	
 	# 【建議】把最小尺寸設大一點，確保能包住位移後的方塊 (3x3 格子約 220x220)
-	custom_minimum_size = Vector2(230, 230)
+	custom_minimum_size = Vector2(200, 200)
+
+
+func _draw() -> void:
+	if keyboard_selected:
+		draw_style_box(_selection_style(), Rect2(Vector2.ZERO, size))
+
+
+func _gui_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed and drag_enabled:
+		selection_requested.emit(self)
 
 func _notification(what):
 	if what == NOTIFICATION_DRAG_END:
@@ -113,5 +150,14 @@ func _get_drag_data(at_position):
 
 func _set_shape_visible(is_visible: bool) -> void:
 	for child in get_children():
-		if child is ColorRect or child is Label:
+		if child.has_meta("shape_visual"):
 			child.visible = is_visible
+
+
+func _selection_style() -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.9, 0.72, 0.36, 0.08)
+	style.border_color = Color("f7d889")
+	style.set_border_width_all(3)
+	style.set_corner_radius_all(8)
+	return style

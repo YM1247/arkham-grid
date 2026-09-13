@@ -29,10 +29,10 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/margin_left = 260
-theme_override_constants/margin_top = 110
-theme_override_constants/margin_right = 260
-theme_override_constants/margin_bottom = 110
+theme_override_constants/margin_left = 210
+theme_override_constants/margin_top = 82
+theme_override_constants/margin_right = 210
+theme_override_constants/margin_bottom = 82
 
 [node name="Panel" type="PanelContainer" parent="Background/Margin"]
 layout_mode = 2
@@ -41,9 +41,16 @@ layout_mode = 2
 layout_mode = 2
 theme_override_constants/separation = 18
 
+[node name="Eyebrow" type="Label" parent="Background/Margin/Panel/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.611765, 0.662745, 0.733333, 1)
+text = "遭遇事件"
+horizontal_alignment = 1
+
 [node name="Title" type="Label" parent="Background/Margin/Panel/VBox"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 28
+theme_override_colors/font_color = Color(0.901961, 0.72549, 0.360784, 1)
+theme_override_font_sizes/font_size = 32
 text = "事件"
 horizontal_alignment = 1
 
@@ -58,6 +65,12 @@ autowrap_mode = 2
 [node name="Resources" type="Label" parent="Background/Margin/Panel/VBox"]
 layout_mode = 2
 text = "目前資源"
+horizontal_alignment = 1
+
+[node name="Hint" type="Label" parent="Background/Margin/Panel/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.611765, 0.662745, 0.733333, 1)
+text = "↑↓ 選擇　Enter 確認｜無法支付的選項會停用"
 horizontal_alignment = 1
 
 [node name="Separator" type="HSeparator" parent="Background/Margin/Panel/VBox"]

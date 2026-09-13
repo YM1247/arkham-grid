@@ -3,9 +3,9 @@ extends Control
 
 signal node_selected(node_id: String)
 
-const NODE_SIZE := Vector2(150, 46)
-const FLOOR_GAP := 92.0
-const SIDE_MARGIN := 110.0
+const NODE_SIZE := Vector2(184, 58)
+const FLOOR_GAP := 98.0
+const SIDE_MARGIN := 150.0
 
 var _map_data: Dictionary = {}
 var _node_positions: Dictionary = {}
@@ -41,12 +41,13 @@ func render(map_data: Dictionary, available_ids: Array[String], completed_ids: A
 		var button := Button.new()
 		button.position = center - NODE_SIZE * 0.5
 		button.size = NODE_SIZE
-		button.text = "%s%s" % [_type_name(str(node.get("type", ""))), " ✓" if node_id in _completed_ids else ""]
-		button.tooltip_text = "%s\n%s" % [node_id, str(node.get("content_id", ""))]
+		button.text = "%s  %s%s" % [_type_icon(str(node.get("type", ""))), _type_name(str(node.get("type", ""))), "  ✓" if node_id in _completed_ids else ""]
+		button.tooltip_text = "第 %d 層｜%s\n路線節點：%s" % [int(node.get("floor", 0)) + 1, _type_name(str(node.get("type", ""))), node_id]
 		button.disabled = node_id not in _available_ids
 		button.modulate = _node_color(str(node.get("type", "")), node_id)
 		button.pressed.connect(func(): node_selected.emit(node_id))
 		add_child(button)
+	_configure_focus_navigation()
 	queue_redraw()
 
 
@@ -96,3 +97,30 @@ func _type_name(type: String) -> String:
 		"shop": return "商店"
 		"rest": return "休息"
 		_: return type
+
+
+func _type_icon(type: String) -> String:
+	match type:
+		"normal_battle": return "⚔"
+		"elite": return "◆"
+		"boss": return "☠"
+		"event": return "?"
+		"shop": return "$"
+		"rest": return "♨"
+		_: return "•"
+
+
+func _configure_focus_navigation() -> void:
+	var available_buttons: Array[Button] = []
+	for child in get_children():
+		if child is Button and not child.disabled:
+			available_buttons.append(child)
+	if available_buttons.is_empty():
+		return
+	available_buttons.sort_custom(func(a: Button, b: Button): return a.position.y < b.position.y)
+	for index in range(available_buttons.size()):
+		var button := available_buttons[index]
+		button.focus_neighbor_top = available_buttons[maxi(index - 1, 0)].get_path()
+		button.focus_neighbor_bottom = available_buttons[mini(index + 1, available_buttons.size() - 1)].get_path()
+	if available_buttons[0].is_inside_tree():
+		available_buttons[0].grab_focus()

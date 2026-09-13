@@ -21,6 +21,7 @@ const MAX_ENEMIES := 5
 
 @export_group("UI")
 @export var player_status_label_path: NodePath
+@export var player_hud_path: NodePath
 @export var enemy_status_label_path: NodePath
 @export var turn_status_label_path: NodePath
 @export var intent_label_path: NodePath
@@ -109,6 +110,12 @@ func _ready():
 	
 	_update_all_status_labels()
 	_start_player_turn()
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("end_turn") and battle_active and current_turn == TurnState.PLAYER_TURN:
+		end_player_turn()
+		get_viewport().set_input_as_handled()
 
 # --- 接收來自 Tablet 的信號 ---
 
@@ -248,6 +255,7 @@ func _execute_enemy_turn() -> void:
 
 func _update_all_status_labels() -> void:
 	_update_status_label(player_status_label_path, player)
+	_update_player_hud()
 	_update_enemy_status_ui()
 	_update_turn_status_label()
 	_update_intent_label()
@@ -255,6 +263,20 @@ func _update_all_status_labels() -> void:
 	_update_spell_summary_label()
 	_update_spell_legend()
 	_update_tablet_slot_labels()
+
+
+func _update_player_hud() -> void:
+	var hud := get_node_or_null(player_hud_path) as PlayerHUD
+	if hud == null or player == null:
+		return
+	hud.refresh(
+		player,
+		mp,
+		max_mp,
+		sanity_rules.get_stage_name(player.sanity),
+		sanity_rules.get_active_summary(),
+		_last_sanity_message
+	)
 
 func _update_status_label(label_path: NodePath, entity: Entity) -> void:
 	var label = get_node_or_null(label_path) as Label

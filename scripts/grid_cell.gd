@@ -36,6 +36,15 @@ func set_highlight(active: bool):
 		# 恢復正常亮度
 		modulate = Color(1, 1, 1, 1)
 
+
+func set_placement_preview(active: bool, valid: bool) -> void:
+	if not active:
+		modulate = Color.WHITE
+	elif valid:
+		modulate = Color(1.55, 1.55, 1.55, 1.0)
+	else:
+		modulate = Color(1.8, 0.55, 0.55, 1.0)
+
 func set_clear_preview(active: bool):
 	if active:
 		modulate = Color(2.4, 2.1, 0.8, 1.0)

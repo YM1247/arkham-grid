@@ -1,6 +1,8 @@
 class_name EventChoiceView
 extends Control
 
+const UIMotionScript = preload("res://scripts/ui/ui_motion.gd")
+
 signal choice_selected(option_id: String)
 
 @onready var title_label: Label = $Background/Margin/Panel/VBox/Title
@@ -20,10 +22,13 @@ func render(event_definition: Dictionary, previews: Array[Dictionary], state: Di
 		int(state.get("currency", 0)),
 	]
 	var first_available: Button
-	for preview in previews:
+	for index in range(previews.size()):
+		var preview := previews[index]
 		var button := Button.new()
-		button.custom_minimum_size = Vector2(0, 72)
-		button.text = "%s\n%s" % [str(preview.get("label", "未命名選項")), str(preview.get("summary", ""))]
+		button.custom_minimum_size = Vector2(0, 94)
+		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		button.text = "%d　%s\n　　%s" % [index + 1, str(preview.get("label", "未命名選項")), str(preview.get("summary", ""))]
 		button.tooltip_text = str(preview.get("description", ""))
 		button.disabled = not bool(preview.get("valid", false)) or not bool(preview.get("affordable", false))
 		if button.disabled and not str(preview.get("reason", "")).is_empty():
@@ -34,6 +39,7 @@ func render(event_definition: Dictionary, previews: Array[Dictionary], state: Di
 				first_available = button
 		options_container.add_child(button)
 	visible = true
+	UIMotionScript.fade_in(self)
 	if first_available != null and is_inside_tree():
 		first_available.grab_focus()
 

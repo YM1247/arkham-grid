@@ -11,6 +11,7 @@ const SaveGameServiceScript = preload("res://scripts/save/save_game_service.gd")
 const ProfileSaveServiceScript = preload("res://scripts/save/profile_save_service.gd")
 const RunSeedPolicyScript = preload("res://scripts/run/run_seed_policy.gd")
 const TIME_PRESSURE_TUTORIAL_ID := "battle_time_pressure"
+const UIMotionScript = preload("res://scripts/ui/ui_motion.gd")
 
 @export var battle_manager_path: NodePath
 @export var tablet_path: NodePath
@@ -20,6 +21,7 @@ const TIME_PRESSURE_TUTORIAL_ID := "battle_time_pressure"
 @export var map_container_path: NodePath
 @export var event_view_path: NodePath
 @export var settlement_screen_path: NodePath
+@export var build_pool_view_path: NodePath
 @export var save_directory := "user://saves"
 
 var battle_manager: Node
@@ -30,6 +32,7 @@ var reward_buttons_container: BoxContainer
 var map_container: Control
 var event_view: Control
 var settlement_screen: Control
+var build_pool_view: Control
 
 var enemies: Array = []
 var encounters: Array = []
@@ -70,6 +73,7 @@ func _ready() -> void:
 	map_container = get_node_or_null(map_container_path) as Control
 	event_view = get_node_or_null(event_view_path) as Control
 	settlement_screen = get_node_or_null(settlement_screen_path) as Control
+	build_pool_view = get_node_or_null(build_pool_view_path) as Control
 	
 	if battle_manager == null or tablet == null:
 		push_error("RunManager 設定錯誤：缺少 BattleManager 或 TabletSection。")
@@ -89,6 +93,8 @@ func _ready() -> void:
 	_load_run_data()
 	if map_container != null and map_container.has_signal("node_selected"):
 		map_container.node_selected.connect(select_map_node)
+	if map_container != null and map_container.has_signal("pool_requested"):
+		map_container.pool_requested.connect(_show_build_pool)
 	if event_view != null and event_view.has_signal("choice_selected"):
 		event_view.choice_selected.connect(_on_event_choice_selected)
 	if settlement_screen != null and settlement_screen.has_signal("restart_requested"):
@@ -104,6 +110,11 @@ func _should_start_fresh_on_launch() -> bool:
 	if test_save_directory != null and not str(test_save_directory).is_empty():
 		return false
 	return bool(content.get_document("run_config").get("editor_start_fresh", true))
+
+
+func _show_build_pool() -> void:
+	if build_pool_view != null and build_pool_view.has_method("render"):
+		build_pool_view.render(tablet.spell_pool, tablet.block_pool)
 
 func _load_run_data() -> void:
 	enemies = content.get_entries("enemies")
@@ -505,20 +516,30 @@ func _get_latest_defeat_source() -> String:
 func _show_reward_choices() -> void:
 	if reward_panel != null:
 		reward_panel.visible = true
+		UIMotionScript.fade_in(reward_panel, "emphasis")
 	_clear_reward_buttons()
 	current_rewards = _pick_rewards(3)
+	var first_button: Button
 	for i in range(current_rewards.size()):
 		var reward = current_rewards[i]
 		var button = Button.new()
+		button.custom_minimum_size = Vector2(300, 330)
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		button.text = _get_reward_label(reward)
 		button.tooltip_text = _get_reward_tooltip(reward)
 		button.pressed.connect(_on_reward_selected.bind(i))
 		reward_buttons_container.add_child(button)
+		if first_button == null:
+			first_button = button
 	var skip_button := Button.new()
 	var skip_currency := int(content.get_document("run_config").get("skip_reward_currency", 10))
-	skip_button.text = "跳過獎勵｜獲得 %d 金錢" % skip_currency
+	skip_button.custom_minimum_size = Vector2(220, 330)
+	skip_button.text = "暫不取用\n\n獲得 %d 金錢\n\n保持目前構築" % skip_currency
 	skip_button.pressed.connect(_on_reward_skipped.bind(skip_currency))
 	reward_buttons_container.add_child(skip_button)
+	if first_button != null and first_button.is_inside_tree():
+		first_button.grab_focus()
 
 func _on_reward_selected(index: int) -> void:
 	if index < 0 or index >= current_rewards.size():
@@ -578,8 +599,30 @@ func _get_reward_label(reward: Dictionary) -> String:
 	var reward_type = str(reward.get("type", ""))
 	if reward_type == "spell":
 		var item := spell_resources.get(str(reward.get("id", ""))) as BattleItem
-		return "%s\n%s｜Tier %d" % [title, item.rarity if item != null else "common", item.tier if item != null else 1]
-	return title
+		if item == null:
+			return title
+		return "%s  %s\n\n%s\n\nMP %d｜%s｜Tier %d\n\n目前持有 %d 份" % [
+			item.icon_text,
+			title,
+			item.description,
+			item.mp_cost,
+			_rarity_name(item.rarity),
+			item.tier,
+			tablet.get_spell_pool_ids().count(item.content_id) if tablet.has_method("get_spell_pool_ids") else 0,
+		]
+	var block := block_resources.get(str(reward.get("id", ""))) as BlockData
+	return "特殊方塊\n\n%s\n\n%d 格形狀｜Tier %d\n\n擴充每回合可抽取的形狀" % [
+		block.display_name if block != null else title,
+		block.cells.size() if block != null else 0,
+		block.tier if block != null else 1,
+	]
+
+
+func _rarity_name(rarity: String) -> String:
+	match rarity:
+		"uncommon": return "罕見"
+		"rare": return "稀有"
+		_: return "普通"
 
 func _get_reward_tooltip(reward: Dictionary) -> String:
 	var reward_type = str(reward.get("type", ""))

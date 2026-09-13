@@ -8,6 +8,12 @@ godot --headless --path . --log-file /tmp/arkham-grid-tests.log --script res://t
 
 目前共有 19 suites，涵蓋資料註冊與引用、RunState 序列化與內容引用防護、磁碟存檔／備份／遷移／RNG 延續、Meta v1→v3、近期 Run 歷史與教學進度、runtime 隨機 seed、Sanity 損失／死因分類、資料化事件、純棋盤規則、固定 seed 棋盤／手牌模擬、無 UI 單場與完整 Run 壓力批次、敵人獨立意圖與速度、資料化意圖執行、目標解析、狀態與戰鬥結果、局內成長、程序地圖、五敵人 UI 穩定性、拖曳回饋，以及 `main.tscn` 的核心 Run smoke test。
 
+固定擷取 Phase 17 介面狀態供視覺回歸（模式可用 `title`、`map`、`battle`、`reward`、`settlement`）：
+
+```bash
+godot --path . --script res://tools/capture_ui.gd -- battle /tmp/arkham-grid-ui.png
+```
+
 執行智慧手牌與權重隨機的棋盤基線比較：
 
 ```bash

@@ -227,6 +227,33 @@ def main():
     map_document = load_json("map.json")
     sanity_document = load_json("sanity.json")
     meta_progression = load_json("meta_progression.json")
+    ui_theme = load_json("ui_theme.json")
+
+    required_ui_colors = {
+        "background", "surface", "panel", "panel_hover", "border", "text", "muted",
+        "accent", "danger", "warning", "success", "hp", "sanity", "mp", "focus",
+    }
+    palette = ui_theme.get("palette")
+    if not isinstance(palette, dict):
+        errors.append("ui_theme.palette 必須是物件")
+    else:
+        for key in sorted(required_ui_colors):
+            value = palette.get(key)
+            if not isinstance(value, str) or len(value) not in (7, 9) or not value.startswith("#"):
+                errors.append(f"ui_theme.palette.{key} 必須是 #RRGGBB 或 #RRGGBBAA")
+                continue
+            try:
+                int(value[1:], 16)
+            except ValueError:
+                errors.append(f"ui_theme.palette.{key} 不是有效的色碼")
+    for group_name in ("typography", "spacing", "shape", "motion"):
+        group = ui_theme.get(group_name)
+        if not isinstance(group, dict) or not group:
+            errors.append(f"ui_theme.{group_name} 必須是非空物件")
+            continue
+        for key, value in group.items():
+            if isinstance(value, bool) or not isinstance(value, (int, float)) or value <= 0:
+                errors.append(f"ui_theme.{group_name}.{key} 必須大於 0")
 
     for name, entries in {
         "blocks.json": blocks,

@@ -9,7 +9,7 @@ signal payment_preview_changed(spells: Array)
 
 # --- 設定參數 ---
 # 這裡的大小要跟 GridCell 的大小一致
-const CELL_SIZE = Vector2(70, 70)
+const CELL_SIZE = Vector2(58, 58)
 const GRID_DIMENSION = 8
 
 # --- 資源載入 ---
@@ -46,6 +46,8 @@ var friendly_board_generator = preload("res://scripts/board/friendly_board_gener
 var rng := RandomNumberGenerator.new()
 var placement_enabled := true
 var _is_recovering_from_no_moves := false
+var _keyboard_selected_block: Block
+var _keyboard_origin := Vector2i(3, 3)
 
 func _ready():
 	rng.randomize()
@@ -69,7 +71,7 @@ func _setup_layout_properties():
 	corner_spacer.custom_minimum_size = CELL_SIZE
 	
 	# 確保手牌區高度夠
-	hand_area.custom_minimum_size.y = 200
+	hand_area.custom_minimum_size.y = 190
 	
 	# 如果你在編輯器有用 PaddingContainer，這裡的 spacing 可以設為 0 或小一點
 	# 根據你的截圖，這裡其實用預設值就好，不用特別 override 也可以
@@ -123,6 +125,8 @@ func _spawn_block(data):
 	var block = block_scene.instantiate()
 	hand_area.add_child(block)
 	block.set_data(data)
+	block.selection_requested.connect(_select_block)
+	_refresh_hand_shortcuts()
 	if block.has_method("set_drag_enabled"):
 		block.set_drag_enabled(placement_enabled)
 	return block
@@ -245,12 +249,14 @@ func _pick_from_top_candidates(candidates: Array, top_count: int) -> BlockData:
 	return unique.back().get("block") as BlockData
 
 func _clear_hand():
+	_keyboard_selected_block = null
 	for child in hand_area.get_children():
 		child.queue_free()
 
 func set_placement_enabled(enabled: bool):
 	placement_enabled = enabled
 	if not placement_enabled:
+		_select_block(null)
 		clear_preview()
 	_sync_hand_drag_enabled()
 
@@ -337,30 +343,29 @@ func update_preview(origin_x: int, origin_y: int, block_data: BlockData, is_vali
 	# 1. 無論如何，先清除上一次的預覽狀態
 	clear_preview()
 	
-	# 2. 如果當前位置不合法，就只要清除舊的就好，不用畫新的
-	if not is_valid:
-		return
-		
-	# 3. 計算新的預覽位置並高亮它們
+	# 2. 合法位置顯示亮色，不合法位置以紅色保留輪廓回饋。
 	for offset in block_data.cells:
 		var target_x = origin_x + offset.x
 		var target_y = origin_y + offset.y
+		if target_x < 0 or target_x >= GRID_DIMENSION or target_y < 0 or target_y >= GRID_DIMENSION:
+			continue
 		
 		# 找到對應的格子節點
 		var cell_index = target_y * GRID_DIMENSION + target_x
 		var cell_node = grid_container.get_child(cell_index) as GridCell
 		
 		# 開啟高亮
-		cell_node.set_highlight(true)
+		cell_node.set_placement_preview(true, is_valid)
 		# 加入追蹤陣列
 		_current_preview_cells.append(cell_node)
 	
-	_update_clear_line_preview(origin_x, origin_y, block_data)
+	if is_valid:
+		_update_clear_line_preview(origin_x, origin_y, block_data)
 
 # 【新增】清除所有預覽
 func clear_preview():
 	for cell in _current_preview_cells:
-		cell.set_highlight(false)
+		cell.set_placement_preview(false, true)
 	_current_preview_cells.clear()
 	for cell in _current_clear_preview_cells:
 		cell.set_clear_preview(false)
@@ -394,6 +399,8 @@ func place_block(origin_x: int, origin_y: int, block_data: BlockData, source_blo
 	
 	block_placed.emit(block_data)
 	if source_block != null:
+		if source_block == _keyboard_selected_block:
+			_keyboard_selected_block = null
 		source_block.queue_free()
 	_refill_hand_if_empty()
 	await _check_and_clear_lines()
@@ -586,6 +593,92 @@ func _sync_hand_drag_enabled():
 	for child in hand_area.get_children():
 		if child.has_method("set_drag_enabled"):
 			child.set_drag_enabled(placement_enabled)
+	_refresh_hand_shortcuts()
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not placement_enabled or not event.is_pressed() or event.is_echo():
+		return
+	for index in range(3):
+		if event.is_action_pressed("hand_slot_%d" % [index + 1]):
+			_select_hand_index(index)
+			get_viewport().set_input_as_handled()
+			return
+	if _keyboard_selected_block == null or not is_instance_valid(_keyboard_selected_block):
+		return
+	var handled := true
+	if event.is_action_pressed("board_left"):
+		_keyboard_origin.x = maxi(_keyboard_origin.x - 1, 0)
+	elif event.is_action_pressed("board_right"):
+		_keyboard_origin.x = mini(_keyboard_origin.x + 1, GRID_DIMENSION - 1)
+	elif event.is_action_pressed("board_up"):
+		_keyboard_origin.y = maxi(_keyboard_origin.y - 1, 0)
+	elif event.is_action_pressed("board_down"):
+		_keyboard_origin.y = mini(_keyboard_origin.y + 1, GRID_DIMENSION - 1)
+	elif event.is_action_pressed("place_selected"):
+		if check_placement_valid(_keyboard_origin.x, _keyboard_origin.y, _keyboard_selected_block.block_data):
+			var selected := _keyboard_selected_block
+			_keyboard_selected_block = null
+			place_block(_keyboard_origin.x, _keyboard_origin.y, selected.block_data, selected)
+		else:
+			_update_keyboard_preview()
+	elif event.is_action_pressed("cancel_selection"):
+		_select_block(null)
+	else:
+		handled = false
+	if handled:
+		_update_keyboard_preview()
+		get_viewport().set_input_as_handled()
+
+
+func _select_hand_index(index: int) -> void:
+	var blocks: Array[Block] = []
+	for child in hand_area.get_children():
+		if child is Block and not child.is_queued_for_deletion():
+			blocks.append(child)
+	if index < blocks.size():
+		_select_block(blocks[index])
+
+
+func _select_block(block: Block) -> void:
+	if _keyboard_selected_block != null and is_instance_valid(_keyboard_selected_block):
+		_keyboard_selected_block.set_keyboard_selected(false)
+	_keyboard_selected_block = block
+	clear_preview()
+	if block == null:
+		return
+	block.set_keyboard_selected(true)
+	_keyboard_origin = _find_keyboard_origin(block.block_data)
+	_update_keyboard_preview()
+
+
+func _find_keyboard_origin(block_data: BlockData) -> Vector2i:
+	var preferred := Vector2i(3, 3)
+	if check_placement_valid(preferred.x, preferred.y, block_data):
+		return preferred
+	for y in range(GRID_DIMENSION):
+		for x in range(GRID_DIMENSION):
+			if check_placement_valid(x, y, block_data):
+				return Vector2i(x, y)
+	return preferred
+
+
+func _update_keyboard_preview() -> void:
+	if _keyboard_selected_block == null or not is_instance_valid(_keyboard_selected_block):
+		clear_preview()
+		return
+	var data := _keyboard_selected_block.block_data
+	update_preview(_keyboard_origin.x, _keyboard_origin.y, data, check_placement_valid(_keyboard_origin.x, _keyboard_origin.y, data))
+
+
+func _refresh_hand_shortcuts() -> void:
+	var shortcut := 1
+	for child in hand_area.get_children():
+		if child is Block and not child.is_queued_for_deletion():
+			child.set_shortcut_number(shortcut)
+			shortcut += 1
+
+
 
 func _check_no_valid_moves_deferred():
 	if _is_recovering_from_no_moves or not placement_enabled:
@@ -656,10 +749,10 @@ func _set_seed_cell(coord: Vector2i, color: Color):
 	cell_node.reset_color()
 
 func _get_row_slot_label(index: int, item: BattleItem) -> String:
-	return "R%d" % [index + 1]
+	return char(65 + index)
 
 func _get_col_slot_label(index: int, item: BattleItem) -> String:
-	return "C%d" % [index + 1]
+	return str(index + 1)
 
 func _update_clear_line_preview(origin_x: int, origin_y: int, block_data: BlockData):
 	var projected_cells = {}

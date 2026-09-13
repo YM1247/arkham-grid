@@ -1,26 +1,33 @@
-[gd_scene load_steps=11 format=3 uid="uid://dwxw7ydj0iw88"]
+[gd_scene load_steps=16 format=3 uid="uid://dwxw7ydj0iw88"]
 
-[ext_resource type="Script" uid="uid://bynurhes78qkj" path="res://scripts/main.gd" id="1_4c57u"]
-[ext_resource type="Script" uid="uid://bveoo4lldlwhj" path="res://scripts/tablet_generator.gd" id="1_ig7tw"]
-[ext_resource type="Resource" uid="uid://tueim3ejagqx" path="res://resources/blocks/shape_L.tres" id="2_h2yge"]
-[ext_resource type="Resource" uid="uid://e7ss0tp5dp1l" path="res://resources/blocks/shape_T.tres" id="3_1bvp3"]
-[ext_resource type="PackedScene" path="res://scenes/battle_scene.tscn" id="4_1bvp3"]
-[ext_resource type="Script" path="res://scripts/entity.gd" id="10_entity"]
-[ext_resource type="Script" path="res://scripts/run_manager.gd" id="11_run_manager"]
-[ext_resource type="PackedScene" path="res://scenes/reward_scene.tscn" id="12_reward"]
-[ext_resource type="PackedScene" path="res://scenes/map_container.tscn" id="13_map"]
-[ext_resource type="PackedScene" path="res://scenes/settlement_scene.tscn" id="14_settlement"]
-[ext_resource type="PackedScene" path="res://scenes/event_scene.tscn" id="15_event"]
+[ext_resource type="Script" uid="uid://bynurhes78qkj" path="res://scripts/main.gd" id="1_main"]
+[ext_resource type="Script" uid="uid://bveoo4lldlwhj" path="res://scripts/tablet_generator.gd" id="2_tablet"]
+[ext_resource type="Resource" uid="uid://tueim3ejagqx" path="res://resources/blocks/shape_L.tres" id="3_l"]
+[ext_resource type="Resource" uid="uid://e7ss0tp5dp1l" path="res://resources/blocks/shape_T.tres" id="4_t"]
+[ext_resource type="PackedScene" path="res://scenes/battle_scene.tscn" id="5_battle"]
+[ext_resource type="Script" path="res://scripts/entity.gd" id="6_entity"]
+[ext_resource type="Script" path="res://scripts/run_manager.gd" id="7_run"]
+[ext_resource type="PackedScene" path="res://scenes/reward_scene.tscn" id="8_reward"]
+[ext_resource type="PackedScene" path="res://scenes/map_container.tscn" id="9_map"]
+[ext_resource type="PackedScene" path="res://scenes/settlement_scene.tscn" id="10_settlement"]
+[ext_resource type="PackedScene" path="res://scenes/event_scene.tscn" id="11_event"]
+[ext_resource type="PackedScene" path="res://scenes/player_hud.tscn" id="12_hud"]
+[ext_resource type="PackedScene" path="res://scenes/system_menu.tscn" id="13_menu"]
+[ext_resource type="Script" path="res://scripts/audio/audio_manager.gd" id="14_audio"]
+[ext_resource type="PackedScene" path="res://scenes/build_pool_view.tscn" id="15_pool"]
 
 [node name="Main" type="Node"]
-script = ExtResource("1_4c57u")
+script = ExtResource("1_main")
 
 [node name="UILayer" type="CanvasLayer" parent="."]
 
 [node name="BG" type="ColorRect" parent="UILayer"]
-offset_right = 1920.0
-offset_bottom = 1080.0
-color = Color(0, 0, 0, 1)
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.031373, 0.043137, 0.070588, 1)
 
 [node name="ScreenMargin" type="MarginContainer" parent="UILayer"]
 anchors_preset = 15
@@ -28,116 +35,192 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/margin_left = 80
-theme_override_constants/margin_top = 50
-theme_override_constants/margin_right = 50
-theme_override_constants/margin_bottom = 50
+theme_override_constants/margin_left = 44
+theme_override_constants/margin_top = 28
+theme_override_constants/margin_right = 44
+theme_override_constants/margin_bottom = 28
 
-[node name="Layout" type="HBoxContainer" parent="UILayer/ScreenMargin"]
+[node name="Screen" type="VBoxContainer" parent="UILayer/ScreenMargin"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="TopBar" type="HBoxContainer" parent="UILayer/ScreenMargin/Screen"]
+custom_minimum_size = Vector2(0, 52)
 layout_mode = 2
 
-[node name="TabletSection" type="VBoxContainer" parent="UILayer/ScreenMargin/Layout"]
+[node name="GameTitle" type="Label" parent="UILayer/ScreenMargin/Screen/TopBar"]
 layout_mode = 2
 size_flags_horizontal = 3
-size_flags_stretch_ratio = 3.0
-script = ExtResource("1_ig7tw")
-block_pool = Array[ExtResource("2_h2yge")]([ExtResource("2_h2yge"), ExtResource("3_1bvp3")])
+theme_override_colors/font_color = Color(0.901961, 0.72549, 0.360784, 1)
+theme_override_font_sizes/font_size = 28
+text = "ARKHAM GRID"
+
+[node name="Context" type="Label" parent="UILayer/ScreenMargin/Screen/TopBar"]
+layout_mode = 2
+text = "戰鬥｜消除咒文格以觸發效果"
+
+[node name="MenuButton" type="Button" parent="UILayer/ScreenMargin/Screen/TopBar"]
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+text = "選單  Esc"
+
+[node name="Layout" type="HBoxContainer" parent="UILayer/ScreenMargin/Screen"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 22
+
+[node name="BoardPanel" type="PanelContainer" parent="UILayer/ScreenMargin/Screen/Layout"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 2.65
+
+[node name="BoardVBox" type="VBoxContainer" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel"]
+layout_mode = 2
+
+[node name="BoardHeader" type="HBoxContainer" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardVBox"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardVBox/BoardHeader"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 22
+text = "儀式石板"
+
+[node name="Controls" type="Label" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardVBox/BoardHeader"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.611765, 0.662745, 0.733333, 1)
+text = "1–3 選方塊　WASD 移動　Space 放置　X 取消"
+
+[node name="TabletSection" type="VBoxContainer" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardVBox"]
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 3
+script = ExtResource("2_tablet")
+block_pool = Array[ExtResource("3_l")]([ExtResource("3_l"), ExtResource("4_t")])
 hand_size = 3
 
-[node name="Header" type="HBoxContainer" parent="UILayer/ScreenMargin/Layout/TabletSection"]
+[node name="Header" type="HBoxContainer" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardVBox/TabletSection"]
 layout_mode = 2
 
-[node name="Corner" type="Control" parent="UILayer/ScreenMargin/Layout/TabletSection/Header"]
+[node name="Corner" type="Control" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardVBox/TabletSection/Header"]
 layout_mode = 2
 
-[node name="ColIcons" type="HBoxContainer" parent="UILayer/ScreenMargin/Layout/TabletSection/Header"]
+[node name="ColIcons" type="HBoxContainer" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardVBox/TabletSection/Header"]
 layout_mode = 2
 
-[node name="Body" type="HBoxContainer" parent="UILayer/ScreenMargin/Layout/TabletSection"]
+[node name="Body" type="HBoxContainer" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardVBox/TabletSection"]
 layout_mode = 2
 
-[node name="RowIcons" type="VBoxContainer" parent="UILayer/ScreenMargin/Layout/TabletSection/Body"]
+[node name="RowIcons" type="VBoxContainer" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardVBox/TabletSection/Body"]
 layout_mode = 2
 
-[node name="GridCells" type="GridContainer" parent="UILayer/ScreenMargin/Layout/TabletSection/Body"]
+[node name="GridCells" type="GridContainer" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardVBox/TabletSection/Body"]
 layout_mode = 2
 
-[node name="HandArea" type="HBoxContainer" parent="UILayer/ScreenMargin/Layout/TabletSection"]
-custom_minimum_size = Vector2(0, 150)
+[node name="HandArea" type="HBoxContainer" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardVBox/TabletSection"]
+custom_minimum_size = Vector2(0, 190)
 layout_mode = 2
+size_flags_horizontal = 4
 size_flags_vertical = 10
-theme_override_constants/separation = 80
+theme_override_constants/separation = 38
 
-[node name="InfoSection" type="VBoxContainer" parent="UILayer/ScreenMargin/Layout"]
+[node name="InfoSection" type="VBoxContainer" parent="UILayer/ScreenMargin/Screen/Layout"]
+custom_minimum_size = Vector2(390, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 1.0
+theme_override_constants/separation = 12
+
+[node name="EncounterHeader" type="HBoxContainer" parent="UILayer/ScreenMargin/Screen/Layout/InfoSection"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="UILayer/ScreenMargin/Screen/Layout/InfoSection/EncounterHeader"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 22
+text = "威脅"
+
+[node name="TurnLabel" type="Label" parent="UILayer/ScreenMargin/Screen/Layout/InfoSection/EncounterHeader"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.901961, 0.72549, 0.360784, 1)
+text = "玩家回合  AP --"
+
+[node name="EnemyScroll" type="ScrollContainer" parent="UILayer/ScreenMargin/Screen/Layout/InfoSection"]
+custom_minimum_size = Vector2(0, 245)
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="EnemyContainer" type="VBoxContainer" parent="UILayer/ScreenMargin/Screen/Layout/InfoSection/EnemyScroll"]
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="EnemyContainer" type="VBoxContainer" parent="UILayer/ScreenMargin/Layout/InfoSection"]
-layout_mode = 2
-
-[node name="EnemySprite" type="TextureRect" parent="UILayer/ScreenMargin/Layout/InfoSection/EnemyContainer"]
-layout_mode = 2
-
-[node name="IntentLabel" type="Label" parent="UILayer/ScreenMargin/Layout/InfoSection/EnemyContainer"]
+[node name="IntentLabel" type="Label" parent="UILayer/ScreenMargin/Screen/Layout/InfoSection/EnemyScroll/EnemyContainer"]
+visible = false
 layout_mode = 2
 text = "Intent: --"
 
-[node name="EnemyHpLabel" type="Label" parent="UILayer/ScreenMargin/Layout/InfoSection/EnemyContainer"]
+[node name="EnemyHpLabel" type="Label" parent="UILayer/ScreenMargin/Screen/Layout/InfoSection/EnemyScroll/EnemyContainer"]
+visible = false
 layout_mode = 2
 text = "Enemy HP: --"
 
-[node name="Spacer" type="Control" parent="UILayer/ScreenMargin/Layout/InfoSection"]
+[node name="PlayerHUD" parent="UILayer/ScreenMargin/Screen/Layout/InfoSection" instance=ExtResource("12_hud")]
 layout_mode = 2
 
-[node name="PlayerStats" type="VBoxContainer" parent="UILayer/ScreenMargin/Layout/InfoSection"]
+[node name="Actions" type="PanelContainer" parent="UILayer/ScreenMargin/Screen/Layout/InfoSection"]
 layout_mode = 2
 
-[node name="HpLabel" type="Label" parent="UILayer/ScreenMargin/Layout/InfoSection/PlayerStats"]
+[node name="VBox" type="VBoxContainer" parent="UILayer/ScreenMargin/Screen/Layout/InfoSection/Actions"]
 layout_mode = 2
-text = "Player HP: --"
 
-[node name="TurnLabel" type="Label" parent="UILayer/ScreenMargin/Layout/InfoSection/PlayerStats"]
+[node name="ResultLabel" type="Label" parent="UILayer/ScreenMargin/Screen/Layout/InfoSection/Actions/VBox"]
 layout_mode = 2
-text = "玩家回合  AP: --"
-
-[node name="ResultLabel" type="Label" parent="UILayer/ScreenMargin/Layout/InfoSection/PlayerStats"]
-layout_mode = 2
+theme_override_colors/font_color = Color(0.611765, 0.662745, 0.733333, 1)
 text = "探索開始"
-
-[node name="EndTurnButton" type="Button" parent="UILayer/ScreenMargin/Layout/InfoSection/PlayerStats"]
-layout_mode = 2
-text = "End Turn"
-
-[node name="SpellLabel" type="Label" parent="UILayer/ScreenMargin/Layout/InfoSection/PlayerStats"]
-layout_mode = 2
-text = "咒文構築"
-
-[node name="PaymentPreviewLabel" type="Label" parent="UILayer/ScreenMargin/Layout/InfoSection/PlayerStats"]
-layout_mode = 2
-text = "拖曳方塊可預覽咒文支付"
 autowrap_mode = 2
 
-[node name="SpellLegendButton" type="Button" parent="UILayer/ScreenMargin/Layout/InfoSection/PlayerStats"]
+[node name="PaymentPreviewLabel" type="Label" parent="UILayer/ScreenMargin/Screen/Layout/InfoSection/Actions/VBox"]
 layout_mode = 2
-text = "展開咒文圖例"
+text = "選取或拖曳方塊可預覽支付"
+autowrap_mode = 2
 
-[node name="SpellLegendLabel" type="Label" parent="UILayer/ScreenMargin/Layout/InfoSection/PlayerStats"]
+[node name="EndTurnButton" type="Button" parent="UILayer/ScreenMargin/Screen/Layout/InfoSection/Actions/VBox"]
+custom_minimum_size = Vector2(0, 54)
+layout_mode = 2
+text = "結束回合  Enter"
+
+[node name="LegendRow" type="HBoxContainer" parent="UILayer/ScreenMargin/Screen/Layout/InfoSection"]
+layout_mode = 2
+
+[node name="SpellLabel" type="Label" parent="UILayer/ScreenMargin/Screen/Layout/InfoSection/LegendRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "✦ 咒文附著格"
+
+[node name="SpellLegendButton" type="Button" parent="UILayer/ScreenMargin/Screen/Layout/InfoSection/LegendRow"]
+layout_mode = 2
+text = "咒文圖例"
+
+[node name="SpellLegendLabel" type="Label" parent="UILayer/ScreenMargin/Screen/Layout/InfoSection"]
 visible = false
 layout_mode = 2
 text = "咒文圖例"
 autowrap_mode = 2
 
-[node name="RewardPanel" parent="UILayer/ScreenMargin/Layout/InfoSection/PlayerStats" instance=ExtResource("12_reward")]
-layout_mode = 2
+[node name="RewardPanel" parent="UILayer" instance=ExtResource("8_reward")]
 
-[node name="MapContainer" parent="UILayer" instance=ExtResource("13_map")]
+[node name="MapContainer" parent="UILayer" instance=ExtResource("9_map")]
 
-[node name="EventView" parent="UILayer" instance=ExtResource("15_event")]
+[node name="EventView" parent="UILayer" instance=ExtResource("11_event")]
 
-[node name="SettlementScreen" parent="UILayer" instance=ExtResource("14_settlement")]
+[node name="SettlementScreen" parent="UILayer" instance=ExtResource("10_settlement")]
+
+[node name="BuildPoolView" parent="UILayer" instance=ExtResource("15_pool")]
+
+[node name="SystemMenu" parent="UILayer" instance=ExtResource("13_menu")]
 
 [node name="Player" type="Node" parent="."]
-script = ExtResource("10_entity")
+script = ExtResource("6_entity")
 entity_name = "調查員"
 max_hp = 80
 hp = 80
@@ -145,37 +228,49 @@ max_sanity = 100
 sanity = 70
 
 [node name="Enemy" type="Node" parent="."]
-script = ExtResource("10_entity")
+script = ExtResource("6_entity")
 entity_name = "深淵眷屬"
 max_hp = 120
 hp = 120
 
-[node name="BattleManager" parent="." instance=ExtResource("4_1bvp3")]
+[node name="BattleManager" parent="." instance=ExtResource("5_battle")]
 player_path = NodePath("../Player")
 enemy_path = NodePath("../Enemy")
-tablet_path = NodePath("../UILayer/ScreenMargin/Layout/TabletSection")
-player_status_label_path = NodePath("../UILayer/ScreenMargin/Layout/InfoSection/PlayerStats/HpLabel")
-enemy_status_label_path = NodePath("../UILayer/ScreenMargin/Layout/InfoSection/EnemyContainer/EnemyHpLabel")
-turn_status_label_path = NodePath("../UILayer/ScreenMargin/Layout/InfoSection/PlayerStats/TurnLabel")
-intent_label_path = NodePath("../UILayer/ScreenMargin/Layout/InfoSection/EnemyContainer/IntentLabel")
-end_turn_button_path = NodePath("../UILayer/ScreenMargin/Layout/InfoSection/PlayerStats/EndTurnButton")
-spell_summary_label_path = NodePath("../UILayer/ScreenMargin/Layout/InfoSection/PlayerStats/SpellLabel")
-payment_preview_label_path = NodePath("../UILayer/ScreenMargin/Layout/InfoSection/PlayerStats/PaymentPreviewLabel")
-spell_legend_button_path = NodePath("../UILayer/ScreenMargin/Layout/InfoSection/PlayerStats/SpellLegendButton")
-spell_legend_label_path = NodePath("../UILayer/ScreenMargin/Layout/InfoSection/PlayerStats/SpellLegendLabel")
+tablet_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardVBox/TabletSection")
+player_hud_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/InfoSection/PlayerHUD")
+enemy_status_label_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/InfoSection/EnemyScroll/EnemyContainer/EnemyHpLabel")
+turn_status_label_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/InfoSection/EncounterHeader/TurnLabel")
+intent_label_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/InfoSection/EnemyScroll/EnemyContainer/IntentLabel")
+end_turn_button_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/InfoSection/Actions/VBox/EndTurnButton")
+spell_summary_label_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/InfoSection/LegendRow/SpellLabel")
+payment_preview_label_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/InfoSection/Actions/VBox/PaymentPreviewLabel")
+spell_legend_button_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/InfoSection/LegendRow/SpellLegendButton")
+spell_legend_label_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/InfoSection/SpellLegendLabel")
 player_max_action_points = 3
 enemy_attack_damage = 8
 
 [node name="RunManager" type="Node" parent="."]
-script = ExtResource("11_run_manager")
+script = ExtResource("7_run")
 battle_manager_path = NodePath("../BattleManager")
-tablet_path = NodePath("../UILayer/ScreenMargin/Layout/TabletSection")
-result_label_path = NodePath("../UILayer/ScreenMargin/Layout/InfoSection/PlayerStats/ResultLabel")
-reward_panel_path = NodePath("../UILayer/ScreenMargin/Layout/InfoSection/PlayerStats/RewardPanel")
-reward_buttons_container_path = NodePath("../UILayer/ScreenMargin/Layout/InfoSection/PlayerStats/RewardPanel/RewardButtons")
+tablet_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardVBox/TabletSection")
+result_label_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/InfoSection/Actions/VBox/ResultLabel")
+reward_panel_path = NodePath("../UILayer/RewardPanel")
+reward_buttons_container_path = NodePath("../UILayer/RewardPanel/Background/Margin/Panel/VBox/RewardButtons")
 map_container_path = NodePath("../UILayer/MapContainer")
 event_view_path = NodePath("../UILayer/EventView")
 settlement_screen_path = NodePath("../UILayer/SettlementScreen")
+build_pool_view_path = NodePath("../UILayer/BuildPoolView")
 
-[connection signal="col_activated" from="UILayer/ScreenMargin/Layout/TabletSection" to="." method="_on_tablet_section_col_activated"]
-[connection signal="row_activated" from="UILayer/ScreenMargin/Layout/TabletSection" to="." method="_on_tablet_section_row_activated"]
+[node name="AudioManager" type="Node" parent="."]
+script = ExtResource("14_audio")
+music_player_path = NodePath("Music")
+sfx_player_path = NodePath("SFX")
+
+[node name="Music" type="AudioStreamPlayer" parent="AudioManager"]
+bus = &"Music"
+
+[node name="SFX" type="AudioStreamPlayer" parent="AudioManager"]
+bus = &"SFX"
+
+[connection signal="col_activated" from="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardVBox/TabletSection" to="." method="_on_tablet_section_col_activated"]
+[connection signal="row_activated" from="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardVBox/TabletSection" to="." method="_on_tablet_section_row_activated"]

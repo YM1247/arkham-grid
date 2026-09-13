@@ -875,8 +875,14 @@ func _test_main_scene_smoke() -> void:
 	var graph = instance.get_node_or_null("UILayer/MapContainer/Margin/Panel/VBox/Scroll/Graph")
 	_expect(graph != null and graph.get_edge_count() > 0, "地圖畫布應建立可見的節點連線資料")
 	_expect(FileAccess.file_exists(run_manager.save_service.get_run_path()), "新 Run 建立後應寫入單一自動存檔槽")
-	var payment_label := instance.get_node_or_null("UILayer/ScreenMargin/Layout/InfoSection/PlayerStats/PaymentPreviewLabel") as Label
-	var legend_label := instance.get_node_or_null("UILayer/ScreenMargin/Layout/InfoSection/PlayerStats/SpellLegendLabel") as Label
+	var player_hud := instance.get_node_or_null("UILayer/ScreenMargin/Screen/Layout/InfoSection/PlayerHUD") as PlayerHUD
+	var system_menu := instance.get_node_or_null("UILayer/SystemMenu") as SystemMenu
+	_expect(player_hud != null and player_hud.hp_bar.value == manager.player.hp, "正式 HUD 應以資源條呈現玩家狀態")
+	_expect(system_menu != null and system_menu.visible, "啟動時應顯示可繼續、新遊戲與設定的主選單")
+	_expect(InputMap.has_action("hand_slot_1") and InputMap.has_action("place_selected") and InputMap.has_action("toggle_pause"), "PC 鍵盤操作應完成輸入映射")
+	instance._resume_game()
+	var payment_label := instance.get_node_or_null("UILayer/ScreenMargin/Screen/Layout/InfoSection/Actions/VBox/PaymentPreviewLabel") as Label
+	var legend_label := instance.get_node_or_null("UILayer/ScreenMargin/Screen/Layout/InfoSection/SpellLegendLabel") as Label
 	var original_mp: int = manager.mp
 	var original_sanity: int = manager.player.sanity
 	manager.mp = 0
@@ -888,6 +894,11 @@ func _test_main_scene_smoke() -> void:
 	manager._toggle_spell_legend()
 	_expect(legend_label != null and legend_label.visible and "秘銀飛矢" in legend_label.text, "咒文圖例應可展開並顯示目前池中的圖標、名稱與效果")
 	manager._toggle_spell_legend()
+	var build_pool_view := instance.get_node_or_null("UILayer/BuildPoolView") as Control
+	run_manager._show_build_pool()
+	var spell_grid := build_pool_view.get_node_or_null("Background/Margin/Panel/VBox/Scroll/Content/SpellGrid") if build_pool_view != null else null
+	_expect(build_pool_view != null and build_pool_view.visible and spell_grid != null and spell_grid.get_child_count() > 0, "地圖應可開啟戰鬥外咒文與方塊構築檢視")
+	build_pool_view.hide_pool()
 	var event_view = instance.get_node_or_null("UILayer/EventView")
 	_expect(event_view != null, "主場景應掛載事件選項介面")
 	if event_view != null:
@@ -958,6 +969,15 @@ func _test_main_scene_smoke() -> void:
 	_expect(run_manager.select_map_node(first_node_id), "玩家應可選擇生成地圖的起點")
 	_expect(run_manager.meta_state.has_seen_tutorial("battle_time_pressure"), "第一次進入限時戰鬥應顯示並保存時限教學")
 	_expect(run_manager.result_label.text.contains("時限提示"), "首次時限教學應以非阻斷文字顯示在戰鬥資訊區")
+	tablet._select_hand_index(0)
+	_expect(tablet._keyboard_selected_block != null and not tablet._current_preview_cells.is_empty(), "數字鍵選取流程應建立可見的鍵盤放置預覽")
+	var origin_before_input: Vector2i = tablet._keyboard_origin
+	var move_event := InputEventAction.new()
+	move_event.action = "board_right"
+	move_event.pressed = true
+	tablet._unhandled_input(move_event)
+	_expect(tablet._keyboard_origin.x >= origin_before_input.x, "WASD 操作應可移動鍵盤放置位置")
+	tablet._select_block(null)
 	var entry_save: Dictionary = run_manager.save_service.load_run()
 	_expect(entry_save.get("ok", false) and entry_save.state.flow_state == run_manager.flow.State.NODE and entry_save.state.current_node_id == first_node_id, "節點入口存檔應鎖定已選節點，不允許退回地圖重選")
 	_expect(run_manager.continue_autosave() and run_manager.flow.current_state == run_manager.flow.State.BATTLE and run_manager.run_state.current_node_id == first_node_id, "讀取節點入口存檔時應重啟同一已鎖定節點")

@@ -29,6 +29,7 @@ Phase 13 成長欄位：
 - `events.json`：事件標題、場景描述、多個選項，以及各選項的資源代價與結果。
 - `shops.json`：商店場景、商品選項、金錢成本、資源補給與咒文／特殊形狀授予。
 - `rests.json`：休息場景與 HP／Sanity／MP 恢復選項。
+- `ui_theme.json`：UI 色盤、字級、間距、圓角與共用動畫節奏；由 `UIThemeFactory` 建立 runtime Theme。
 
 ## JSON／`.tres` 責任
 

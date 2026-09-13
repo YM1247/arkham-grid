@@ -17,6 +17,7 @@ const DATA_PATHS := {
 	"map": "res://data/map.json",
 	"sanity": "res://data/sanity.json",
 	"meta_progression": "res://data/meta_progression.json",
+	"ui_theme": "res://data/ui_theme.json",
 }
 const ITEM_LOGICS := ["attack", "conditional_attack", "support", "status"]
 const RARITIES := ["common", "uncommon", "rare"]
@@ -351,6 +352,7 @@ func _require_id(kind: String, id: String, source: String) -> void:
 
 
 func _validate_values() -> void:
+	_validate_ui_theme()
 	for block in definitions.get("blocks", []):
 		var id := str(block.get("id", ""))
 		var cells = block.get("cells")
@@ -822,6 +824,23 @@ func _validate_allowed(entry: Dictionary, field: String, allowed: Array, source:
 	var value := str(entry.get(field, ""))
 	if value not in allowed:
 		errors.append("%s 的 %s 不合法：%s" % [source, field, value])
+
+
+func _validate_ui_theme() -> void:
+	var document: Dictionary = documents.get("ui_theme", {})
+	var palette: Dictionary = document.get("palette", {})
+	for key in ["background", "surface", "panel", "panel_hover", "border", "text", "muted", "accent", "danger", "warning", "success", "hp", "sanity", "mp", "focus"]:
+		var value := str(palette.get(key, ""))
+		if not Color.html_is_valid(value):
+			errors.append("ui_theme.palette.%s 必須是有效的 HTML 色碼" % key)
+	for group_name in ["typography", "spacing", "shape", "motion"]:
+		var group: Dictionary = document.get(group_name, {})
+		if group.is_empty():
+			errors.append("ui_theme.%s 不可為空" % group_name)
+		continue
+		for key in group:
+			if not group[key] is float and not group[key] is int or float(group[key]) <= 0.0:
+				errors.append("ui_theme.%s.%s 必須大於 0" % [group_name, key])
 
 
 func _validate_status_effects(spell: Dictionary, field: String) -> void:

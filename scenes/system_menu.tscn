@@ -1,0 +1,131 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/system_menu.gd" id="1_menu"]
+
+[node name="SystemMenu" type="Control"]
+visible = false
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+script = ExtResource("1_menu")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.031373, 0.043137, 0.070588, 0.96)
+
+[node name="Center" type="CenterContainer" parent="Background"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Panel" type="PanelContainer" parent="Background/Center"]
+custom_minimum_size = Vector2(620, 690)
+layout_mode = 2
+
+[node name="VBox" type="VBoxContainer" parent="Background/Center/Panel"]
+layout_mode = 2
+alignment = 1
+theme_override_constants/separation = 18
+
+[node name="Eyebrow" type="Label" parent="Background/Center/Panel/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.611765, 0.662745, 0.733333, 1)
+text = "一場逐漸失控的奧秘調查"
+horizontal_alignment = 1
+
+[node name="Heading" type="Label" parent="Background/Center/Panel/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.901961, 0.72549, 0.360784, 1)
+theme_override_font_sizes/font_size = 38
+text = "ARKHAM GRID"
+horizontal_alignment = 1
+
+[node name="Description" type="Label" parent="Background/Center/Panel/VBox"]
+layout_mode = 2
+text = "拼合石板、消除咒文格，在理智耗盡前完成調查。"
+horizontal_alignment = 1
+
+[node name="Navigation" type="VBoxContainer" parent="Background/Center/Panel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Continue" type="Button" parent="Background/Center/Panel/VBox/Navigation"]
+custom_minimum_size = Vector2(0, 58)
+layout_mode = 2
+text = "繼續本次調查"
+
+[node name="NewRun" type="Button" parent="Background/Center/Panel/VBox/Navigation"]
+custom_minimum_size = Vector2(0, 58)
+layout_mode = 2
+text = "開始新的調查"
+
+[node name="Settings" type="Button" parent="Background/Center/Panel/VBox/Navigation"]
+custom_minimum_size = Vector2(0, 58)
+layout_mode = 2
+text = "設定"
+
+[node name="SettingsPanel" type="VBoxContainer" parent="Background/Center/Panel/VBox"]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="LocaleLabel" type="Label" parent="Background/Center/Panel/VBox/SettingsPanel"]
+layout_mode = 2
+text = "語言"
+
+[node name="Locale" type="OptionButton" parent="Background/Center/Panel/VBox/SettingsPanel"]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+
+[node name="Fullscreen" type="CheckButton" parent="Background/Center/Panel/VBox/SettingsPanel"]
+layout_mode = 2
+text = "全螢幕"
+
+[node name="MasterLabel" type="Label" parent="Background/Center/Panel/VBox/SettingsPanel"]
+layout_mode = 2
+text = "主音量"
+
+[node name="Master" type="HSlider" parent="Background/Center/Panel/VBox/SettingsPanel"]
+layout_mode = 2
+max_value = 100.0
+value = 100.0
+
+[node name="MusicLabel" type="Label" parent="Background/Center/Panel/VBox/SettingsPanel"]
+layout_mode = 2
+text = "音樂"
+
+[node name="Music" type="HSlider" parent="Background/Center/Panel/VBox/SettingsPanel"]
+layout_mode = 2
+max_value = 100.0
+value = 100.0
+
+[node name="SFXLabel" type="Label" parent="Background/Center/Panel/VBox/SettingsPanel"]
+layout_mode = 2
+text = "音效"
+
+[node name="SFX" type="HSlider" parent="Background/Center/Panel/VBox/SettingsPanel"]
+layout_mode = 2
+max_value = 100.0
+value = 100.0
+
+[node name="Apply" type="Button" parent="Background/Center/Panel/VBox/SettingsPanel"]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+text = "套用設定"
+
+[node name="Back" type="Button" parent="Background/Center/Panel/VBox/SettingsPanel"]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+text = "返回"

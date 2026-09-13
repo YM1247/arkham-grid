@@ -3,7 +3,7 @@
 [ext_resource type="Script" uid="uid://dhgea0ilr311j" path="res://scripts/grid_cell.gd" id="1_024bi"]
 
 [node name="GridCell" type="ColorRect"]
-custom_minimum_size = Vector2(70, 70)
+custom_minimum_size = Vector2(58, 58)
 offset_right = 40.0
 offset_bottom = 40.0
 color = Color(0.13333334, 0.13333334, 0.13333334, 1)
