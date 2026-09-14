@@ -169,15 +169,7 @@ func _draw_block_data(hand_index: int = 0, excluded_ids: Dictionary = {}) -> Blo
 		if weighted == null and not excluded_ids.is_empty():
 			weighted = _draw_weighted_random_block()
 		selected = _randomize_block_rotation(weighted)
-	return _attach_random_spell(selected)
-
-
-func _attach_random_spell(block_data: BlockData) -> BlockData:
-	if block_data == null or spell_pool.is_empty() or block_data.cells.is_empty():
-		return block_data
-	var spell := spell_pool[rng.randi_range(0, spell_pool.size() - 1)] as BattleItem
-	var marked_cell := block_data.cells[rng.randi_range(0, block_data.cells.size() - 1)]
-	return block_data.with_spell(spell, marked_cell)
+	return selected
 
 func _draw_weighted_random_block(excluded_ids: Dictionary = {}) -> BlockData:
 	var total_weight := 0.0
@@ -307,6 +299,7 @@ func set_block_pool(new_block_pool: Array):
 	for block_data in new_block_pool:
 		if block_data is BlockData:
 			block_pool.append(block_data)
+	_bind_legacy_pools()
 
 
 func set_spell_pool(new_spell_pool: Array) -> void:
@@ -314,11 +307,61 @@ func set_spell_pool(new_spell_pool: Array) -> void:
 	for spell in new_spell_pool:
 		if spell is BattleItem:
 			spell_pool.append(spell)
+	_bind_legacy_pools()
+
+
+func set_slate_pool(new_slate_pool: Array) -> void:
+	block_pool.clear()
+	spell_pool.clear()
+	for slate in new_slate_pool:
+		if slate is BlockData and slate.spell != null and not slate.slate_uid.is_empty():
+			block_pool.append(slate)
+			spell_pool.append(slate.spell)
+
+
+func add_slate(slate: BlockData) -> bool:
+	if slate == null or slate.spell == null or slate.slate_uid.is_empty():
+		return false
+	for existing in block_pool:
+		if existing is BlockData and (existing.slate_uid == slate.slate_uid or slate.is_special and existing.id == slate.id):
+			return false
+	block_pool.append(slate)
+	spell_pool.append(slate.spell)
+	return true
+
+
+func get_slate_pool_state() -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	for slate in block_pool:
+		if slate is BlockData and slate.spell != null and not slate.slate_uid.is_empty():
+			result.append(slate.to_slate_state())
+	return result
+
+
+func restore_slate_pool_state(states: Array, registry: ContentRegistry) -> bool:
+	if registry == null:
+		return false
+	var restored := registry.create_slates(states)
+	if restored.size() != states.size():
+		return false
+	set_slate_pool(restored)
+	return true
+
+
+func _bind_legacy_pools() -> void:
+	if block_pool.is_empty() or spell_pool.is_empty():
+		return
+	var bound: Array[BlockData] = []
+	for index in range(block_pool.size()):
+		var shape := block_pool[index] as BlockData
+		var spell := spell_pool[index % spell_pool.size()] as BattleItem
+		if shape != null and spell != null:
+			bound.append(shape.as_slate("legacy_%02d_%s_%s" % [index, shape.id, spell.content_id], spell, Vector2i.ZERO))
+	block_pool.assign(bound)
 
 
 func add_spell_to_pool(spell: BattleItem) -> void:
-	if spell != null:
-		spell_pool.append(spell)
+	push_warning("add_spell_to_pool 已由 add_slate 取代；忽略未綁定咒文 %s。" % (spell.content_id if spell != null else ""))
 
 
 func get_spell_pool_ids() -> Array[String]:
@@ -329,11 +372,7 @@ func get_spell_pool_ids() -> Array[String]:
 	return ids
 
 func add_block_to_pool(block_data: BlockData):
-	if block_data == null:
-		return
-	if get_block_pool_count(block_data.id) > 0:
-		return
-	block_pool.append(block_data)
+	push_warning("add_block_to_pool 已由 add_slate 取代；忽略未綁定形狀 %s。" % (block_data.id if block_data != null else ""))
 
 func get_block_pool_count(block_id: String) -> int:
 	var count := 0
@@ -576,10 +615,8 @@ func get_hand_state() -> Array[Dictionary]:
 		if child.is_queued_for_deletion() or not "block_data" in child or not child.block_data is BlockData:
 			continue
 		state.append({
-			"id": child.block_data.id,
+			"slate_uid": child.block_data.slate_uid,
 			"rotation_steps": child.block_data.get_rotation_steps(),
-			"spell_id": child.block_data.spell.content_id if child.block_data.spell != null else "",
-			"effect_cell": [child.block_data.effect_cell.x, child.block_data.effect_cell.y],
 		})
 	return state
 
@@ -590,19 +627,23 @@ func restore_hand(blocks: Array[BlockData]) -> void:
 		_spawn_block(block_data)
 	_sync_hand_drag_enabled()
 
-func restore_hand_state(state: Array, resources: Dictionary) -> void:
+func restore_hand_state(state: Array, _resources: Dictionary = {}) -> void:
 	_clear_hand()
 	for value in state:
 		if not value is Dictionary:
 			continue
-		var base := resources.get(str(value.get("id", ""))) as BlockData
+		var base := _find_slate_in_pool(str(value.get("slate_uid", "")))
 		if base != null:
 			var restored := base.rotated(int(value.get("rotation_steps", 0)))
-			var effect_cell = value.get("effect_cell", [0, 0])
-			if effect_cell is Array and effect_cell.size() == 2:
-				restored = restored.with_spell(_find_spell_in_pool(str(value.get("spell_id", ""))), Vector2i(int(effect_cell[0]), int(effect_cell[1])))
 			_spawn_block(restored)
 	_sync_hand_drag_enabled()
+
+
+func _find_slate_in_pool(uid: String) -> BlockData:
+	for slate in block_pool:
+		if slate is BlockData and slate.slate_uid == uid:
+			return slate
+	return null
 
 
 func _find_spell_in_pool(spell_id: String) -> BattleItem:

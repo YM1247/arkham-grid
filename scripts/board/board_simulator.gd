@@ -134,6 +134,16 @@ func add_session_spell(session: Dictionary, spell: BattleItem) -> bool:
 	return true
 
 
+func add_session_slate(session: Dictionary, slate: BlockData) -> bool:
+	if not _is_valid_session(session) or slate == null or slate.spell == null or slate.slate_uid.is_empty():
+		return false
+	var pool: Array[BlockData] = session.pool
+	if pool.any(func(owned): return owned != null and (owned.slate_uid == slate.slate_uid or slate.is_special and owned.id == slate.id)):
+		return false
+	pool.append(slate)
+	return true
+
+
 func get_session_board_state(session: Dictionary) -> Array[String]:
 	if not _is_valid_session(session):
 		return []
@@ -334,6 +344,8 @@ func _draw_block(
 
 
 func _attach_spell(block: BlockData, rng: RandomNumberGenerator) -> BlockData:
+	if block != null and block.spell != null:
+		return block
 	if block == null or _spell_pool.is_empty() or block.cells.is_empty():
 		return block
 	var spell := _spell_pool[rng.randi_range(0, _spell_pool.size() - 1)] as BattleItem

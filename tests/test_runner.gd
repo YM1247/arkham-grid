@@ -3,6 +3,7 @@ extends SceneTree
 const SpellUpgradeServiceScript = preload("res://scripts/growth/spell_upgrade_service.gd")
 const EncounterDifficultyCalculatorScript = preload("res://scripts/growth/encounter_difficulty_calculator.gd")
 const RewardCandidateSelectorScript = preload("res://scripts/growth/reward_candidate_selector.gd")
+const SlatePairingRulesScript = preload("res://scripts/growth/slate_pairing_rules.gd")
 const FriendlyBoardGeneratorScript = preload("res://scripts/board/friendly_board_generator.gd")
 const RunStateMachineScript = preload("res://scripts/run/run_state_machine.gd")
 const RunNodeResultScript = preload("res://scripts/run/run_node_result.gd")
@@ -65,6 +66,14 @@ func _test_content_registry() -> void:
 	_expect(registry.get_spell("vest") is EffectSupport, "support JSON 應使用 support.tres 行為")
 	_expect(registry.get_spell("poison_spell") is EffectStatus, "status JSON 應使用 status.tres 行為")
 	_expect(registry.get_spell("pistol").mp_cost == 3 and registry.get_spell("dark_spike").mp_cost == 6, "所有咒文應以 MP 成本取代軸與類型")
+	var slate := registry.create_slate({"slate_uid": "stable_slate", "shape_id": "shape_L", "spell_id": "poison_spell", "effect_cell": [0, 1]})
+	var rotated_slate := slate.rotated(1) if slate != null else null
+	_expect(rotated_slate != null and rotated_slate.slate_uid == "stable_slate" and rotated_slate.spell.content_id == "poison_spell" and rotated_slate.effect_cell == Vector2i(-1, 0), "同一 slate_uid 旋轉時形狀、咒文與效果格應同步且不重新配對")
+	var pairing_rules = SlatePairingRulesScript.new()
+	_expect(not pairing_rules.is_allowed(registry.get_definition("blocks", "shape_short_I"), registry.get_definition("spells", "dark_spike")), "高強度咒文不得搭配低複雜度形狀")
+	var override_spell := registry.get_definition("spells", "dark_spike")
+	override_spell.allowed_shape_ids = ["shape_short_I"]
+	_expect(pairing_rules.is_allowed(registry.get_definition("blocks", "shape_short_I"), override_spell), "allowed_shape_ids 應可明確覆寫公式")
 	var seed_policy = RunSeedPolicyScript.new()
 	_expect(seed_policy.choose_seed({"runtime_seed_mode": "fixed", "seed": 13579}) == 13579, "固定 seed 模式應保留可重現的除錯入口")
 	var seed_source := RandomNumberGenerator.new()
@@ -103,10 +112,12 @@ func _test_run_state_round_trip() -> void:
 	original.board_spell_ids.resize(64)
 	original.board_spell_ids.fill("")
 	original.board_spell_ids[7] = "pistol"
-	original.hand_ids = ["shape_L", "shape_T"]
-	original.hand_state = [{"id": "shape_L", "rotation_steps": 2, "spell_id": "pistol", "effect_cell": [0, 0]}, {"id": "shape_T", "rotation_steps": 0, "spell_id": "vest", "effect_cell": [0, 0]}]
-	original.block_pool_ids = ["shape_L"]
-	original.spell_pool_ids = ["pistol", "vest"]
+	original.slate_pool = [
+		{"slate_uid": "test_l", "shape_id": "shape_L", "spell_id": "pistol", "effect_cell": [0, 0]},
+		{"slate_uid": "test_t", "shape_id": "shape_T", "spell_id": "vest", "effect_cell": [0, 0]},
+	]
+	original.hand_state = [{"slate_uid": "test_l", "rotation_steps": 2}, {"slate_uid": "test_t", "rotation_steps": 0}]
+	original.pending_slate_rewards = [{"slate_uid": "pending_one", "shape_id": "shape_O", "spell_id": "vest", "effect_cell": [1, 1]}]
 	original.selected_reward_ids = ["special_dot"]
 	original.currency = 20
 	original.battle_reports = [{"turns": 3}]
@@ -121,9 +132,8 @@ func _test_run_state_round_trip() -> void:
 	_expect(restored != null, "RunState 應可反序列化")
 	_expect(restored.seed == 4242 and restored.hp == 51 and restored.profession_id == "investigator", "RunState 應保留職業、玩家與種子")
 	_expect(restored.board_cells[7] == "ff0000ff", "RunState 應保留盤面")
-	_expect(restored.hand_ids == original.hand_ids, "RunState 應保留手牌 ID")
 	_expect(restored.hand_state == original.hand_state, "RunState 應保留手牌旋轉狀態")
-	_expect(restored.spell_pool_ids == original.spell_pool_ids and restored.currency == 20, "RunState 應保留咒文池與局內金錢")
+	_expect(restored.slate_pool == original.slate_pool and restored.pending_slate_rewards == original.pending_slate_rewards and restored.currency == 20, "RunState 應保留完整石板池、待選獎勵與局內金錢")
 	_expect(restored.battle_reports.size() == 1, "RunState 應保留戰鬥統計")
 	_expect(restored.flow_state == 2 and restored.current_node_id == "event_archive", "RunState 應保留流程與目前節點")
 	_expect(restored.available_node_ids == ["event_archive"] and restored.map_data.get("map_id") == "saved_map", "RunState 應保留生成地圖與可選節點")
@@ -170,47 +180,22 @@ func _test_phase_18_save_foundation() -> void:
 	var rejected_path: String = service.last_rejected_path
 	_expect(not rejected_path.is_empty() and FileAccess.file_exists(rejected_path), "損壞主檔應保留為 rejected 檔供人工復原")
 	_expect(service.save_run(second, "node_entered"), "備份修復後應可繼續自動保存")
-	var legacy := first.to_dict()
-	legacy.schema_version = 3
-	legacy.erase("rng_state")
-	var legacy_path := "%s/legacy.json" % test_directory
-	var legacy_file := FileAccess.open(legacy_path, FileAccess.WRITE)
+	var legacy_directory := "/tmp/arkham_grid_v5_archive_%d" % Time.get_ticks_usec()
+	DirAccess.make_dir_recursive_absolute(legacy_directory)
+	var legacy_service = SaveGameServiceScript.new(legacy_directory)
+	var legacy_file := FileAccess.open(legacy_service.get_run_path(), FileAccess.WRITE)
 	if legacy_file != null:
-		legacy_file.store_string(JSON.stringify(legacy))
+		legacy_file.store_string(JSON.stringify({"save_schema_version": 1, "kind": "run_autosave", "checkpoint": "node_completed", "run_state": {"schema_version": 5}}))
 		legacy_file = null
-	var legacy_service = SaveGameServiceScript.new(test_directory)
-	var migration = legacy_service._load_path(legacy_path, "legacy")
-	_expect(migration.get("ok", false) and migration.get("migrated", false), "RunState v3 應可遷移至目前版本")
-	if migration.get("state") is RunState:
-		_expect(migration.state.reward_rng_state.is_valid_int() and migration.state.tablet_rng_state.is_valid_int(), "v3 遷移應建立可重現 RNG 狀態")
-	var version_four := first.to_dict()
-	version_four.schema_version = 4
-	version_four.player.erase("mp")
-	version_four.player.erase("max_mp")
-	version_four.erase("board_spell_ids")
-	version_four.erase("spell_pool_ids")
-	version_four.row_item_ids = ["pistol"]
-	version_four.col_item_ids = ["vest"]
-	version_four.item_inventory = {"pistol": 1}
-	version_four.hand_ids = ["shape_L"]
-	version_four.hand_state = [{"id": "shape_L", "rotation_steps": 1}]
-	var version_four_migration: Dictionary = service._migrate_run_state(version_four)
-	_expect(version_four_migration.get("ok", false), "RunState v4 應可遷移至效果格與 MP schema")
-	var migrated_v5: Dictionary = version_four_migration.get("data", {})
-	_expect(migrated_v5.get("spell_pool_ids", []) == ["pistol", "vest"] and migrated_v5.get("hand_state", [])[0].get("spell_id", "") == "pistol", "v4 Row／Col 裝備與手牌應遷移為咒文池及效果格")
-	_expect(service.validate_run_state_payload(migrated_v5).is_empty(), "遷移後的 RunState v5 應通過嚴格驗證")
-	for old_version in [1, 2]:
-		var old_payload := first.to_dict()
-		old_payload.schema_version = old_version
-		old_payload.erase("rng_state")
-		old_payload.erase("sanity_effect_ids")
-		old_payload.erase("sanity_history")
-		old_payload.erase("hand_state")
-		if old_version == 1:
-			for key in ["item_inventory", "currency", "battle_reports", "flow_state", "current_node_id", "completed_node_ids", "available_node_ids", "map_data"]:
-				old_payload.erase(key)
-		var old_migration: Dictionary = service._migrate_run_state(old_payload)
-		_expect(old_migration.get("ok", false) and service.validate_run_state_payload(old_migration.get("data", {})).is_empty(), "RunState v%d fixture 應可逐版遷移並通過目前驗證" % old_version)
+	var profile_marker_path := "%s/profile_marker.json" % legacy_directory
+	var profile_marker := FileAccess.open(profile_marker_path, FileAccess.WRITE)
+	if profile_marker != null:
+		profile_marker.store_string("preserve")
+		profile_marker = null
+	var legacy_result: Dictionary = legacy_service.load_run()
+	_expect(not legacy_result.get("ok", false) and legacy_result.get("restart_required", false), "v5 進行中 Run 不應近似遷移")
+	_expect(FileAccess.file_exists(legacy_service.get_pre_slate_archive_path()) and not FileAccess.file_exists(legacy_service.get_run_path()), "v5 Run 應封存為 pre_slate_v5 並騰出新版自動槽")
+	_expect(FileAccess.file_exists(profile_marker_path), "封存舊 Run 不得影響設定、Meta 或歷史檔")
 	var invalid := first.to_dict()
 	invalid.player.hp = invalid.player.max_hp + 1
 	_expect(not service.validate_run_state_payload(invalid).is_empty(), "嚴格解析應拒絕超出上限的玩家資源")
@@ -223,10 +208,14 @@ func _test_phase_18_save_foundation() -> void:
 	invalid = first.to_dict()
 	invalid.battle_reports = ["broken"]
 	_expect(not service.validate_run_state_payload(invalid).is_empty(), "嚴格解析應拒絕會被靜默丟棄的報告項目")
-	for path in [service.get_run_path(), service.get_backup_path(), service.get_temp_path(), legacy_path, rejected_path]:
+	for path in [service.get_run_path(), service.get_backup_path(), service.get_temp_path(), rejected_path]:
 		if FileAccess.file_exists(path):
 			DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(test_directory))
+	for path in [legacy_service.get_run_path(), legacy_service.get_backup_path(), legacy_service.get_pre_slate_archive_path(), profile_marker_path]:
+		if FileAccess.file_exists(path):
+			DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+	DirAccess.remove_absolute(legacy_directory)
 
 
 func _test_phase_18_profile_foundation() -> void:
@@ -456,27 +445,30 @@ func _test_phase_13_growth_and_rewards() -> void:
 	var first := selector.pick(registry.get_entries("rewards"), registry.indexes.get("spells", {}), registry.indexes.get("blocks", {}), context, 3, first_rng)
 	var second := selector.pick(registry.get_entries("rewards"), registry.indexes.get("spells", {}), registry.indexes.get("blocks", {}), context, 3, second_rng)
 	_expect(first == second and first.size() == 3, "相同強度與種子應產生可重現的三選一")
-	var candidate_ids: Array[String] = []
-	var unique_candidate_ids := {}
+	var candidate_pairs: Array[String] = []
+	var unique_candidate_pairs := {}
 	for reward in first:
-		var candidate_id := str(reward.get("id", ""))
-		candidate_ids.append(candidate_id)
-		unique_candidate_ids[candidate_id] = true
-	_expect(candidate_ids.size() == unique_candidate_ids.size(), "同一次三選一不應出現重複內容")
+		var candidate_pair := "%s|%s" % [reward.get("spell_id", ""), reward.get("shape_id", "")]
+		candidate_pairs.append(candidate_pair)
+		unique_candidate_pairs[candidate_pair] = true
+		var shape := registry.get_definition("blocks", str(reward.get("shape_id", "")))
+		var spell := registry.get_definition("spells", str(reward.get("spell_id", "")))
+		_expect(SlatePairingRulesScript.new().is_allowed(shape, spell), "獎勵石板必須符合咒文強度與形狀複雜度規則")
+	_expect(candidate_pairs.size() == unique_candidate_pairs.size(), "同一次三選一不應出現完全相同的咒文＋形狀")
 	var elite_context := context.duplicate(true)
 	elite_context.reward_tier = 3
 	elite_context.force_block_reward = true
 	var elite_rewards := selector.pick(registry.get_entries("rewards"), registry.indexes.get("spells", {}), registry.indexes.get("blocks", {}), elite_context, 3, first_rng)
-	_expect(elite_rewards.any(func(reward): return str(reward.get("type", "")) == "block"), "菁英獎勵候選應保底包含一個未取得的特殊形狀")
+	_expect(elite_rewards.any(func(reward): return bool(registry.get_definition("blocks", str(reward.get("shape_id", ""))).get("special", false))), "菁英獎勵候選應保底包含一個未取得的特殊形狀")
 	var owned_block_context := context.duplicate(true)
-	owned_block_context.unlocked_reward_ids = ["special_dot"]
+	owned_block_context.owned_special_shape_ids = ["special_dot"]
 	var owned_block_rewards := selector.pick(registry.get_entries("rewards"), registry.indexes.get("spells", {}), registry.indexes.get("blocks", {}), owned_block_context, 20, first_rng)
-	_expect(not owned_block_rewards.any(func(reward): return str(reward.get("type", "")) == "block" and str(reward.get("id", "")) == "special_dot"), "已取得的特殊形狀不應再次進入獎勵池")
+	_expect(not owned_block_rewards.any(func(reward): return str(reward.get("shape_id", "")) == "special_dot"), "已取得的特殊形狀不應再次進入獎勵池")
 	var meta_limited_context := context.duplicate(true)
 	meta_limited_context.meta_unlocked_spell_ids = ["pistol"]
-	meta_limited_context.meta_unlocked_block_ids = ["special_dot"]
+	meta_limited_context.meta_unlocked_block_ids = ["shape_T", "shape_O", "special_dot"]
 	var meta_limited_rewards := selector.pick(registry.get_entries("rewards"), registry.indexes.get("spells", {}), registry.indexes.get("blocks", {}), meta_limited_context, 20, first_rng)
-	_expect(meta_limited_rewards.all(func(reward): return str(reward.get("id", "")) in ["pistol", "special_dot"]), "獎勵候選應受到共享 Meta 內容解鎖池限制")
+	_expect(meta_limited_rewards.all(func(reward): return str(reward.get("spell_id", "")) == "pistol" and str(reward.get("shape_id", "")) in ["shape_T", "shape_O"]), "獎勵石板的咒文與形狀都應受到共享 Meta 解鎖池限制")
 
 	var board_rng := RandomNumberGenerator.new()
 	board_rng.seed = 2468
@@ -591,8 +583,7 @@ func _test_phase_16_content_integrity() -> void:
 		return
 	var state := RunState.new()
 	var config := registry.get_document("run_config")
-	state.block_pool_ids = RunState._strings(config.get("block_pool", []))
-	state.spell_pool_ids = RunState._strings(config.get("spell_pool", []))
+	state.slate_pool = RunState._dictionaries(config.get("starter_slates", []))
 	state.board_spell_ids.resize(64)
 	state.board_spell_ids.fill("")
 	var generator = LayeredMapGeneratorScript.new()
@@ -601,14 +592,13 @@ func _test_phase_16_content_integrity() -> void:
 	_expect(registry.validate_run_state_references(state).is_empty(), "現行內容建立的 RunState 引用應全部有效")
 
 	var invalid := RunState.from_dict(state.to_dict())
-	invalid.block_pool_ids.append("missing_block")
-	invalid.spell_pool_ids.append("missing_spell")
-	invalid.selected_reward_ids.append("missing_reward")
+	invalid.slate_pool[0].shape_id = "missing_block"
+	invalid.slate_pool[1].spell_id = "missing_spell"
 	invalid.sanity_effect_ids.append("missing_effect")
 	invalid.available_node_ids.append("missing_node")
 	invalid.map_data.nodes[0].content_id = "missing_encounter"
 	var reference_errors := registry.validate_run_state_references(invalid)
-	_expect(reference_errors.size() >= 6, "RunState 還原前應捕獲方塊、咒文、獎勵、Sanity、節點與 encounter 失效引用")
+	_expect(reference_errors.size() >= 5, "RunState 還原前應捕獲石板形狀、咒文、Sanity、節點與 encounter 失效引用")
 
 
 func _test_phase_16_data_driven_events() -> void:
@@ -640,7 +630,7 @@ func _test_phase_16_data_driven_events() -> void:
 	_expect(not poor_purchase.get("affordable", true), "金錢不足時商店商品應禁用")
 	var spell_purchase: Dictionary = resolver.resolve_choice(shop_definition, "buy_ward_script", {"hp": 40, "max_hp": 80, "sanity": 70, "max_sanity": 100, "mp": 25, "max_mp": 100, "currency": 30})
 	_expect(spell_purchase.get("affordable", false) and spell_purchase.get("changes", {}).get("currency") == 5, "資源足夠時商店應可購買咒文")
-	_expect(spell_purchase.get("grant", {}).get("type") == "spell" and spell_purchase.get("grant", {}).get("id") == "heal_light", "咒文商品應保留資料化授予內容")
+	_expect(spell_purchase.get("grant", {}).get("type") == "slate" and spell_purchase.get("grant", {}).get("spell_id") == "heal_light" and spell_purchase.get("grant", {}).get("shape_id") == "shape_T", "商店商品應在選擇前提供固定形狀、咒文與效果格")
 	var deep_rest: Dictionary = resolver.resolve_choice(rest_definition, "deep_rest", state)
 	_expect(deep_rest.get("changes", {}).get("hp") == 80 and deep_rest.get("changes", {}).get("sanity") == 100 and deep_rest.get("changes", {}).get("mp") == 25, "安穩休養應回滿 HP／Sanity 且不額外更動 MP")
 	var focus_rest: Dictionary = resolver.resolve_choice(rest_definition, "focus_ritual", state)
@@ -968,9 +958,10 @@ func _test_main_scene_smoke() -> void:
 			_expect(run_manager.run_state.hp == 80 and run_manager.run_state.sanity == 100 and run_manager.run_state.mp == 60, "安穩休養應回滿 HP／Sanity，並保留節點完成的固定 MP 回復")
 			run_manager.start_new_run()
 	var tablet = manager.tablet
-	var special_block: BlockData = run_manager.content.get_block("special_dot")
+	var special_block: BlockData = run_manager.content.get_block("special_dot").as_slate("test_special_dot", run_manager.content.get_spell("poison_spell"), Vector2i.ZERO)
 	var special_count_before: int = tablet.get_block_pool_count("special_dot")
-	tablet.add_block_to_pool(special_block)
+	tablet.add_slate(special_block)
+	tablet.add_slate(special_block.duplicate(true))
 	_expect(tablet.get_block_pool_count("special_dot") == maxi(special_count_before, 1), "同一特殊形狀不得重複加入方塊池")
 	_expect(run_manager.flow.current_state == run_manager.flow.State.MAP, "新 Run 應先進入地圖選擇")
 	var first_node_id: String = run_manager.run_state.available_node_ids[0]

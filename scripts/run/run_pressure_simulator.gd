@@ -41,16 +41,15 @@ func _simulate_once(content: ContentRegistry, seed: int, max_turns: int) -> Dict
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed
 	var route := _pick_route(map_data, rng)
-	var spell_ids := RunState._strings(run_config.get("spell_pool", []))
+	var starter_slates := content.create_slates(run_config.get("starter_slates", []))
 	var board_session := _board_simulator.create_session(
-		content.get_blocks(run_config.get("block_pool", [])),
+		starter_slates,
 		run_config.get("board_growth_rules", {}),
 		{
 			"mode": BoardSimulatorScript.SMART_MODE,
 			"seed": seed,
 			"hand_size": 3,
 			"action_points": int(player_document.get("action_points", 5)),
-			"spell_pool": content.get_spells(spell_ids),
 		}
 	)
 	if board_session.is_empty():
@@ -58,6 +57,7 @@ func _simulate_once(content: ContentRegistry, seed: int, max_turns: int) -> Dict
 	var player_state := player_document.duplicate(true)
 	player_state["currency"] = 0
 	var selected_reward_ids: Array[String] = []
+	var owned_special_shape_ids: Array[String] = []
 	var battle_curve: Array[Dictionary] = []
 	var battles_won := 0
 	var rests := 0
@@ -141,6 +141,7 @@ func _simulate_once(content: ContentRegistry, seed: int, max_turns: int) -> Dict
 				"battles_won": battles_won,
 				"reward_tier": int(difficulty.get("reward_tier", 1)),
 				"unlocked_reward_ids": selected_reward_ids,
+				"owned_special_shape_ids": owned_special_shape_ids,
 				"force_block_reward": node_type == "elite",
 			},
 			3,
@@ -151,16 +152,16 @@ func _simulate_once(content: ContentRegistry, seed: int, max_turns: int) -> Dict
 			continue
 		# 自動測試採中性的固定政策：選擇候選列表第一項，不推定玩家流派偏好。
 		var reward: Dictionary = candidates[0]
-		var reward_id := str(reward.get("id", ""))
+		var reward_id := str(reward.get("slate_uid", ""))
 		selected_reward_ids.append(reward_id)
 		rewards_taken += 1
-		if str(reward.get("type", "")) == "block":
-			if _board_simulator.add_session_block(board_session, content.get_block(reward_id)):
+		var shape_id := str(reward.get("shape_id", ""))
+		var slate := content.create_slate(reward)
+		if _board_simulator.add_session_slate(board_session, slate):
+			spells_taken += 1
+			if bool(content.get_definition("blocks", shape_id).get("special", false)):
+				owned_special_shape_ids.append(shape_id)
 				special_blocks += 1
-		else:
-			if _board_simulator.add_session_spell(board_session, content.get_spell(reward_id)):
-				spell_ids.append(reward_id)
-				spells_taken += 1
 		_restore_mp(player_state, mp_restore_per_node)
 	return {
 		"seed": seed,
@@ -234,12 +235,11 @@ func _apply_first_affordable_choice(content: ContentRegistry, node: Dictionary, 
 		for key in preview.get("changes", {}):
 			player_state[key] = int(preview.changes[key])
 		var grant: Dictionary = preview.get("grant", {})
-		var grant_id := str(grant.get("id", ""))
 		match str(grant.get("type", "")):
-			"spell":
-				_board_simulator.add_session_spell(board_session, content.get_spell(grant_id))
-			"block":
-				_board_simulator.add_session_block(board_session, content.get_block(grant_id))
+			"slate":
+				var slate_state := grant.duplicate(true)
+				slate_state.erase("type")
+				_board_simulator.add_session_slate(board_session, content.create_slate(slate_state))
 		return true
 	return false
 
@@ -313,7 +313,7 @@ func _summarize(results: Array[Dictionary], seed: int, max_turns: int) -> Dictio
 		"seed": seed,
 		"runs": results.size(),
 		"max_turns_per_battle": max_turns,
-		"policy": "隨機合法路線；獎勵與非戰鬥節點取第一個可用選項；咒文直接加入抽取池；每完成節點回復固定 MP",
+		"policy": "隨機合法路線；獎勵與非戰鬥節點取第一個可用選項；完整石板加入構築；每完成節點回復固定 MP",
 		"victory_rate": _ratio(int(totals.victories), count),
 		"hp_defeats": int(totals.hp_defeats),
 		"sanity_defeats": int(totals.sanity_defeats),

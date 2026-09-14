@@ -36,7 +36,7 @@ func _run() -> void:
 		float(report.average_sanity_end),
 		float(report.average_mp_end),
 	])
-	print("- 平均獎勵／新增咒文／特殊方塊：%.2f/%.2f/%.2f｜放置／死盤：%.1f/%.2f" % [
+	print("- 平均獎勵／新增石板／特殊形狀：%.2f/%.2f/%.2f｜放置／死盤：%.1f/%.2f" % [
 		float(report.average_rewards),
 		float(report.average_spells_taken),
 		float(report.average_special_blocks),

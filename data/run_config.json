@@ -57,5 +57,15 @@
     "reinforced_coat",
     "dark_spike",
     "degrade"
+  ],
+  "starter_slates": [
+    {"slate_uid": "starter_01", "shape_id": "shape_L", "spell_id": "pistol", "effect_cell": [0, 0]},
+    {"slate_uid": "starter_02", "shape_id": "shape_T", "spell_id": "pistol", "effect_cell": [0, 0]},
+    {"slate_uid": "starter_03", "shape_id": "shape_I", "spell_id": "shotgun", "effect_cell": [0, 0]},
+    {"slate_uid": "starter_04", "shape_id": "shape_O", "spell_id": "vest", "effect_cell": [0, 0]},
+    {"slate_uid": "starter_05", "shape_id": "shape_S", "spell_id": "vest", "effect_cell": [0, 0]},
+    {"slate_uid": "starter_06", "shape_id": "shape_Z", "spell_id": "reinforced_coat", "effect_cell": [0, 0]},
+    {"slate_uid": "starter_07", "shape_id": "shape_J", "spell_id": "dark_spike", "effect_cell": [0, 0]},
+    {"slate_uid": "starter_08", "shape_id": "shape_short_I", "spell_id": "degrade", "effect_cell": [0, 0]}
   ]
 }

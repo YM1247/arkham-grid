@@ -12,6 +12,7 @@ const ProfileSaveServiceScript = preload("res://scripts/save/profile_save_servic
 const RunSeedPolicyScript = preload("res://scripts/run/run_seed_policy.gd")
 const TIME_PRESSURE_TUTORIAL_ID := "battle_time_pressure"
 const UIMotionScript = preload("res://scripts/ui/ui_motion.gd")
+const SlatePreviewScript = preload("res://scripts/ui/slate_preview.gd")
 
 @export var battle_manager_path: NodePath
 @export var tablet_path: NodePath
@@ -99,7 +100,12 @@ func _ready() -> void:
 		event_view.choice_selected.connect(_on_event_choice_selected)
 	if settlement_screen != null and settlement_screen.has_signal("restart_requested"):
 		settlement_screen.restart_requested.connect(start_new_run)
-	if _should_start_fresh_on_launch() or not continue_autosave():
+	if _should_start_fresh_on_launch():
+		var archive_result: Dictionary = save_service.archive_incompatible_run_if_needed()
+		if bool(archive_result.get("archived", false)):
+			push_warning("舊 RunState v%s 已封存至 %s，編輯器將建立新版新局。" % [archive_result.get("version", "?"), archive_result.get("path", "")])
+		start_new_run()
+	elif not continue_autosave():
 		start_new_run()
 
 
@@ -114,7 +120,7 @@ func _should_start_fresh_on_launch() -> bool:
 
 func _show_build_pool() -> void:
 	if build_pool_view != null and build_pool_view.has_method("render"):
-		build_pool_view.render(tablet.spell_pool, tablet.block_pool)
+		build_pool_view.render(tablet.block_pool)
 
 func _load_run_data() -> void:
 	enemies = content.get_entries("enemies")
@@ -195,8 +201,7 @@ func _apply_run_config(previous_seed: int = 0) -> void:
 	run_state.max_mp = int(player_config.get("max_mp", 100))
 	run_state.mp = int(player_config.get("mp", 70))
 	run_state.action_points = int(player_config.get("action_points", 5))
-	run_state.block_pool_ids = _filter_meta_unlocked(config.get("block_pool", []), meta_state.unlocked_block_ids)
-	run_state.spell_pool_ids = _filter_meta_unlocked(config.get("spell_pool", []), meta_state.unlocked_spell_ids)
+	run_state.slate_pool = _filter_meta_unlocked_slates(config.get("starter_slates", []))
 	if battle_manager.has_method("configure_player"):
 		battle_manager.configure_player(
 			run_state.player_name, run_state.max_hp, run_state.hp,
@@ -206,10 +211,8 @@ func _apply_run_config(previous_seed: int = 0) -> void:
 	if battle_manager.has_method("configure_sanity_rules"):
 		battle_manager.configure_sanity_rules(content.get_document("sanity"), run_state.seed, run_state.sanity_effect_ids, run_state.sanity_history)
 	
-	if tablet.has_method("set_block_pool"):
-		tablet.set_block_pool(content.get_blocks(run_state.block_pool_ids))
-	if tablet.has_method("set_spell_pool"):
-		tablet.set_spell_pool(content.get_spells(run_state.spell_pool_ids))
+	if tablet.has_method("set_slate_pool"):
+		tablet.set_slate_pool(content.create_slates(run_state.slate_pool))
 	if tablet.has_method("set_board_growth_rules"):
 		tablet.set_board_growth_rules(config.get("board_growth_rules", {}))
 	
@@ -347,24 +350,20 @@ func _get_event_resource_state() -> Dictionary:
 		"mp": run_state.mp,
 		"max_mp": run_state.max_mp,
 		"currency": run_state.currency,
-		"block_pool_ids": run_state.block_pool_ids.duplicate(),
+		"owned_special_shape_ids": _owned_special_shape_ids(),
 	}
 
 
 func _apply_choice_grant(grant: Dictionary) -> void:
 	var grant_type := str(grant.get("type", ""))
-	var grant_id := str(grant.get("id", ""))
-	if grant_type == "spell":
-		var spell := spell_resources.get(grant_id) as BattleItem
-		if spell != null:
-			tablet.add_spell_to_pool(spell)
-			run_state.spell_pool_ids.append(grant_id)
-	elif grant_type == "block":
-		var block := block_resources.get(grant_id) as BlockData
-		if block != null and grant_id not in run_state.block_pool_ids:
-			tablet.add_block_to_pool(block)
-			run_state.block_pool_ids.append(grant_id)
-			run_state.selected_reward_ids.append(grant_id)
+	if grant_type != "slate":
+		return
+	var slate_state := grant.duplicate(true)
+	slate_state.erase("type")
+	var slate := content.create_slate(slate_state)
+	if slate != null and tablet.add_slate(slate):
+		run_state.slate_pool.append(slate_state)
+		run_state.selected_reward_ids.append(slate.slate_uid)
 
 
 func _node_type_label(node_type: String) -> String:
@@ -518,7 +517,10 @@ func _show_reward_choices() -> void:
 		reward_panel.visible = true
 		UIMotionScript.fade_in(reward_panel, "emphasis")
 	_clear_reward_buttons()
-	current_rewards = _pick_rewards(3)
+	current_rewards = run_state.pending_slate_rewards.duplicate(true) if not run_state.pending_slate_rewards.is_empty() else _pick_rewards(3)
+	if run_state.pending_slate_rewards.is_empty():
+		run_state.pending_slate_rewards = RunState._dictionaries(current_rewards)
+		_autosave("node_entered")
 	var first_button: Button
 	for i in range(current_rewards.size()):
 		var reward = current_rewards[i]
@@ -530,6 +532,13 @@ func _show_reward_choices() -> void:
 		button.tooltip_text = _get_reward_tooltip(reward)
 		button.pressed.connect(_on_reward_selected.bind(i))
 		reward_buttons_container.add_child(button)
+		var slate := content.create_slate(reward)
+		if slate != null:
+			var preview: Control = SlatePreviewScript.new()
+			preview.position = Vector2(84, 14)
+			preview.size = Vector2(132, 112)
+			preview.set_slate(slate, 25.0)
+			button.add_child(preview)
 		if first_button == null:
 			first_button = button
 	var skip_button := Button.new()
@@ -546,25 +555,17 @@ func _on_reward_selected(index: int) -> void:
 		return
 	var reward = current_rewards[index]
 	_apply_reward(reward)
-	_record_reward(str(reward.get("id", "")))
+	_record_reward(str(reward.get("slate_uid", "")))
+	run_state.pending_slate_rewards.clear()
 	_complete_current_node()
 
 func _apply_reward(reward: Dictionary) -> String:
-	var reward_type = str(reward.get("type", ""))
-	var reward_id = str(reward.get("id", ""))
-	var resource = block_resources.get(reward_id) if reward_type == "block" else spell_resources.get(reward_id)
-	if reward_type == "block" and resource is BlockData:
-		if tablet.has_method("add_block_to_pool"):
-			tablet.add_block_to_pool(resource)
-		_set_result_text("獲得特殊形狀：%s｜已加入方塊池。" % resource.display_name)
-		if resource.id not in run_state.block_pool_ids:
-			run_state.block_pool_ids.append(resource.id)
-	elif reward_type == "spell" and resource is BattleItem:
-		if tablet.has_method("add_spell_to_pool"):
-			tablet.add_spell_to_pool(resource)
-		run_state.spell_pool_ids.append(reward_id)
-		_set_result_text("獲得咒文：%s｜加入方塊咒文池。" % resource.spell_name)
-	run_state.selected_reward_ids.append(reward_id)
+	var slate := content.create_slate(reward)
+	if slate == null or not tablet.add_slate(slate):
+		return "無法加入石板"
+	run_state.slate_pool.append(reward.duplicate(true))
+	run_state.selected_reward_ids.append(slate.slate_uid)
+	_set_result_text("獲得石板：%s＋%s。" % [slate.display_name, slate.spell.spell_name])
 	return ""
 
 func _pick_rewards(count: int) -> Array:
@@ -576,6 +577,7 @@ func _pick_rewards(count: int) -> Array:
 			"battles_won": battles_won,
 			"reward_tier": int(current_difficulty.get("reward_tier", 1)),
 			"unlocked_reward_ids": run_state.selected_reward_ids,
+			"owned_special_shape_ids": _owned_special_shape_ids(),
 			"meta_unlocked_spell_ids": meta_state.unlocked_spell_ids,
 			"meta_unlocked_block_ids": meta_state.unlocked_block_ids,
 			"force_block_reward": str(map_node_index.get(run_state.current_node_id, {}).get("type", "")) == "elite",
@@ -595,27 +597,10 @@ func _get_eligible_reward_pool() -> Array:
 	return eligible
 
 func _get_reward_label(reward: Dictionary) -> String:
-	var title = str(reward.get("title", "未知獎勵"))
-	var reward_type = str(reward.get("type", ""))
-	if reward_type == "spell":
-		var item := spell_resources.get(str(reward.get("id", ""))) as BattleItem
-		if item == null:
-			return title
-		return "%s  %s\n\n%s\n\nMP %d｜%s｜Tier %d\n\n目前持有 %d 份" % [
-			item.icon_text,
-			title,
-			item.description,
-			item.mp_cost,
-			_rarity_name(item.rarity),
-			item.tier,
-			tablet.get_spell_pool_ids().count(item.content_id) if tablet.has_method("get_spell_pool_ids") else 0,
-		]
-	var block := block_resources.get(str(reward.get("id", ""))) as BlockData
-	return "特殊方塊\n\n%s\n\n%d 格形狀｜Tier %d\n\n擴充每回合可抽取的形狀" % [
-		block.display_name if block != null else title,
-		block.cells.size() if block != null else 0,
-		block.tier if block != null else 1,
-	]
+	var slate := content.create_slate(reward)
+	if slate == null:
+		return "未知石板"
+	return "\n\n\n\n%s  %s\n%s｜MP %d｜%d 格／複雜度 %d\n%s" % [slate.spell.category_glyph, slate.spell.spell_name, slate.spell.get_category_label(), slate.spell.mp_cost, slate.cells.size(), slate.complexity, slate.spell.description]
 
 
 func _rarity_name(rarity: String) -> String:
@@ -625,17 +610,10 @@ func _rarity_name(rarity: String) -> String:
 		_: return "普通"
 
 func _get_reward_tooltip(reward: Dictionary) -> String:
-	var reward_type = str(reward.get("type", ""))
-	var reward_id = str(reward.get("id", ""))
-	if reward_type == "spell":
-		var item = spell_resources.get(reward_id)
-		if item is BattleItem:
-			return item.get_effect_tooltip("獎勵預覽")
-	if reward_type == "block":
-		var block = block_resources.get(reward_id)
-		if block is BlockData:
-			return "特殊形狀\n%s\n取得後加入方塊池；同一形狀不重複取得。\n標籤：%s" % [block.display_name if block.display_name != "" else block.id, ", ".join(block.tags)]
-	return str(reward.get("title", "未知獎勵"))
+	var slate := content.create_slate(reward)
+	if slate == null:
+		return "未知石板"
+	return "%s\n%s｜效果格 %s\n%s" % [slate.spell.get_effect_tooltip("獎勵石板"), slate.display_name, slate.effect_cell, "特殊形狀不可重複取得" if slate.is_special else "取得後以完整組合加入構築"]
 
 func _hide_rewards() -> void:
 	if reward_panel != null:
@@ -650,6 +628,7 @@ func _clear_reward_buttons() -> void:
 
 func _on_reward_skipped(currency_amount: int) -> void:
 	run_state.currency += currency_amount
+	run_state.pending_slate_rewards.clear()
 	_record_reward("currency:%d" % currency_amount)
 	_complete_current_node()
 
@@ -705,20 +684,16 @@ func restore_run_state(snapshot: Dictionary) -> bool:
 	runtime_map = run_state.map_data.duplicate(true) if not run_state.map_data.is_empty() else map_generator.generate(run_state.seed, content.get_document("map"))
 	_index_runtime_map()
 	flow.current_state = clampi(run_state.flow_state, flow.State.START, flow.State.DEFEAT)
-	if tablet.has_method("set_block_pool"):
-		tablet.set_block_pool(content.get_blocks(run_state.block_pool_ids))
-	if tablet.has_method("set_spell_pool"):
-		tablet.set_spell_pool(content.get_spells(run_state.spell_pool_ids))
+	if tablet.has_method("set_slate_pool"):
+		tablet.set_slate_pool(content.create_slates(run_state.slate_pool))
 	if tablet.has_method("restore_board_state") and not run_state.board_cells.is_empty():
 		tablet.restore_board_state(run_state.board_cells)
 	if tablet.has_method("restore_board_spell_state") and not run_state.board_spell_ids.is_empty():
 		tablet.restore_board_spell_state(run_state.board_spell_ids, content.spell_resources)
 	if tablet.has_method("restore_hand_state") and not run_state.hand_state.is_empty():
-		tablet.restore_hand_state(run_state.hand_state, content.block_resources)
-	elif tablet.has_method("restore_hand") and not run_state.hand_ids.is_empty():
-		tablet.restore_hand(content.get_blocks(run_state.hand_ids))
+		tablet.restore_hand_state(run_state.hand_state)
 	elif tablet.has_method("restore_hand_state"):
-		tablet.restore_hand_state([], content.block_resources)
+		tablet.restore_hand_state([])
 	if battle_manager.has_method("configure_player"):
 		battle_manager.configure_player(run_state.player_name, run_state.max_hp, run_state.hp, run_state.max_sanity, run_state.sanity, run_state.action_points, run_state.max_mp, run_state.mp)
 	if battle_manager.has_method("configure_sanity_rules"):
@@ -765,7 +740,11 @@ func _restore_saved_flow() -> void:
 	match flow.current_state:
 		flow.State.MAP:
 			_show_map()
-		flow.State.NODE, flow.State.BATTLE, flow.State.REWARD:
+		flow.State.REWARD:
+			if map_container != null and map_container.has_method("hide_map"):
+				map_container.hide_map()
+			_show_reward_choices()
+		flow.State.NODE, flow.State.BATTLE:
 			_resume_locked_node()
 		flow.State.VICTORY, flow.State.DEFEAT:
 			var victory: bool = flow.current_state == flow.State.VICTORY
@@ -829,14 +808,10 @@ func _capture_runtime_state() -> void:
 		run_state.board_cells = tablet.get_board_state()
 	if tablet.has_method("get_board_spell_state"):
 		run_state.board_spell_ids = tablet.get_board_spell_state()
-	if tablet.has_method("get_hand_ids"):
-		run_state.hand_ids = tablet.get_hand_ids()
 	if tablet.has_method("get_hand_state"):
 		run_state.hand_state = tablet.get_hand_state()
-	if tablet.has_method("get_block_pool_ids"):
-		run_state.block_pool_ids = tablet.get_block_pool_ids()
-	if tablet.has_method("get_spell_pool_ids"):
-		run_state.spell_pool_ids = tablet.get_spell_pool_ids()
+	if tablet.has_method("get_slate_pool_state"):
+		run_state.slate_pool = tablet.get_slate_pool_state()
 	if not player_state.is_empty():
 		run_state.sanity_effect_ids = _strings(player_state.get("sanity_effect_ids", []))
 		if player_state.get("sanity_history", []) is Array:
@@ -865,4 +840,27 @@ func _filter_meta_unlocked(values, unlocked: Array[String]) -> Array[String]:
 		var id := str(value)
 		if id in unlocked:
 			result.append(id)
+	return result
+
+
+func _filter_meta_unlocked_slates(values) -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	if not values is Array:
+		return result
+	for value in values:
+		if not value is Dictionary:
+			continue
+		var shape_id := str(value.get("shape_id", ""))
+		var spell_id := str(value.get("spell_id", ""))
+		if shape_id in meta_state.unlocked_block_ids and spell_id in meta_state.unlocked_spell_ids:
+			result.append(value.duplicate(true))
+	return result
+
+
+func _owned_special_shape_ids() -> Array[String]:
+	var result: Array[String] = []
+	for slate in run_state.slate_pool:
+		var shape_id := str(slate.get("shape_id", ""))
+		if bool(content.get_definition("blocks", shape_id).get("special", false)) and shape_id not in result:
+			result.append(shape_id)
 	return result

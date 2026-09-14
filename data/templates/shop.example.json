@@ -17,10 +17,10 @@
         {
           "id": "buy_spell",
           "label": "購買咒文",
-          "description": "將指定咒文加入本局咒文池。",
+          "description": "取得指定的完整石板組合。",
           "costs": {"currency": 25},
           "results": {},
-          "grant": {"type": "spell", "id": "pistol"},
+          "grant": {"type": "slate", "slate_uid": "shop_example_slate", "shape_id": "shape_T", "spell_id": "pistol", "effect_cell": [0, 0]},
           "result_text": "你取得了一份咒文抄本。"
         },
         {

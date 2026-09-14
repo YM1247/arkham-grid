@@ -2,6 +2,7 @@ class_name BlockData extends Resource
 
 # 方塊的唯一 ID (例如 "shape_L")
 @export var id: String
+@export var slate_uid: String = ""
 @export var display_name: String = ""
 # 方塊顯示的顏色
 @export var color: Color = Color.ORANGE
@@ -39,6 +40,21 @@ func with_spell(value: BattleItem, marked_cell: Vector2i) -> BlockData:
 	result.spell = value
 	result.effect_cell = marked_cell
 	return result
+
+
+func as_slate(uid: String, value: BattleItem, marked_cell: Vector2i) -> BlockData:
+	var result := with_spell(value, marked_cell)
+	result.slate_uid = uid
+	return result
+
+
+func to_slate_state() -> Dictionary:
+	return {
+		"slate_uid": slate_uid,
+		"shape_id": id,
+		"spell_id": spell.content_id if spell != null else "",
+		"effect_cell": [effect_cell.x, effect_cell.y],
+	}
 
 
 func get_rotation_steps() -> int:

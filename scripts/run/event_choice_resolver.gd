@@ -47,7 +47,7 @@ func preview_choice(option: Dictionary, state: Dictionary) -> Dictionary:
 			final_value = mini(final_value, maximum)
 		changes[key] = maxi(final_value, 0)
 		deltas[key] = int(changes[key]) - current
-	if grant is Dictionary and not grant.is_empty() and str(grant.get("type", "")) == "block" and str(grant.get("id", "")) in state.get("block_pool_ids", []):
+	if grant is Dictionary and not grant.is_empty() and str(grant.get("type", "")) == "slate" and str(grant.get("shape_id", "")) in state.get("owned_special_shape_ids", []):
 		affordable = false
 		reason = "已擁有此特殊形狀"
 	return {
@@ -85,5 +85,5 @@ func _format_summary(costs: Dictionary, results: Dictionary, grant = {}) -> Stri
 		if amount > 0:
 			parts.append("獲得 %s %d" % [RESOURCE_LABELS[key], amount])
 	if grant is Dictionary and not grant.is_empty():
-		parts.append("獲得%s：%s" % ["咒文" if str(grant.get("type", "")) == "spell" else "特殊形狀", str(grant.get("id", ""))])
+		parts.append("獲得石板：%s＋%s" % [str(grant.get("shape_id", "")), str(grant.get("spell_id", ""))])
 	return "｜".join(parts) if not parts.is_empty() else "不消耗資源"

@@ -1,6 +1,8 @@
 class_name ContentRegistry
 extends RefCounted
 
+const SlatePairingRulesScript = preload("res://scripts/growth/slate_pairing_rules.gd")
+
 const SCHEMA_VERSION := 1
 const DATA_PATHS := {
 	"blocks": "res://data/blocks.json",
@@ -108,44 +110,67 @@ func get_spells(ids: Array) -> Array[BattleItem]:
 	return result
 
 
+func create_slate(state: Dictionary) -> BlockData:
+	var base := get_block(str(state.get("shape_id", "")))
+	var spell := get_spell(str(state.get("spell_id", "")))
+	var effect_cell = state.get("effect_cell", [0, 0])
+	if base == null or spell == null or not effect_cell is Array or effect_cell.size() != 2:
+		return null
+	var marked := Vector2i(int(effect_cell[0]), int(effect_cell[1]))
+	if marked not in base.cells:
+		return null
+	return base.as_slate(str(state.get("slate_uid", "")), spell, marked)
+
+
+func create_slates(states: Array) -> Array[BlockData]:
+	var result: Array[BlockData] = []
+	for state in states:
+		if state is Dictionary:
+			var slate := create_slate(state)
+			if slate != null:
+				result.append(slate)
+	return result
+
+
 func validate_run_state_references(state: RunState) -> Array[String]:
 	var result: Array[String] = []
 	if state == null:
 		result.append("RunState 不可為 null")
 		return result
-	_append_unknown_ids(result, "blocks", "RunState.hand_ids", state.hand_ids)
-	_append_unknown_ids(result, "blocks", "RunState.block_pool_ids", state.block_pool_ids)
+	var slate_uids := {}
+	var special_shapes := {}
+	for slate in state.slate_pool:
+		_validate_slate_reference(slate, "RunState.slate_pool", result)
+		var uid := str(slate.get("slate_uid", ""))
+		if uid.is_empty() or slate_uids.has(uid):
+			result.append("RunState.slate_pool slate_uid 為空或重複：%s" % uid)
+		slate_uids[uid] = true
+		var shape_id := str(slate.get("shape_id", ""))
+		if bool(get_definition("blocks", shape_id).get("special", false)):
+			if special_shapes.has(shape_id):
+				result.append("RunState.slate_pool 特殊形狀不可重複：%s" % shape_id)
+			special_shapes[shape_id] = true
+	for slate in state.pending_slate_rewards:
+		_validate_slate_reference(slate, "RunState.pending_slate_rewards", result)
 	for hand_entry in state.hand_state:
 		if not hand_entry is Dictionary:
 			result.append("RunState.hand_state 含有非物件資料")
 			continue
-		var block_id := str(hand_entry.get("id", ""))
-		if not indexes.get("blocks", {}).has(block_id):
-			result.append("RunState.hand_state 引用不存在的 blocks：%s" % block_id)
-	_append_unknown_ids(result, "spells", "RunState.spell_pool_ids", state.spell_pool_ids)
+		var uid := str(hand_entry.get("slate_uid", ""))
+		if not slate_uids.has(uid):
+			result.append("RunState.hand_state 引用不存在的 slate_uid：%s" % uid)
+		var rotation := int(hand_entry.get("rotation_steps", -1))
+		if rotation < 0 or rotation > 3:
+			result.append("RunState.hand_state rotation_steps 必須介於 0–3")
 	for spell_id in state.board_spell_ids:
 		if not spell_id.is_empty() and not indexes.get("spells", {}).has(spell_id):
 			result.append("RunState.board_spell_ids 引用不存在的 spell：%s" % spell_id)
 	if not state.board_spell_ids.is_empty() and state.board_spell_ids.size() != 64:
 		result.append("RunState.board_spell_ids 必須為空或剛好有 64 格")
-	for hand_entry in state.hand_state:
-		var spell_id := str(hand_entry.get("spell_id", ""))
-		if spell_id.is_empty():
-			result.append("RunState.hand_state 的方塊缺少 spell_id")
-		elif not indexes.get("spells", {}).has(spell_id):
-			result.append("RunState.hand_state 引用不存在的 spell：%s" % spell_id)
-		var block := get_block(str(hand_entry.get("id", "")))
-		var effect_cell = hand_entry.get("effect_cell", [])
-		if block != null and effect_cell is Array and effect_cell.size() == 2:
-			var rotated := block.rotated(int(hand_entry.get("rotation_steps", 0)))
-			var coord := Vector2i(int(effect_cell[0]), int(effect_cell[1]))
-			if coord not in rotated.cells:
-				result.append("RunState.hand_state 的 effect_cell 不在方塊形狀內：%s" % hand_entry.get("id", ""))
 	if state.board_cells.size() == 64 and state.board_spell_ids.size() == 64:
 		for index in range(64):
 			if not state.board_spell_ids[index].is_empty() and state.board_cells[index].is_empty():
 				result.append("RunState.board_spell_ids 不可附著於空白盤面格 %d" % index)
-	_append_unknown_ids(result, "rewards", "RunState.selected_reward_ids", state.selected_reward_ids)
 	var sanity_effect_ids := {}
 	for effect in documents.get("sanity", {}).get("effects", []):
 		sanity_effect_ids[str(effect.get("id", ""))] = true
@@ -156,6 +181,21 @@ func validate_run_state_references(state: RunState) -> Array[String]:
 		result.append("RunState.board_cells 必須為空或剛好有 64 格")
 	_validate_saved_map_references(state, result)
 	return result
+
+
+func _validate_slate_reference(slate: Dictionary, source: String, result: Array[String]) -> void:
+	var shape_id := str(slate.get("shape_id", ""))
+	var spell_id := str(slate.get("spell_id", ""))
+	if not indexes.get("blocks", {}).has(shape_id):
+		result.append("%s 引用不存在的 shape：%s" % [source, shape_id])
+	if not indexes.get("spells", {}).has(spell_id):
+		result.append("%s 引用不存在的 spell：%s" % [source, spell_id])
+	var effect_cell = slate.get("effect_cell", [])
+	var block := get_block(shape_id)
+	if not effect_cell is Array or effect_cell.size() != 2:
+		result.append("%s effect_cell 必須是兩個整數" % source)
+	elif block != null and Vector2i(int(effect_cell[0]), int(effect_cell[1])) not in block.cells:
+		result.append("%s effect_cell 不在形狀內：%s" % [source, shape_id])
 
 
 func validate_meta_state_references(state: MetaState) -> Array[String]:
@@ -290,6 +330,10 @@ func _validate_references() -> void:
 		_require_id("blocks", str(id), "run_config.block_pool")
 	for id in run_config.get("spell_pool", []):
 		_require_id("spells", str(id), "run_config.spell_pool")
+	for slate in run_config.get("starter_slates", []):
+		if slate is Dictionary:
+			_require_id("blocks", str(slate.get("shape_id", "")), "run_config.starter_slates")
+			_require_id("spells", str(slate.get("spell_id", "")), "run_config.starter_slates")
 	for spell in definitions.get("spells", []):
 		_require_id("spell_categories", str(spell.get("category_id", "")), "spell %s.category_id" % spell.get("id", ""))
 	for encounter in definitions.get("encounters", []):
@@ -337,10 +381,16 @@ func _validate_references() -> void:
 				if not grant is Dictionary or grant.is_empty():
 					continue
 				var grant_type := str(grant.get("type", ""))
-				if grant_type == "spell":
-					_require_id("spells", str(grant.get("id", "")), "%s option grant" % kind)
-				elif grant_type == "block":
-					_require_id("blocks", str(grant.get("id", "")), "%s option grant" % kind)
+				if grant_type == "slate":
+					var shape_id := str(grant.get("shape_id", ""))
+					_require_id("spells", str(grant.get("spell_id", "")), "%s option slate grant" % kind)
+					_require_id("blocks", shape_id, "%s option slate grant" % kind)
+					if str(grant.get("slate_uid", "")).is_empty():
+						errors.append("%s option slate grant 缺少 slate_uid" % kind)
+					var effect_cell = grant.get("effect_cell", [])
+					var shape := get_definition("blocks", shape_id)
+					if not effect_cell is Array or effect_cell.size() != 2 or not shape.is_empty() and effect_cell not in shape.get("cells", []):
+						errors.append("%s option slate grant effect_cell 不在形狀內" % kind)
 				else:
 					errors.append("%s option grant type 不合法：%s" % [kind, grant_type])
 	var meta_config: Dictionary = documents.get("meta_progression", {})
@@ -400,6 +450,13 @@ func _validate_values() -> void:
 				errors.append("spell %s 有 upgrade_to 時 combine_count 必須大於 1" % id)
 		for field in ["status_effects_self", "status_effects_target"]:
 			_validate_status_effects(spell, field)
+		for field in ["allowed_shape_ids", "blocked_shape_ids"]:
+			var overrides = spell.get(field, [])
+			if not overrides is Array:
+				errors.append("spell %s.%s 必須是陣列" % [id, field])
+				continue
+			for shape_id in overrides:
+				_require_id("blocks", str(shape_id), "spell %s.%s" % [id, field])
 	_validate_spell_upgrade_chains()
 	for enemy in definitions.get("enemies", []):
 		var id := str(enemy.get("id", ""))
@@ -478,6 +535,24 @@ func _validate_values() -> void:
 				errors.append("effect_resources.conditional_attack 必須使用 EffectConditionalAttack")
 	if not config.get("spell_pool", []) is Array or config.get("spell_pool", []).is_empty():
 		errors.append("run_config.spell_pool 必須是非空陣列")
+	var starter_slates = config.get("starter_slates", [])
+	if not starter_slates is Array or starter_slates.is_empty():
+		errors.append("run_config.starter_slates 必須是非空陣列")
+	else:
+		var starter_uids := {}
+		var pairing_rules = SlatePairingRulesScript.new()
+		for slate in starter_slates:
+			if not slate is Dictionary:
+				errors.append("run_config.starter_slates 只能包含物件")
+				continue
+			var uid := str(slate.get("slate_uid", ""))
+			if uid.is_empty() or starter_uids.has(uid):
+				errors.append("starter slate_uid 為空或重複：%s" % uid)
+			starter_uids[uid] = true
+			var shape := get_definition("blocks", str(slate.get("shape_id", "")))
+			var spell := get_definition("spells", str(slate.get("spell_id", "")))
+			if not shape.is_empty() and not spell.is_empty() and not pairing_rules.is_allowed(shape, spell):
+				errors.append("starter slate 配對不合法：%s + %s" % [shape.get("id", ""), spell.get("id", "")])
 	if int(config.get("mp_restore_per_node", -1)) < 0:
 		errors.append("run_config.mp_restore_per_node 不可為負數")
 	if str(config.get("runtime_seed_mode", "")) not in RunSeedPolicy.MODES:

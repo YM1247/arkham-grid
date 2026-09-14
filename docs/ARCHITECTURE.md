@@ -4,10 +4,10 @@
 
 - `ContentRegistry` 是唯一的 JSON 讀取入口。它負責 schema 版本、必要值域、唯一 ID、跨檔案引用、ID 查詢，以及建立 runtime `BlockData` / `BattleItem`。
 - `RunManager` 只協調 Run 流程、獎勵與 `RunState`，不解析 JSON，也不建立內容 Resource。
-- `RunState` 是可序列化的局內狀態邊界；v5 保存 HP／Sanity／MP、AP、盤面顏色、盤面效果格咒文、手牌形狀／方向／咒文／效果格、方塊池、咒文池、地圖進度、已選獎勵、Sanity 效果與 RNG state。`ContentRegistry.validate_run_state_references()` 在還原前阻擋失效內容 ID。
+- `RunState` 是可序列化的局內狀態邊界；v6 以 `slate_pool` 保存永久綁定的形狀、咒文與效果格，以 `pending_slate_rewards` 保存尚未選擇的候選，手牌只保存 `slate_uid` 與旋轉方向。
 - `SaveGameService` 是磁碟存檔邊界。它使用單一 Run 自動槽與版本 envelope，先嚴格驗證、寫入同目錄暫存檔，再輪替 last-known-good 備份；主檔損壞時可只讀回退，遷移失敗時不覆寫來源。服務可注入路徑以隔離測試。
 - `ProfileSaveService` 將 `SettingsState` 與共享 `MetaState` 分成兩份獨立版本檔案，沿用原子寫入與 last-known-good 備份；設定保存語言、視窗、音量與匿名回報偏好，Meta v3 保存共享貨幣、Run 統計、首次教學進度、最近 20 局結算摘要及職業／方塊／咒文解鎖。
-- `RunState` v5 將舊 v4 Row／Col 裝備遷移為咒文池，並為既有手牌補上咒文與效果格；v4 已保存的獎勵與 Tablet RNG state 會保留。
+- `RunState` v6 因核心組合語意已改變，不近似遷移 v5 進行中 Run；`SaveGameService` 先封存舊自動槽，再由 RunManager 建立新版新局。Profile／Meta 檔案不受影響。
 - `BattleStartInput` 是 Run 進入戰鬥的唯一資料包；`BattleResult` 透過 `battle_finished` 回傳結果。戰鬥控制器不決定下一個場景。
 - `EnemyFactory` 建立敵人實例並套用內容資料；`EnemyRosterPresenter` 建立與更新目前原型敵人 UI；`BattleManager` 保留回合與效果規則。
 - `EnemyIntentState`／`EnemyIntentExecutor`、`TargetResolver`、`BattleEffectContext` 與 `BattleOutcomeResolver` 分別承擔意圖、目標、效果輸入與結果判定；詳細時序見 `docs/COMBAT_SYSTEM.md`。
@@ -28,7 +28,7 @@ RunState -> BattleStartInput -> BattleManager -> BattleResult -> RunManager
    |               |                     |
    |               |                     +-> EnemyFactory / EnemyRosterPresenter
    |               +-> player / encounter / spell pool
-   +-> BoardModel / effect cells / hand / pools / progress
+   +-> BoardModel / effect cells / hand / slate pool / progress
 ```
 
 ## JSON 與 `.tres`

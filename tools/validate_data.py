@@ -301,6 +301,7 @@ def main():
     shop_ids = collect_ids(shops, "shops.json", errors)
     rest_ids = collect_ids(rests, "rests.json", errors)
     spell_by_id = {spell.get("id"): spell for spell in items}
+    block_by_id = {block.get("id"): block for block in blocks}
 
     validate_choice_definitions(events, "event", errors)
     validate_choice_definitions(shops, "shop", errors)
@@ -315,13 +316,16 @@ def main():
                 if not grant:
                     continue
                 grant_type = grant.get("type")
-                grant_id = grant.get("id")
-                if grant_type == "spell" and grant_id not in spell_ids:
-                    errors.append(f"{label} option grant 引用不存在咒文：{grant_id}")
-                elif grant_type == "block" and grant_id not in block_ids:
-                    errors.append(f"{label} option grant 引用不存在方塊：{grant_id}")
-                elif grant_type not in {"spell", "block"}:
+                if grant_type == "slate" and grant.get("spell_id") not in spell_ids:
+                    errors.append(f"{label} option slate grant 引用不存在咒文：{grant.get('spell_id')}")
+                elif grant_type == "slate" and grant.get("shape_id") not in block_ids:
+                    errors.append(f"{label} option slate grant 引用不存在方塊：{grant.get('shape_id')}")
+                elif grant_type != "slate":
                     errors.append(f"{label} option grant type 不合法：{grant_type}")
+                elif not isinstance(grant.get("slate_uid"), str) or not grant.get("slate_uid"):
+                    errors.append(f"{label} option slate grant 缺少 slate_uid")
+                elif grant.get("effect_cell") not in block_by_id.get(grant.get("shape_id"), {}).get("cells", []):
+                    errors.append(f"{label} option slate grant effect_cell 不在形狀內")
 
     if not isinstance(meta_progression.get("initial_shared_currency"), int) or meta_progression.get("initial_shared_currency", -1) < 0:
         errors.append("meta_progression.initial_shared_currency 必須是非負整數")
@@ -366,7 +370,7 @@ def main():
     if int(player.get("action_points", 0)) <= 0:
         errors.append("player.action_points 必須大於 0")
 
-    block_by_id = {block.get("id"): block for block in blocks}
+    category_by_id = {category.get("id"): category for category in spell_categories}
 
     for category in spell_categories:
         category_id = category.get("id")
@@ -409,6 +413,14 @@ def main():
             errors.append(f"spell {spell_id} 的 logic 不合法：{logic}")
         if category_id not in spell_category_ids or category_id not in SPELL_CATEGORIES:
             errors.append(f"spell {spell_id} 的 category_id 不合法：{category_id}")
+        for field in ("allowed_shape_ids", "blocked_shape_ids"):
+            overrides = spell.get(field, [])
+            if not isinstance(overrides, list):
+                errors.append(f"spell {spell_id}.{field} 必須是陣列")
+                continue
+            for shape_id in overrides:
+                if shape_id not in block_ids:
+                    errors.append(f"spell {spell_id}.{field} 引用不存在方塊：{shape_id}")
         if rarity not in RARITIES:
             errors.append(f"spell {spell_id} 的 rarity 不合法：{rarity}")
         if not isinstance(spell.get("tier"), int) or spell.get("tier", 0) <= 0:
@@ -712,6 +724,33 @@ def main():
         for spell_id in spell_pool:
             if spell_id not in spell_ids:
                 errors.append(f"run_config.spell_pool 引用不存在咒文：{spell_id}")
+    starter_slates = run_config.get("starter_slates")
+    if not isinstance(starter_slates, list) or not starter_slates:
+        errors.append("run_config.starter_slates 必須是非空陣列")
+    else:
+        starter_uids = set()
+        for slate in starter_slates:
+            if not isinstance(slate, dict):
+                errors.append("run_config.starter_slates 只能包含物件")
+                continue
+            uid = slate.get("slate_uid")
+            shape = block_by_id.get(slate.get("shape_id"))
+            spell = spell_by_id.get(slate.get("spell_id"))
+            effect_cell = slate.get("effect_cell")
+            if not isinstance(uid, str) or not uid or uid in starter_uids:
+                errors.append(f"starter slate_uid 為空或重複：{uid}")
+            starter_uids.add(uid)
+            if shape is None or spell is None:
+                errors.append(f"starter slate 引用不存在內容：{slate}")
+                continue
+            if effect_cell not in shape.get("cells", []):
+                errors.append(f"starter slate effect_cell 不在形狀內：{uid}")
+            strength = 1 if spell.get("balance_cost", 0) <= 9 else 2 if spell.get("balance_cost", 0) <= 13 else 3
+            allowed = spell.get("allowed_shape_ids", [])
+            blocked = spell.get("blocked_shape_ids", [])
+            pair_allowed = slate.get("shape_id") not in blocked and (slate.get("shape_id") in allowed if allowed else shape.get("complexity", 1) >= strength)
+            if not pair_allowed:
+                errors.append(f"starter slate 配對不合法：{slate.get('shape_id')} + {slate.get('spell_id')}")
     if not isinstance(run_config.get("mp_restore_per_node"), int) or run_config.get("mp_restore_per_node", -1) < 0:
         errors.append("run_config.mp_restore_per_node 必須是非負整數")
     if run_config.get("runtime_seed_mode") not in ("random", "fixed"):

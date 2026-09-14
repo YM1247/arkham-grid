@@ -4,6 +4,7 @@ extends RefCounted
 const SAVE_SCHEMA_VERSION := 1
 const DEFAULT_DIRECTORY := "user://saves"
 const RUN_FILE := "run_autosave.json"
+const PRE_SLATE_ARCHIVE_FILE := "run_autosave.pre_slate_v5.json"
 const BACKUP_SUFFIX := ".backup"
 const TEMP_SUFFIX := ".tmp"
 const CHECKPOINTS := ["manual", "legacy", "new_run", "node_entered", "node_completed", "run_finished", "migrated"]
@@ -43,10 +44,16 @@ func load_run() -> Dictionary:
 	var primary := _load_path(_run_path(), "primary")
 	if bool(primary.get("ok", false)):
 		return primary
+	if bool(primary.get("restart_required", false)):
+		last_error = str(primary.get("error", "舊 Run 需要重開。"))
+		return primary
 	var primary_error := str(primary.get("error", "主存檔無效。"))
 	var backup := _load_path(_backup_path(), "backup")
 	if bool(backup.get("ok", false)):
 		backup["recovered_from_error"] = primary_error
+		return backup
+	if bool(backup.get("restart_required", false)):
+		last_error = str(backup.get("error", "舊 Run 需要重開。"))
 		return backup
 	last_error = "%s；備份亦不可用：%s" % [primary_error, backup.get("error", "不存在")]
 	return {"ok": false, "error": last_error}
@@ -64,6 +71,21 @@ func has_run_save() -> bool:
 	return FileAccess.file_exists(_run_path()) or FileAccess.file_exists(_backup_path())
 
 
+func archive_incompatible_run_if_needed() -> Dictionary:
+	if not FileAccess.file_exists(_run_path()):
+		return {"archived": false}
+	var document := _read_document(_run_path())
+	if not bool(document.get("ok", false)):
+		return {"archived": false, "error": document.get("error", "")}
+	var version := _extract_run_version(document.get("data", {}))
+	if version <= 0 or version >= RunState.SCHEMA_VERSION:
+		return {"archived": false}
+	var archive_path := get_pre_slate_archive_path()
+	if not _archive_pre_slate_run(_run_path(), archive_path):
+		return {"archived": false, "error": last_error}
+	return {"archived": true, "version": version, "path": archive_path}
+
+
 func get_run_path() -> String:
 	return _run_path()
 
@@ -74,6 +96,10 @@ func get_backup_path() -> String:
 
 func get_temp_path() -> String:
 	return _temp_path()
+
+
+func get_pre_slate_archive_path() -> String:
+	return "%s/%s" % [directory, PRE_SLATE_ARCHIVE_FILE]
 
 
 func recover_primary_from_backup() -> bool:
@@ -117,7 +143,7 @@ func validate_run_state_payload(payload: Dictionary) -> Array[String]:
 		errors.append("player 必須是物件")
 	else:
 		_validate_player(player, errors)
-	for key in ["board_cells", "board_spell_ids", "hand_ids", "hand_state", "block_pool_ids", "spell_pool_ids", "selected_reward_ids", "battle_reports", "completed_node_ids", "available_node_ids", "sanity_effect_ids", "sanity_history"]:
+	for key in ["board_cells", "board_spell_ids", "hand_state", "slate_pool", "pending_slate_rewards", "selected_reward_ids", "battle_reports", "completed_node_ids", "available_node_ids", "sanity_effect_ids", "sanity_history"]:
 		if not payload.get(key) is Array:
 			errors.append("%s 必須是陣列" % key)
 	for key in ["map_data", "rng_state"]:
@@ -138,9 +164,6 @@ func validate_run_state_payload(payload: Dictionary) -> Array[String]:
 		var board_spells: Array = payload.get("board_spell_ids")
 		if not board_spells.is_empty() and board_spells.size() != 64:
 			errors.append("board_spell_ids 必須為空或正好 64 格")
-	_validate_string_array(payload, "hand_ids", errors)
-	_validate_string_array(payload, "block_pool_ids", errors)
-	_validate_string_array(payload, "spell_pool_ids", errors)
 	_validate_string_array(payload, "board_spell_ids", errors)
 	_validate_string_array(payload, "selected_reward_ids", errors)
 	_validate_string_array(payload, "completed_node_ids", errors)
@@ -167,27 +190,15 @@ func validate_run_state_payload(payload: Dictionary) -> Array[String]:
 				errors.append("rng_state.%s 必須是可解析的整數字串" % key)
 	if payload.get("hand_state") is Array:
 		for entry in payload.get("hand_state"):
-			if not entry is Dictionary or not entry.get("id") is String or not entry.get("spell_id") is String or not _is_integer_value(entry.get("rotation_steps")) or not entry.get("effect_cell") is Array:
-				errors.append("hand_state 項目必須包含字串 id、spell_id、整數 rotation_steps 與 effect_cell 陣列")
-				break
-			var effect_cell: Array = entry.get("effect_cell")
-			if effect_cell.size() != 2 or not _is_integer_value(effect_cell[0]) or not _is_integer_value(effect_cell[1]):
-				errors.append("hand_state.effect_cell 必須是兩個整數")
+			if not entry is Dictionary or not entry.get("slate_uid") is String or str(entry.get("slate_uid", "")).is_empty() or not _is_integer_value(entry.get("rotation_steps")):
+				errors.append("hand_state 項目必須包含非空 slate_uid 與整數 rotation_steps")
 				break
 			var rotation := int(entry.get("rotation_steps"))
 			if rotation < 0 or rotation > 3:
 				errors.append("hand_state.rotation_steps 必須介於 0 到 3")
 				break
-	if payload.get("hand_ids") is Array and payload.get("hand_state") is Array:
-		var hand_ids: Array = payload.get("hand_ids")
-		var hand_state: Array = payload.get("hand_state")
-		if hand_ids.size() != hand_state.size():
-			errors.append("hand_ids 與 hand_state 數量必須一致")
-		else:
-			for index in range(hand_ids.size()):
-				if hand_state[index] is Dictionary and str(hand_ids[index]) != str(hand_state[index].get("id", "")):
-					errors.append("hand_ids 與 hand_state 順序必須一致")
-					break
+	_validate_slate_array(payload, "slate_pool", errors)
+	_validate_slate_array(payload, "pending_slate_rewards", errors)
 	_validate_dictionary_array(payload, "battle_reports", errors)
 	_validate_dictionary_array(payload, "sanity_history", errors)
 	if _is_integer_value(payload.get("flow_state")) and player is Dictionary:
@@ -203,6 +214,15 @@ func _load_path(path: String, source: String) -> Dictionary:
 	var document_result := _read_document(path)
 	if not bool(document_result.get("ok", false)):
 		return document_result
+	var source_document: Dictionary = document_result.get("data", {})
+	var run_version := _extract_run_version(source_document)
+	if run_version > 0 and run_version < RunState.SCHEMA_VERSION:
+		var archived_path := ""
+		if source == "primary":
+			archived_path = get_pre_slate_archive_path()
+			if not _archive_pre_slate_run(path, archived_path):
+				return {"ok": false, "error": last_error, "restart_required": true}
+		return {"ok": false, "error": "舊 RunState v%d 已封存；永久綁定石板需要建立新局。" % run_version, "restart_required": true, "archived_path": archived_path}
 	var migration := _migrate_document(document_result.get("data", {}))
 	if not bool(migration.get("ok", false)):
 		return migration
@@ -220,6 +240,26 @@ func _load_path(path: String, source: String) -> Dictionary:
 		"checkpoint": str(migration.get("checkpoint", "legacy")),
 		"migrated": bool(migration.get("migrated", false)),
 	}
+
+
+func _extract_run_version(document: Dictionary) -> int:
+	var payload = document.get("run_state", document)
+	if not payload is Dictionary or not _is_integer_value(payload.get("schema_version")):
+		return -1
+	return int(payload.get("schema_version"))
+
+
+func _archive_pre_slate_run(source_path: String, archive_path: String) -> bool:
+	var absolute_source := ProjectSettings.globalize_path(source_path)
+	var absolute_archive := ProjectSettings.globalize_path(archive_path)
+	if FileAccess.file_exists(archive_path):
+		var remove_error := DirAccess.remove_absolute(absolute_archive)
+		if remove_error != OK:
+			return _fail("無法更新舊 Run 封存（錯誤 %d）。" % remove_error)
+	var archive_error := DirAccess.rename_absolute(absolute_source, absolute_archive)
+	if archive_error != OK:
+		return _fail("無法封存舊 Run（錯誤 %d）。" % archive_error)
+	return true
 
 
 func _migrate_document(document) -> Dictionary:
@@ -269,75 +309,11 @@ func _migrate_run_state(raw: Dictionary) -> Dictionary:
 	if not _is_integer_value(data.get("schema_version")):
 		return {"ok": false, "error": "RunState 缺少有效 schema_version"}
 	var version := int(data.get("schema_version"))
-	if version < 1 or version > RunState.SCHEMA_VERSION:
+	if version > RunState.SCHEMA_VERSION:
 		return {"ok": false, "error": "不支援的 RunState 版本：%d" % version}
-	var migrated := false
-	while version < RunState.SCHEMA_VERSION:
-		match version:
-			1:
-				if not data.get("hand_state") is Array:
-					var migrated_hand: Array[Dictionary] = []
-					for hand_id in data.get("hand_ids", []):
-						migrated_hand.append({"id": str(hand_id), "rotation_steps": 0})
-					data["hand_state"] = migrated_hand
-				data["item_inventory"] = data.get("item_inventory", {})
-				data["currency"] = data.get("currency", 0)
-				data["battle_reports"] = data.get("battle_reports", [])
-				data["flow_state"] = data.get("flow_state", 0)
-				data["current_node_id"] = data.get("current_node_id", "")
-				data["completed_node_ids"] = data.get("completed_node_ids", [])
-				data["available_node_ids"] = data.get("available_node_ids", [])
-				data["map_data"] = data.get("map_data", {})
-				version = 2
-			2:
-				if not data.get("hand_state") is Array:
-					var migrated_hand: Array[Dictionary] = []
-					for hand_id in data.get("hand_ids", []):
-						migrated_hand.append({"id": str(hand_id), "rotation_steps": 0})
-					data["hand_state"] = migrated_hand
-				data["sanity_effect_ids"] = data.get("sanity_effect_ids", [])
-				data["sanity_history"] = data.get("sanity_history", [])
-				version = 3
-			3:
-				var seed := int(data.get("seed", 0))
-				var reward_rng := RandomNumberGenerator.new()
-				reward_rng.seed = seed
-				var tablet_rng := RandomNumberGenerator.new()
-				tablet_rng.seed = seed ^ 0x41C64E6D
-				data["rng_state"] = {"reward": str(reward_rng.state), "tablet": str(tablet_rng.state)}
-				version = 4
-			4:
-				var player: Dictionary = data.get("player", {})
-				player["max_mp"] = 100
-				player["mp"] = 70
-				player["profession_id"] = str(player.get("profession_id", "investigator"))
-				data["player"] = player
-				var legacy_spells: Array = []
-				for spell_id in data.get("row_item_ids", []):
-					legacy_spells.append(str(spell_id))
-				for spell_id in data.get("col_item_ids", []):
-					legacy_spells.append(str(spell_id))
-				if legacy_spells.is_empty():
-					legacy_spells = ["pistol", "vest", "reinforced_coat", "dark_spike"]
-				data["spell_pool_ids"] = legacy_spells
-				data["board_spell_ids"] = []
-				for _index in range(64):
-					data["board_spell_ids"].append("")
-				var hand_index := 0
-				for entry in data.get("hand_state", []):
-					if entry is Dictionary:
-						entry["spell_id"] = str(legacy_spells[hand_index % legacy_spells.size()])
-						entry["effect_cell"] = [0, 0]
-						hand_index += 1
-				data.erase("row_item_ids")
-				data.erase("col_item_ids")
-				data.erase("item_inventory")
-				version = 5
-			_:
-				return {"ok": false, "error": "缺少 RunState %d 的遷移器" % version}
-		data["schema_version"] = version
-		migrated = true
-	return {"ok": true, "data": data, "migrated": migrated}
+	if version < RunState.SCHEMA_VERSION:
+		return {"ok": false, "error": "舊 RunState v%d 不轉換為永久綁定石板；請建立新局。" % version, "restart_required": true}
+	return {"ok": true, "data": data, "migrated": false}
 
 
 func _write_atomically(path: String, document: Dictionary) -> bool:
@@ -445,6 +421,27 @@ func _validate_dictionary_array(payload: Dictionary, key: String, errors: Array[
 		if not entry is Dictionary:
 			errors.append("%s 只能包含物件" % key)
 			return
+
+
+func _validate_slate_array(payload: Dictionary, key: String, errors: Array[String]) -> void:
+	var values = payload.get(key)
+	if not values is Array:
+		return
+	var uids := {}
+	for slate in values:
+		if not slate is Dictionary:
+			errors.append("%s 只能包含石板物件" % key)
+			return
+		for string_key in ["slate_uid", "shape_id", "spell_id"]:
+			if not slate.get(string_key) is String or str(slate.get(string_key, "")).is_empty():
+				errors.append("%s.%s 必須是非空字串" % [key, string_key])
+		var uid := str(slate.get("slate_uid", ""))
+		if uids.has(uid):
+			errors.append("%s slate_uid 不可重複：%s" % [key, uid])
+		uids[uid] = true
+		var effect_cell = slate.get("effect_cell")
+		if not effect_cell is Array or effect_cell.size() != 2 or not _is_integer_value(effect_cell[0]) or not _is_integer_value(effect_cell[1]):
+			errors.append("%s.effect_cell 必須是兩個整數" % key)
 
 
 func _is_integer_value(value) -> bool:

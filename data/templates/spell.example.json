@@ -3,6 +3,7 @@
   "entries": [{
       "id": "spell_example",
       "icon_text": "⚔",
+    "category_id": "single_attack",
     "name": "範例咒文",
     "logic": "attack",
     "description": "效果格被消除時支付 MP 發動。",

@@ -9,6 +9,8 @@
 Phase 13 成長欄位：
 
 - 咒文：`rarity`、`tier`、`balance_cost`、`mp_cost`；可升級項目另填 `upgrade_to` 與 `combine_count`，升級結果以 `upgrade_from` 反向引用來源。
+- 咒文分類：`category_id` 引用 `spell_categories.json` 的七類符文；`allowed_shape_ids`／`blocked_shape_ids` 可覆寫石板配對公式。
+- 石板：`slate_uid` 永久綁定 `shape_id`、`spell_id` 與 `effect_cell`；起始石板由 `run_config.starter_slates` 指定。
 - 獎勵：`weight`、`min_reward_tier`，以及選用的 `min_battles_won`、`requires_rewards`。
 - 關卡難度：`run_config.json.difficulty_model` 保存公式係數、reward tier 門檻，以及依強度／節點深度計算的戰鬥時限與逾時 Sanity 壓力。
 - 棋盤成長：`run_config.json.board_growth_rules` 保存智慧手牌方向保證數與程序友善盤面參數。
@@ -21,9 +23,9 @@ Phase 13 成長欄位：
 - `enemies.json`：敵人數值、基礎意圖循環及依 HP／回合切換的條件式意圖。
 - `intents.json`：敵人意圖顯示名稱、action 與數值。
 - `encounters.json`：每場戰鬥會出現的敵人組合。
-- `blocks.json`：方塊形狀、顏色、格子座標與抽取權重；不綁定咒文。
-- `spells.json`：所有咒文的盤面圖標、數值、MP 成本、範圍與效果資料。
-- `run_config.json`：開局方塊池、咒文池、每節點 MP 回復、棋盤規則、首次教學文字、runtime seed 模式、編輯器啟動策略與歷史局數上限。
+- `blocks.json`：方塊形狀、顏色、格子座標、複雜度與抽取權重。
+- `spells.json`／`spell_categories.json`：咒文數值、MP、範圍、效果，以及七類共用符文。
+- `run_config.json`：開局完整石板、每節點 MP 回復、棋盤規則、首次教學文字、runtime seed 模式、編輯器啟動策略與歷史局數上限。
 - `meta_progression.json`：共享 Meta 貨幣，以及職業、方塊、咒文的初始解鎖白名單。
 - `rewards.json`：戰鬥勝利後三選一獎勵池。
 - `events.json`：事件標題、場景描述、多個選項，以及各選項的資源代價與結果。
@@ -54,7 +56,7 @@ python3 tools/validate_data.py
 
 1. 在 `blocks.json` 新增一筆唯一 `id`。
 2. `cells` 使用 `[x, y]` 座標，以 `[0, 0]` 為方塊原點。
-3. 若要讓它出現在開局方塊池，將 `id` 加入 `run_config.json` 的 `block_pool`。
+3. 設定 1–4 的 `complexity`；若要作為開局石板，將完整組合加入 `run_config.json.starter_slates`。
 4. 普通方塊不放入 `rewards.json`；方塊獎勵只保留給特殊形狀。
 5. 若要作為方塊獎勵，必須設定 `special: true`；每種特殊形狀只解鎖一次。
 6. `weight` 影響抽牌權重，`smart_score_bonus` 影響智慧候選排名。特殊形狀應使用低值；同手在池內類型足夠時不重複 ID。

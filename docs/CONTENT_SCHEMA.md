@@ -4,7 +4,7 @@
 
 正式資料位於 `data/*.json`，根節點必須是物件並包含 `schema_version`。目前 runtime 只接受 schema v1；`ContentRegistry` 與 `tools/validate_data.py` 都會拒絕版本不符、值域錯誤或引用失效的內容。
 
-目前已註冊的內容清單是方塊、道具、敵人意圖、敵人、遭遇、獎勵與事件。可複製範例位於 `data/templates/`。玩家、Run、地圖與 Sanity 是系統設定文件，不把整份文件當成可重複內容項目。
+目前已註冊的內容清單是方塊、咒文分類、咒文、敵人意圖、敵人、遭遇、獎勵、事件、商店與休息。可複製範例位於 `data/templates/`。玩家、Run、地圖與 Sanity 是系統設定文件，不把整份文件當成可重複內容項目。
 
 事件、商店與休息依 `CONTENT-006`／`CONTENT-007` 分別使用 `events.json`、`shops.json`、`rests.json`，並共用選項 schema：每筆內容至少兩個選項，選項以 `costs`／`results` 定義 HP、Sanity、MP、金錢的非負整數變化。
 
@@ -23,7 +23,7 @@
 1. 新增欄位優先採可選欄位與明確預設值，並同步更新兩套驗證器、runtime builder、範本與資料說明。
 2. 欄位要廢棄時，先停止新內容使用並在文件標為 deprecated；至少保留一個 schema 遷移週期的讀取相容。
 3. 移除欄位、改變既有欄位語意或型別、改變 ID 指向，皆屬 breaking change，必須提高 `schema_version`。
-4. `item_type` 是目前已知的相容欄位；正式 slot 規則以 `axis_type` 的 `physical`／`magic` 為準。在實作 schema 遷移前仍保留並驗證 `item_type`。
+4. `icon_text` 是咒文舊版相容欄位；正式辨識以 `category_id` 引用的七類符文為準。
 5. 不允許 loader 對未知 enum、intent action、效果行為或失效引用靜默 fallback；資料錯誤應在進入遊戲流程前失敗。
 
 ## Schema 升版流程
@@ -39,4 +39,4 @@
 
 `RunState.schema_version` 和內容文件版本是不同責任：前者描述存檔結構，後者描述內容資料。還原順序應是「解析存檔 → 結構遷移 → 內容 ID 遷移 → `validate_run_state_references()` → 套用 runtime」。
 
-目前只有記憶體快照。`SAVE-004` 已決定正式版本採自動遷移並保留失敗備份；遷移器尚未接線前維持 fail-fast，任何方塊、道具、獎勵、事件、Sanity 效果或地圖引用失效都拒絕還原，不自動替換或丟棄。
+RunState v6 使用完整 `slate_pool` 與 `pending_slate_rewards`。由於 v5 的獨立形狀／咒文池無法無損推導永久配對，v5 進行中 Run 不做近似轉換；服務會保留 `run_autosave.pre_slate_v5.json` 後建立新局。任何石板、咒文、事件、Sanity 效果或地圖引用失效仍拒絕還原，不自動替換或丟棄。

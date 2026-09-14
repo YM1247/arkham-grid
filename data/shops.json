@@ -33,10 +33,10 @@
         {
           "id": "buy_ward_script",
           "label": "購買星界屏障抄本",
-          "description": "將一份非治療型防護咒文加入本局咒文池。",
+          "description": "取得固定的 T 型石板與星界屏障咒文，效果格位於石板中心。",
           "costs": {"currency": 25},
           "results": {},
-          "grant": {"type": "spell", "id": "heal_light"},
+          "grant": {"type": "slate", "slate_uid": "shop_ward_script", "shape_id": "shape_T", "spell_id": "heal_light", "effect_cell": [0, 0]},
           "result_text": "商人燒去抄本上的署名，只留下仍可運作的星界刻痕。"
         },
         {

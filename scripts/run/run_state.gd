@@ -1,7 +1,7 @@
 class_name RunState
 extends Resource
 
-const SCHEMA_VERSION := 5
+const SCHEMA_VERSION := 6
 
 @export var seed: int = 0
 @export var player_name: String = "調查員"
@@ -15,10 +15,9 @@ const SCHEMA_VERSION := 5
 @export var action_points: int = 5
 @export var board_cells: Array[String] = []
 @export var board_spell_ids: Array[String] = []
-@export var hand_ids: Array[String] = []
 @export var hand_state: Array[Dictionary] = []
-@export var block_pool_ids: Array[String] = []
-@export var spell_pool_ids: Array[String] = []
+@export var slate_pool: Array[Dictionary] = []
+@export var pending_slate_rewards: Array[Dictionary] = []
 @export var encounter_index: int = 0
 @export var battles_won: int = 0
 @export var selected_reward_ids: Array[String] = []
@@ -42,10 +41,9 @@ func to_dict() -> Dictionary:
 		"player": {"name": player_name, "profession_id": profession_id, "hp": hp, "max_hp": max_hp, "sanity": sanity, "max_sanity": max_sanity, "mp": mp, "max_mp": max_mp, "action_points": action_points},
 		"board_cells": board_cells.duplicate(),
 		"board_spell_ids": board_spell_ids.duplicate(),
-		"hand_ids": hand_ids.duplicate(),
 		"hand_state": hand_state.duplicate(true),
-		"block_pool_ids": block_pool_ids.duplicate(),
-		"spell_pool_ids": spell_pool_ids.duplicate(),
+		"slate_pool": slate_pool.duplicate(true),
+		"pending_slate_rewards": pending_slate_rewards.duplicate(true),
 		"encounter_index": encounter_index,
 		"battles_won": battles_won,
 		"selected_reward_ids": selected_reward_ids.duplicate(),
@@ -80,10 +78,9 @@ static func from_dict(data: Dictionary) -> RunState:
 	state.action_points = int(player.get("action_points", 5))
 	state.board_cells = _strings(data.get("board_cells", []))
 	state.board_spell_ids = _strings(data.get("board_spell_ids", []))
-	state.hand_ids = _strings(data.get("hand_ids", []))
 	state.hand_state = _dictionaries(data.get("hand_state", []))
-	state.block_pool_ids = _strings(data.get("block_pool_ids", []))
-	state.spell_pool_ids = _strings(data.get("spell_pool_ids", []))
+	state.slate_pool = _dictionaries(data.get("slate_pool", []))
+	state.pending_slate_rewards = _dictionaries(data.get("pending_slate_rewards", []))
 	state.encounter_index = int(data.get("encounter_index", 0))
 	state.battles_won = int(data.get("battles_won", 0))
 	state.selected_reward_ids = _strings(data.get("selected_reward_ids", []))
