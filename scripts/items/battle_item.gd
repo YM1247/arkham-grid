@@ -1,10 +1,16 @@
 class_name BattleItem extends Resource
 
+const CATEGORY_ORDER := ["single_attack", "spread_attack", "all_attack", "defense", "empower", "poison", "weaken"]
+
 @export_group("基本資料")
 @export var content_id: String = ""
 @export var spell_name: String = "未命名咒文"
 @export var icon: Texture2D
 @export var icon_text: String = "✦"
+@export var category_id: String = "single_attack"
+@export var category_name: String = "單體攻擊"
+@export var category_glyph: String = "✦"
+@export var category_color: Color = Color("ff9b54")
 @export var logic: String = ""
 @export var rarity: String = "common"
 @export var tier: int = 1
@@ -49,6 +55,8 @@ func get_effect_tooltip(header: String = "") -> String:
 
 
 func get_icon_color() -> Color:
+	if category_color.a > 0.0:
+		return category_color
 	if "ailment" in tags:
 		return Color(0.82, 0.48, 1.0)
 	if "ward" in tags:
@@ -58,6 +66,14 @@ func get_icon_color() -> Color:
 	if logic == "attack" or logic == "conditional_attack":
 		return Color(1.0, 0.68, 0.3)
 	return Color(0.95, 0.9, 0.35)
+
+
+func get_category_label() -> String:
+	return category_name if not category_name.is_empty() else category_id
+
+
+func get_short_summary() -> String:
+	return description if description.length() <= 28 else description.left(27) + "…"
 
 func _get_rarity_name(value: String) -> String:
 	match value:

@@ -2,77 +2,77 @@
   "schema_version": 1,
   "entries": [
     {
-      "id": "pistol", "name": "秘銀飛矢", "icon_text": "⚔", "logic": "attack",
+      "id": "pistol", "name": "秘銀飛矢", "icon_text": "⚔", "category_id": "single_attack", "logic": "attack",
       "description": "凝聚秘銀碎光，穩定傷害鎖定目標。", "damage": 10, "hit_count": 1,
       "effect_scope": "single", "mp_cost": 3, "tags": ["direct"],
       "rarity": "common", "tier": 1, "upgrade_to": "pistol_engraved", "combine_count": 2,
       "trigger_hint": "效果格消除時，支付 3 MP，對鎖定目標造成 10 點傷害。", "balance_cost": 10
     },
     {
-      "id": "shotgun", "name": "裂界波", "icon_text": "↔", "logic": "attack",
+      "id": "shotgun", "name": "裂界波", "icon_text": "↔", "category_id": "spread_attack", "logic": "attack",
       "description": "撕開短暫裂隙，傷害鎖定目標與相鄰敵人。", "damage": 7, "hit_count": 1,
       "effect_scope": "spread", "mp_cost": 4, "tags": ["area"],
       "rarity": "common", "tier": 1,
       "trigger_hint": "效果格消除時，支付 4 MP，對鎖定目標與左右各一名敵人造成 7 點傷害。", "balance_cost": 12
     },
     {
-      "id": "burst_pistol", "name": "迴響咒", "icon_text": "≋", "logic": "conditional_attack",
+      "id": "burst_pistol", "name": "迴響咒", "icon_text": "≋", "category_id": "single_attack", "logic": "conditional_attack",
       "description": "本輪先前已有咒文發動時，迴響會增幅傷害。", "damage": 6, "bonus_damage": 13, "hit_count": 1,
       "effect_scope": "single", "mp_cost": 4, "tags": ["spell_chain"],
       "rarity": "common", "tier": 1,
       "trigger_hint": "支付 4 MP 造成 6 傷害；本輪已有其他咒文發動時改為 13。", "balance_cost": 11
     },
     {
-      "id": "micro_explosive", "name": "虛空震爆", "icon_text": "◎", "logic": "attack",
+      "id": "micro_explosive", "name": "虛空震爆", "icon_text": "◎", "category_id": "all_attack", "logic": "attack",
       "description": "讓虛空震波掃過所有敵人。", "damage": 5, "hit_count": 1,
       "effect_scope": "all", "mp_cost": 6, "tags": ["area"],
       "rarity": "common", "tier": 1,
       "trigger_hint": "效果格消除時，支付 6 MP，對所有敵人造成 5 點傷害。", "balance_cost": 13
     },
     {
-      "id": "sniper_rifle", "name": "深淵凝視", "icon_text": "⌖", "logic": "attack",
+      "id": "sniper_rifle", "name": "深淵凝視", "icon_text": "⌖", "category_id": "single_attack", "logic": "attack",
       "description": "以精神鎖定弱點，造成高額傷害，但施術者陷入虛弱。", "damage": 14, "hit_count": 1,
       "effect_scope": "single", "mp_cost": 6, "status_effects_self": [{"id": "weak", "amount": 2}], "tags": ["risk"],
       "rarity": "common", "tier": 1,
       "trigger_hint": "支付 6 MP 造成 14 點傷害，並獲得虛弱 2。", "balance_cost": 13
     },
     {
-      "id": "vest", "name": "守護刻印", "icon_text": "◆", "logic": "support",
+      "id": "vest", "name": "守護刻印", "icon_text": "◆", "category_id": "defense", "logic": "support",
       "description": "刻印化為短暫護幕。", "armor_gain": 12, "heal_amount": 0,
       "effect_scope": "self", "mp_cost": 3, "tags": ["ward"],
       "rarity": "common", "tier": 1, "upgrade_to": "vest_reinforced", "combine_count": 2,
       "trigger_hint": "效果格消除時，支付 3 MP，獲得 12 點護甲。", "balance_cost": 12
     },
     {
-      "id": "buckler", "name": "鐵壁符文", "icon_text": "⬡", "logic": "support",
+      "id": "buckler", "name": "鐵壁符文", "icon_text": "⬡", "category_id": "defense", "logic": "support",
       "description": "生成護甲，並強化本輪後續的護甲咒文。", "armor_gain": 8, "heal_amount": 0,
       "effect_scope": "self", "mp_cost": 4, "status_effects_self": [{"id": "hard", "amount": 3}], "tags": ["ward"],
       "rarity": "common", "tier": 1,
       "trigger_hint": "支付 4 MP，獲得 8 點護甲與堅硬 3。", "balance_cost": 12
     },
     {
-      "id": "reinforced_coat", "name": "石膚術", "icon_text": "▰", "logic": "support",
+      "id": "reinforced_coat", "name": "石膚術", "icon_text": "▰", "category_id": "defense", "logic": "support",
       "description": "使皮膚短暫堅如岩石。", "armor_gain": 10, "heal_amount": 0,
       "effect_scope": "self", "mp_cost": 2, "tags": ["ward"],
       "rarity": "common", "tier": 1,
       "trigger_hint": "效果格消除時，支付 2 MP，獲得 10 點護甲。", "balance_cost": 10
     },
     {
-      "id": "guard_bracer", "name": "微光護符", "icon_text": "◇", "logic": "support",
+      "id": "guard_bracer", "name": "微光護符", "icon_text": "◇", "category_id": "defense", "logic": "support",
       "description": "薄弱護光會讓下一道防護更穩固。", "armor_gain": 5, "heal_amount": 0,
       "effect_scope": "self", "mp_cost": 2, "status_effects_self": [{"id": "hard", "amount": 2}], "tags": ["ward"],
       "rarity": "common", "tier": 1,
       "trigger_hint": "支付 2 MP，獲得 5 點護甲與堅硬 2。", "balance_cost": 8
     },
     {
-      "id": "heal_light", "name": "星界屏障", "icon_text": "◈", "logic": "support",
+      "id": "heal_light", "name": "星界屏障", "icon_text": "◈", "category_id": "defense", "logic": "support",
       "description": "星光凝成一次性的厚重屏障。", "armor_gain": 14, "heal_amount": 0,
       "effect_scope": "self", "mp_cost": 4, "tags": ["ward"],
       "rarity": "common", "tier": 1,
       "trigger_hint": "效果格消除時，支付 4 MP，獲得 14 點護甲。", "balance_cost": 13
     },
     {
-      "id": "offense_from_guard", "name": "狂戰祕印", "icon_text": "▲", "logic": "support",
+      "id": "offense_from_guard", "name": "狂戰祕印", "icon_text": "▲", "category_id": "empower", "logic": "support",
       "description": "以防禦穩定性換取短暫力量。", "armor_gain": 0, "heal_amount": 0,
       "effect_scope": "self", "mp_cost": 4,
       "status_effects_self": [{"id": "strength", "amount": 4}, {"id": "fragile", "amount": 4}], "tags": ["risk"],
@@ -80,14 +80,14 @@
       "trigger_hint": "支付 4 MP，獲得力量 4、脆弱 4。", "balance_cost": 11
     },
     {
-      "id": "wish", "name": "預兆低語", "icon_text": "✧", "logic": "support",
+      "id": "wish", "name": "預兆低語", "icon_text": "✧", "category_id": "defense", "logic": "support",
       "description": "低語揭示敵人動作的片段，使身體提前做好準備。", "armor_gain": 4, "heal_amount": 0,
       "effect_scope": "self", "mp_cost": 4, "status_effects_self": [{"id": "hard", "amount": 2}], "tags": ["ward"],
       "rarity": "common", "tier": 1,
       "trigger_hint": "支付 4 MP，獲得 4 點護甲與堅硬 2。", "balance_cost": 9
     },
     {
-      "id": "stout_body", "name": "巨靈附體", "icon_text": "⬟", "logic": "support",
+      "id": "stout_body", "name": "巨靈附體", "icon_text": "⬟", "category_id": "empower", "logic": "support",
       "description": "短暫借用異界巨靈的力量與韌性。", "armor_gain": 0, "heal_amount": 0,
       "effect_scope": "self", "mp_cost": 5,
       "status_effects_self": [{"id": "strength", "amount": 3}, {"id": "hard", "amount": 3}], "tags": ["boon"],
@@ -95,49 +95,49 @@
       "trigger_hint": "支付 5 MP，獲得力量 3、堅硬 3。", "balance_cost": 12
     },
     {
-      "id": "dark_spike", "name": "暗影尖刺", "icon_text": "†", "logic": "attack",
+      "id": "dark_spike", "name": "暗影尖刺", "icon_text": "†", "category_id": "single_attack", "logic": "attack",
       "description": "從目標影子中刺出高密度暗能。", "damage": 17, "hit_count": 1,
       "effect_scope": "single", "mp_cost": 6, "tags": ["direct"],
       "rarity": "common", "tier": 1, "upgrade_to": "dark_spike_deep", "combine_count": 2,
       "trigger_hint": "效果格消除時，支付 6 MP，造成 17 點傷害。", "balance_cost": 17
     },
     {
-      "id": "poison_spell", "name": "腐毒烙印", "icon_text": "☠", "logic": "status",
+      "id": "poison_spell", "name": "腐毒烙印", "icon_text": "☠", "category_id": "poison", "logic": "status",
       "description": "在目標身上留下持續腐蝕的烙印。", "effect_scope": "single", "mp_cost": 4,
       "status_effects_target": [{"id": "poison", "amount": 4}], "tags": ["ailment"],
       "rarity": "common", "tier": 1,
       "trigger_hint": "支付 4 MP，對鎖定目標施加中毒 4。", "balance_cost": 9
     },
     {
-      "id": "degrade", "name": "衰敗低語", "icon_text": "▼", "logic": "status",
+      "id": "degrade", "name": "衰敗低語", "icon_text": "▼", "category_id": "weaken", "logic": "status",
       "description": "侵蝕目標的攻擊能力。", "effect_scope": "single", "mp_cost": 3,
       "status_effects_target": [{"id": "weak", "amount": 4}], "tags": ["ailment"],
       "rarity": "common", "tier": 1,
       "trigger_hint": "支付 3 MP，對鎖定目標施加虛弱 4。", "balance_cost": 9
     },
     {
-      "id": "poison_cloud", "name": "瘴霧儀式", "icon_text": "☣", "logic": "status",
+      "id": "poison_cloud", "name": "瘴霧儀式", "icon_text": "☣", "category_id": "poison", "logic": "status",
       "description": "讓腐敗瘴霧覆蓋所有敵人。", "effect_scope": "all", "mp_cost": 6,
       "status_effects_target": [{"id": "poison", "amount": 2}], "tags": ["ailment", "area"],
       "rarity": "common", "tier": 1,
       "trigger_hint": "支付 6 MP，對所有敵人施加中毒 2。", "balance_cost": 13
     },
     {
-      "id": "pistol_engraved", "name": "秘銀星雨", "icon_text": "✹", "logic": "attack",
+      "id": "pistol_engraved", "name": "秘銀星雨", "icon_text": "✹", "category_id": "single_attack", "logic": "attack",
       "description": "秘銀飛矢的強化咒式。", "damage": 15, "hit_count": 1,
       "effect_scope": "single", "mp_cost": 4, "tags": ["upgrade", "direct"],
       "rarity": "uncommon", "tier": 2, "upgrade_from": "pistol",
       "trigger_hint": "支付 4 MP，對鎖定目標造成 15 點傷害。", "balance_cost": 15
     },
     {
-      "id": "vest_reinforced", "name": "永固刻印", "icon_text": "⬢", "logic": "support",
+      "id": "vest_reinforced", "name": "永固刻印", "icon_text": "⬢", "category_id": "defense", "logic": "support",
       "description": "守護刻印的強化咒式。", "armor_gain": 18, "heal_amount": 0,
       "effect_scope": "self", "mp_cost": 5, "tags": ["upgrade", "ward"],
       "rarity": "uncommon", "tier": 2, "upgrade_from": "vest",
       "trigger_hint": "支付 5 MP，獲得 18 點護甲。", "balance_cost": 18
     },
     {
-      "id": "dark_spike_deep", "name": "深淵穿刺", "icon_text": "‡", "logic": "attack",
+      "id": "dark_spike_deep", "name": "深淵穿刺", "icon_text": "‡", "category_id": "single_attack", "logic": "attack",
       "description": "暗影尖刺的強化咒式。", "damage": 24, "hit_count": 1,
       "effect_scope": "single", "mp_cost": 7, "tags": ["upgrade", "direct"],
       "rarity": "uncommon", "tier": 2, "upgrade_from": "dark_spike",

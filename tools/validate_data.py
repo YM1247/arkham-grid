@@ -12,6 +12,7 @@ ITEM_LOGICS = {"attack", "conditional_attack", "support", "status"}
 RARITIES = {"common", "uncommon", "rare"}
 RARITY_RANK = {"common": 1, "uncommon": 2, "rare": 3}
 SCOPES = {"single", "spread", "all", "self"}
+SPELL_CATEGORIES = {"single_attack", "spread_attack", "all_attack", "defense", "empower", "poison", "weaken"}
 STATUSES = {"strength", "weak", "hard", "fragile", "regen", "poison"}
 INTENTS = {"attack", "heavy_attack", "guard", "sanity_attack", "debuff_player", "buff_self", "watch", "brace"}
 INTENT_ACTIONS = {"damage", "armor", "sanity_damage", "status_player", "status_self", "idle"}
@@ -215,6 +216,7 @@ def main():
 
     blocks = load_json("blocks.json").get("entries")
     items = load_json("spells.json").get("entries")
+    spell_categories = load_json("spell_categories.json").get("entries")
     enemies = load_json("enemies.json").get("entries")
     intents = load_json("intents.json").get("entries")
     encounters = load_json("encounters.json").get("entries")
@@ -258,6 +260,7 @@ def main():
     for name, entries in {
         "blocks.json": blocks,
         "spells.json": items,
+        "spell_categories.json": spell_categories,
         "enemies.json": enemies,
         "intents.json": intents,
         "encounters.json": encounters,
@@ -289,6 +292,7 @@ def main():
 
     block_ids = collect_ids(blocks, "blocks.json", errors)
     spell_ids = collect_ids(items, "spells.json", errors)
+    spell_category_ids = collect_ids(spell_categories, "spell_categories.json", errors)
     enemy_ids = collect_ids(enemies, "enemies.json", errors)
     intent_ids = collect_ids(intents, "intents.json", errors)
     encounter_ids = collect_ids(encounters, "encounters.json", errors)
@@ -364,6 +368,18 @@ def main():
 
     block_by_id = {block.get("id"): block for block in blocks}
 
+    for category in spell_categories:
+        category_id = category.get("id")
+        if category_id not in SPELL_CATEGORIES:
+            errors.append(f"spell category id 不合法：{category_id}")
+        if not isinstance(category.get("name"), str) or not category.get("name"):
+            errors.append(f"spell category {category_id} name 必須是非空字串")
+        if not isinstance(category.get("glyph"), str) or not category.get("glyph"):
+            errors.append(f"spell category {category_id} glyph 必須是非空字串")
+        color = category.get("color")
+        if not isinstance(color, str) or len(color) not in (7, 9) or not color.startswith("#"):
+            errors.append(f"spell category {category_id} color 必須是色碼")
+
     for block in blocks:
         block_id = block.get("id")
         cells = block.get("cells")
@@ -377,6 +393,8 @@ def main():
             errors.append(f"block {block_id} weight 必須大於 0")
         if not isinstance(block.get("tags"), list):
             errors.append(f"block {block_id} tags 必須是陣列")
+        if not isinstance(block.get("complexity"), int) or not 1 <= block.get("complexity", 0) <= 4:
+            errors.append(f"block {block_id} complexity 必須介於 1–4")
 
     for spell in items:
         spell_id = spell.get("id")
@@ -384,10 +402,13 @@ def main():
         rarity = spell.get("rarity")
         scope = spell.get("effect_scope", "single")
         icon_text = spell.get("icon_text")
+        category_id = spell.get("category_id")
         if not isinstance(icon_text, str) or not 1 <= len(icon_text) <= 2:
             errors.append(f"spell {spell_id} icon_text 必須是 1–2 個可見字元")
         if logic not in ITEM_LOGICS:
             errors.append(f"spell {spell_id} 的 logic 不合法：{logic}")
+        if category_id not in spell_category_ids or category_id not in SPELL_CATEGORIES:
+            errors.append(f"spell {spell_id} 的 category_id 不合法：{category_id}")
         if rarity not in RARITIES:
             errors.append(f"spell {spell_id} 的 rarity 不合法：{rarity}")
         if not isinstance(spell.get("tier"), int) or spell.get("tier", 0) <= 0:

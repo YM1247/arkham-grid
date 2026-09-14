@@ -195,7 +195,7 @@ layout_mode = 2
 [node name="SpellLabel" type="Label" parent="UILayer/ScreenMargin/Screen/Layout/InfoSection/LegendRow"]
 layout_mode = 2
 size_flags_horizontal = 3
-text = "✦ 咒文附著格"
+text = "大型符文＝咒文效果格"
 
 [node name="SpellLegendButton" type="Button" parent="UILayer/ScreenMargin/Screen/Layout/InfoSection/LegendRow"]
 layout_mode = 2

@@ -31,7 +31,8 @@ func render(map_data: Dictionary, available_ids: Array[String], completed_ids: A
 	for node in _map_data.get("nodes", []):
 		max_floor = maxi(max_floor, int(node.get("floor", 0)))
 		max_column = maxi(max_column, int(node.get("column", 0)))
-	custom_minimum_size = Vector2(1420, (max_floor + 1) * FLOOR_GAP + 50)
+	var available_width := get_viewport_rect().size.x - 220.0
+	custom_minimum_size = Vector2(maxf(minf(1420.0, available_width), 760.0), (max_floor + 1) * FLOOR_GAP + 50)
 	_node_positions.clear()
 	for node in _map_data.get("nodes", []):
 		var node_id := str(node.get("id", ""))

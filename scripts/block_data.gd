@@ -12,6 +12,7 @@ class_name BlockData extends Resource
 @export var weight: float = 1.0
 @export var tags: Array[String] = []
 @export var is_special: bool = false
+@export_range(1, 4) var complexity: int = 1
 @export var smart_score_bonus: int = 0
 @export var spell: BattleItem
 @export var effect_cell: Vector2i = Vector2i(0, 0)

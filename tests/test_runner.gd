@@ -72,11 +72,11 @@ func _test_content_registry() -> void:
 	var first_runtime_seed: int = seed_policy.choose_seed({"runtime_seed_mode": "random"}, 0, seed_source)
 	var second_runtime_seed: int = seed_policy.choose_seed({"runtime_seed_mode": "random"}, first_runtime_seed, seed_source)
 	_expect(first_runtime_seed > 0 and second_runtime_seed > 0 and first_runtime_seed != second_runtime_seed, "一般 runtime 每次新 Run 應取得不同的正整數 seed")
-	_expect(registry.get_spell("pistol").icon_text == "⚔" and registry.get_spell("poison_spell").icon_text == "☠", "不同咒文效果應提供可直接辨識的盤面圖標")
+	_expect(registry.get_spell("pistol").category_id == "single_attack" and registry.get_spell("poison_spell").category_id == "poison", "咒文應使用資料化的七類符文")
 	var icon_cell := GridCell.new()
 	icon_cell.init(0, 0, null)
 	icon_cell.set_spell(registry.get_spell("poison_spell"))
-	_expect(icon_cell.spell_marker.text == "☠", "盤面效果格應直接顯示咒文圖標，不需依賴 hover")
+	_expect(icon_cell.spell_marker.text == registry.get_spell("poison_spell").category_glyph and icon_cell.spell_marker.custom_minimum_size.x >= 46.0, "盤面效果格應直接顯示清楚的大型分類符文，不需依賴 hover")
 	icon_cell.free()
 	for spell in registry.get_entries("spells"):
 		var has_regen: bool = spell.get("status_effects_self", []).any(func(effect): return str(effect.get("id", "")) == "regen")
@@ -872,7 +872,15 @@ func _test_main_scene_smoke() -> void:
 	_expect(instance.get_node_or_null("BattleManager") != null, "核心迴圈應建立 BattleManager")
 	var manager = instance.get_node("BattleManager")
 	var run_manager = instance.get_node("RunManager")
-	var graph = instance.get_node_or_null("UILayer/MapContainer/Margin/Panel/VBox/Scroll/Graph")
+	var tablet_ui = instance.get_node("UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardVBox/TabletSection")
+	var grid := tablet_ui.get_node("Body/GridCells") as Control
+	var stable_board_position := grid.global_position
+	for held in tablet_ui._get_hand_blocks():
+		held.queue_free()
+		await process_frame
+		_expect(grid.global_position.distance_to(stable_board_position) <= 0.5, "手牌由三張降至零張時棋盤位置不得位移")
+	tablet_ui.refill_hand()
+	var graph = instance.get_node_or_null("UILayer/MapContainer/Margin/Panel/VBox/Scroll/Center/Graph")
 	_expect(graph != null and graph.get_edge_count() > 0, "地圖畫布應建立可見的節點連線資料")
 	_expect(FileAccess.file_exists(run_manager.save_service.get_run_path()), "新 Run 建立後應寫入單一自動存檔槽")
 	var player_hud := instance.get_node_or_null("UILayer/ScreenMargin/Screen/Layout/InfoSection/PlayerHUD") as PlayerHUD

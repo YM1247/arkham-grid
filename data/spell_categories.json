@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "entries": [
+    {"id": "single_attack", "name": "單體攻擊", "glyph": "✦", "color": "#ff9b54", "description": "集中打擊一名敵人"},
+    {"id": "spread_attack", "name": "擴散攻擊", "glyph": "⋔", "color": "#ff6f61", "description": "攻擊目標與鄰近敵人"},
+    {"id": "all_attack", "name": "全體攻擊", "glyph": "✺", "color": "#f0445e", "description": "攻擊所有敵人"},
+    {"id": "defense", "name": "防禦", "glyph": "⬡", "color": "#59c3ff", "description": "獲得護甲或防禦狀態"},
+    {"id": "empower", "name": "強化", "glyph": "▲", "color": "#ffd166", "description": "強化自身能力"},
+    {"id": "poison", "name": "中毒", "glyph": "☣", "color": "#9ce15f", "description": "施加持續腐蝕"},
+    {"id": "weaken", "name": "弱化", "glyph": "▼", "color": "#bf8cff", "description": "削弱敵人能力"}
+  ]
+}

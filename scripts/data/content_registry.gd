@@ -5,6 +5,7 @@ const SCHEMA_VERSION := 1
 const DATA_PATHS := {
 	"blocks": "res://data/blocks.json",
 	"spells": "res://data/spells.json",
+	"spell_categories": "res://data/spell_categories.json",
 	"enemies": "res://data/enemies.json",
 	"intents": "res://data/intents.json",
 	"encounters": "res://data/encounters.json",
@@ -23,6 +24,7 @@ const ITEM_LOGICS := ["attack", "conditional_attack", "support", "status"]
 const RARITIES := ["common", "uncommon", "rare"]
 const RARITY_RANK := {"common": 1, "uncommon": 2, "rare": 3}
 const SCOPES := ["single", "spread", "all", "self"]
+const SPELL_CATEGORIES := ["single_attack", "spread_attack", "all_attack", "defense", "empower", "poison", "weaken"]
 const STATUSES := ["strength", "weak", "hard", "fragile", "regen", "poison"]
 const INTENTS := ["attack", "heavy_attack", "guard", "sanity_attack", "debuff_player", "buff_self", "watch", "brace"]
 const INTENT_ACTIONS := ["damage", "armor", "sanity_damage", "status_player", "status_self", "idle"]
@@ -48,7 +50,7 @@ func load_all() -> bool:
 			documents[kind] = document
 	if not errors.is_empty():
 		return false
-	for kind in ["blocks", "spells", "enemies", "intents", "encounters", "rewards", "events", "shops", "rests"]:
+	for kind in ["blocks", "spells", "spell_categories", "enemies", "intents", "encounters", "rewards", "events", "shops", "rests"]:
 		var entries = documents[kind].get("entries", [])
 		if not entries is Array:
 			errors.append("%s.entries 必須是陣列" % kind)
@@ -288,6 +290,8 @@ func _validate_references() -> void:
 		_require_id("blocks", str(id), "run_config.block_pool")
 	for id in run_config.get("spell_pool", []):
 		_require_id("spells", str(id), "run_config.spell_pool")
+	for spell in definitions.get("spells", []):
+		_require_id("spell_categories", str(spell.get("category_id", "")), "spell %s.category_id" % spell.get("id", ""))
 	for encounter in definitions.get("encounters", []):
 		for enemy_id in encounter.get("enemy_ids", []):
 			_require_id("enemies", str(enemy_id), "encounter %s" % encounter.get("id", ""))
@@ -364,11 +368,22 @@ func _validate_values() -> void:
 			errors.append("block %s weight 必須大於 0" % id)
 		if int(block.get("tier", 0)) <= 0:
 			errors.append("block %s tier 必須是正整數" % id)
+		if int(block.get("complexity", 0)) < 1 or int(block.get("complexity", 0)) > 4:
+			errors.append("block %s complexity 必須介於 1–4" % id)
+	for category in definitions.get("spell_categories", []):
+		var category_id := str(category.get("id", ""))
+		if category_id not in SPELL_CATEGORIES:
+			errors.append("spell category id 不合法：%s" % category_id)
+		if str(category.get("name", "")).is_empty() or str(category.get("glyph", "")).is_empty():
+			errors.append("spell category %s 缺少 name / glyph" % category_id)
+		if not Color.html_is_valid(str(category.get("color", ""))):
+			errors.append("spell category %s color 不合法" % category_id)
 	for spell in definitions.get("spells", []):
 		var id := str(spell.get("id", ""))
 		_validate_allowed(spell, "logic", ITEM_LOGICS, "spell %s" % id)
 		_validate_allowed(spell, "rarity", RARITIES, "spell %s" % id)
 		_validate_allowed(spell, "effect_scope", SCOPES, "spell %s" % id)
+		_validate_allowed(spell, "category_id", SPELL_CATEGORIES, "spell %s" % id)
 		if str(spell.get("icon_text", "")).is_empty() or str(spell.get("icon_text", "")).length() > 2:
 			errors.append("spell %s icon_text 必須是 1–2 個可見字元" % id)
 		if int(spell.get("mp_cost", -1)) < 0 or int(spell.get("balance_cost", -1)) < 0:
@@ -878,6 +893,7 @@ func _build_block_resources(block_defs: Array) -> Dictionary:
 		block_data.tier = int(block_def.get("tier", 1))
 		block_data.weight = float(block_def.get("weight", 1.0))
 		block_data.is_special = bool(block_def.get("special", false))
+		block_data.complexity = int(block_def.get("complexity", 1))
 		block_data.smart_score_bonus = int(block_def.get("smart_score_bonus", 0))
 		var tags: Array[String] = []
 		for tag in block_def.get("tags", []):
@@ -914,6 +930,11 @@ func _create_spell_resource(item_def: Dictionary) -> BattleItem:
 		item.hit_count = int(item_def.get("hit_count", 1))
 	item.content_id = str(item_def.get("id", ""))
 	item.icon_text = str(item_def.get("icon_text", "✦"))
+	item.category_id = str(item_def.get("category_id", "single_attack"))
+	var category: Dictionary = get_definition("spell_categories", item.category_id)
+	item.category_name = str(category.get("name", item.category_id))
+	item.category_glyph = str(category.get("glyph", item.icon_text))
+	item.category_color = Color.html(str(category.get("color", "#d7c77b")))
 	item.spell_name = str(item_def.get("name", "未命名咒文"))
 	item.logic = logic
 	item.rarity = str(item_def.get("rarity", "common"))

@@ -1,6 +1,8 @@
 extends Control
 class_name Block
 
+const SpellRuneBadgeScript = preload("res://scripts/ui/spell_rune_badge.gd")
+
 signal selection_requested(block: Block)
 
 # --- 設定 ---
@@ -61,30 +63,36 @@ func _redraw_shape():
 		add_child(rect)
 		rect.set_meta("shape_visual", true)
 		if block_data.spell != null and cell_pos == block_data.effect_cell:
-			var rune := Label.new()
-			rune.text = block_data.spell.icon_text
-			rune.tooltip_text = block_data.spell.get_effect_tooltip("方塊咒文")
-			rune.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-			rune.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-			rune.add_theme_font_size_override("font_size", 30)
-			rune.add_theme_color_override("font_color", block_data.spell.get_icon_color())
-			rune.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			rune.size = CELL_SIZE
-			rune.position = rect.position
+			var rune: Control = SpellRuneBadgeScript.new()
+			rune.size = CELL_SIZE - Vector2(6, 6)
+			rune.position = rect.position + Vector2(3, 3)
+			rune.configure(block_data.spell)
 			add_child(rune)
 			rune.set_meta("shape_visual", true)
 
 	var name_label := Label.new()
-	name_label.position = Vector2(4, 176)
+	name_label.position = Vector2(4, 166)
 	name_label.size = Vector2(192, 24)
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	name_label.text = "%d　%s" % [shortcut_number, block_data.display_name] if shortcut_number > 0 else block_data.display_name
-	name_label.add_theme_font_size_override("font_size", 15)
+	name_label.text = "%d　%s" % [shortcut_number, block_data.spell.spell_name] if shortcut_number > 0 and block_data.spell != null else block_data.spell.spell_name if block_data.spell != null else "空白石板"
+	name_label.add_theme_font_size_override("font_size", 17)
+	name_label.add_theme_color_override("font_color", block_data.spell.get_icon_color() if block_data.spell != null else Color.WHITE)
 	name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(name_label)
+	var detail_label := Label.new()
+	detail_label.position = Vector2(6, 190)
+	detail_label.size = Vector2(188, 40)
+	detail_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	detail_label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+	detail_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	detail_label.text = "%s｜MP %d\n%s" % [block_data.spell.get_category_label(), block_data.spell.mp_cost, block_data.spell.get_short_summary()] if block_data.spell != null else "無咒文"
+	detail_label.add_theme_font_size_override("font_size", 12)
+	detail_label.add_theme_color_override("font_color", Color(0.78, 0.82, 0.9))
+	detail_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(detail_label)
 	
 	# 【建議】把最小尺寸設大一點，確保能包住位移後的方塊 (3x3 格子約 220x220)
-	custom_minimum_size = Vector2(200, 200)
+	custom_minimum_size = Vector2(200, 234)
 
 
 func _draw() -> void:

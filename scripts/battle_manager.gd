@@ -342,7 +342,7 @@ func _update_spell_summary_label() -> void:
 	var label = get_node_or_null(spell_summary_label_path) as Label
 	if label == null:
 		return
-	label.text = "咒文構築｜效果附著於方塊的 ✦ 格"
+	label.text = "咒文構築｜大型分類符文即為效果格"
 	label.tooltip_text = "完成 Row 或 Col 後，被消除的圖標格各觸發一次咒文；MP 不足時改以同額 Sanity 支付。"
 
 
@@ -371,7 +371,7 @@ func _on_payment_preview_changed(spells: Array) -> void:
 		else:
 			sanity_cost += cost
 			projected_sanity -= cost
-		names.append("%s%s" % [spell.icon_text, spell.spell_name])
+		names.append("%s%s" % [spell.category_glyph, spell.spell_name])
 	label.text = "消除預覽：%s\n支付 MP %d｜代付 SAN %d" % ["、".join(names), mp_cost, sanity_cost]
 	if sanity_cost > 0:
 		var fatal := player != null and projected_sanity <= 0
@@ -398,7 +398,8 @@ func _update_spell_legend() -> void:
 	if legend == null or tablet == null:
 		return
 	var unique := {}
-	var lines: Array[String] = ["目前咒文圖例"]
+	var grouped := {}
+	var lines: Array[String] = ["咒文分類圖例"]
 	for value in tablet.spell_pool:
 		if not value is BattleItem:
 			continue
@@ -406,7 +407,16 @@ func _update_spell_legend() -> void:
 		if unique.has(spell.content_id):
 			continue
 		unique[spell.content_id] = true
-		lines.append("%s  %s｜MP %d｜%s" % [spell.icon_text, spell.spell_name, sanity_rules.modify_spell_mp_cost(spell.mp_cost), spell.description])
+		if not grouped.has(spell.category_id):
+			grouped[spell.category_id] = {"glyph": spell.category_glyph, "name": spell.get_category_label(), "spells": []}
+		grouped[spell.category_id].spells.append(spell)
+	for category_id in BattleItem.CATEGORY_ORDER:
+		if not grouped.has(category_id):
+			continue
+		var group: Dictionary = grouped[category_id]
+		lines.append("%s  %s" % [group.glyph, group.name])
+		for spell in group.spells:
+			lines.append("　%s｜MP %d｜%s" % [spell.spell_name, sanity_rules.modify_spell_mp_cost(spell.mp_cost), spell.description])
 	legend.text = "\n".join(lines)
 
 func _update_tablet_slot_labels() -> void:

@@ -254,3 +254,9 @@
 - 新增 `DESIGN_CORE_LOOP.md`、`NUMERIC_MODEL.md`、`CONTENT_GUIDE.md`、`BALANCE_LOG.md`，建立短局快測、Sanity 壓力與強連動道具的企劃 / 數值基準。
 - 擴充 `items.json`、`blocks.json`、`enemies.json` 的企劃欄位，加入 tags、rarity、trigger_hint、balance_cost、tier、weight、intent_pattern 等資料。
 - 更新 `data/README.md`，補充新增敵人與道具平衡欄位的說明。
+# 2026-09-14 — Phase 17.1 介面辨識與穩定版面
+
+- 新增七類資料化咒文符文；咒文個別 `icon_text` 保留相容用途，主要辨識改由分類圖示、分類色與範圍角標負責。
+- 手牌改為三個固定佔位槽，名稱與 MP／效果摘要常駐；盤面效果格使用接近整格的大型深色徽章。
+- 地圖畫布加入置中容器並依視窗寬度限制；構築頁改為直接繪製石板形狀與效果格。
+- `UX-007` 已確認：不提供一般移除，只由商店每節點一次的付費服務與特定事件提供。

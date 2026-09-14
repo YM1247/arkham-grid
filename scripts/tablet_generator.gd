@@ -11,6 +11,7 @@ signal payment_preview_changed(spells: Array)
 # 這裡的大小要跟 GridCell 的大小一致
 const CELL_SIZE = Vector2(58, 58)
 const GRID_DIMENSION = 8
+const HAND_SLOT_SIZE := Vector2(204, 238)
 
 # --- 資源載入 ---
 # 載入剛剛做的格子場景
@@ -69,9 +70,10 @@ func _notification(what):
 func _setup_layout_properties():
 	grid_container.columns = GRID_DIMENSION
 	corner_spacer.custom_minimum_size = CELL_SIZE
-	
-	# 確保手牌區高度夠
-	hand_area.custom_minimum_size.y = 190
+	hand_area.custom_minimum_size = Vector2(HAND_SLOT_SIZE.x * hand_size + 18.0 * max(hand_size - 1, 0), HAND_SLOT_SIZE.y)
+	hand_area.alignment = BoxContainer.ALIGNMENT_CENTER
+	hand_area.add_theme_constant_override("separation", 18)
+	_ensure_hand_slots()
 	
 	# 如果你在編輯器有用 PaddingContainer，這裡的 spacing 可以設為 0 或小一點
 	# 根據你的截圖，這裡其實用預設值就好，不用特別 override 也可以
@@ -123,7 +125,11 @@ func _generate_tablet():
 
 func _spawn_block(data):
 	var block = block_scene.instantiate()
-	hand_area.add_child(block)
+	var slot := _first_empty_hand_slot()
+	if slot == null:
+		block.queue_free()
+		return null
+	slot.add_child(block)
 	block.set_data(data)
 	block.selection_requested.connect(_select_block)
 	_refresh_hand_shortcuts()
@@ -250,8 +256,44 @@ func _pick_from_top_candidates(candidates: Array, top_count: int) -> BlockData:
 
 func _clear_hand():
 	_keyboard_selected_block = null
-	for child in hand_area.get_children():
+	for child in _get_hand_blocks():
 		child.queue_free()
+
+
+func _ensure_hand_slots() -> void:
+	for index in range(hand_size):
+		var slot := PanelContainer.new()
+		slot.name = "HandSlot%d" % (index + 1)
+		slot.custom_minimum_size = HAND_SLOT_SIZE
+		slot.set_meta("hand_slot_index", index)
+		var style := StyleBoxFlat.new()
+		style.bg_color = Color(0.045, 0.055, 0.085, 0.72)
+		style.border_color = Color(0.28, 0.32, 0.42, 0.9)
+		style.set_border_width_all(2)
+		style.set_corner_radius_all(10)
+		slot.add_theme_stylebox_override("panel", style)
+		hand_area.add_child(slot)
+
+
+func _first_empty_hand_slot() -> Control:
+	for slot in hand_area.get_children():
+		var occupied := false
+		for child in slot.get_children():
+			if child is Block and not child.is_queued_for_deletion():
+				occupied = true
+				break
+		if not occupied:
+			return slot as Control
+	return null
+
+
+func _get_hand_blocks() -> Array[Block]:
+	var blocks: Array[Block] = []
+	for slot in hand_area.get_children():
+		for child in slot.get_children():
+			if child is Block and not child.is_queued_for_deletion():
+				blocks.append(child)
+	return blocks
 
 func set_placement_enabled(enabled: bool):
 	placement_enabled = enabled
@@ -530,7 +572,7 @@ func get_hand_ids() -> Array[String]:
 
 func get_hand_state() -> Array[Dictionary]:
 	var state: Array[Dictionary] = []
-	for child in hand_area.get_children():
+	for child in _get_hand_blocks():
 		if child.is_queued_for_deletion() or not "block_data" in child or not child.block_data is BlockData:
 			continue
 		state.append({
@@ -583,16 +625,11 @@ func _refill_hand_if_empty():
 	draw_new_hand()
 
 func _count_active_hand_blocks() -> int:
-	var count = 0
-	for child in hand_area.get_children():
-		if child.has_method("set_data") and not child.is_queued_for_deletion():
-			count += 1
-	return count
+	return _get_hand_blocks().size()
 
 func _sync_hand_drag_enabled():
-	for child in hand_area.get_children():
-		if child.has_method("set_drag_enabled"):
-			child.set_drag_enabled(placement_enabled)
+	for child in _get_hand_blocks():
+		child.set_drag_enabled(placement_enabled)
 	_refresh_hand_shortcuts()
 
 
@@ -632,12 +669,13 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _select_hand_index(index: int) -> void:
-	var blocks: Array[Block] = []
-	for child in hand_area.get_children():
+	if index < 0 or index >= hand_area.get_child_count():
+		return
+	var slot := hand_area.get_child(index)
+	for child in slot.get_children():
 		if child is Block and not child.is_queued_for_deletion():
-			blocks.append(child)
-	if index < blocks.size():
-		_select_block(blocks[index])
+			_select_block(child)
+			return
 
 
 func _select_block(block: Block) -> void:
@@ -672,11 +710,10 @@ func _update_keyboard_preview() -> void:
 
 
 func _refresh_hand_shortcuts() -> void:
-	var shortcut := 1
-	for child in hand_area.get_children():
-		if child is Block and not child.is_queued_for_deletion():
-			child.set_shortcut_number(shortcut)
-			shortcut += 1
+	for slot_index in range(hand_area.get_child_count()):
+		for child in hand_area.get_child(slot_index).get_children():
+			if child is Block and not child.is_queued_for_deletion():
+				child.set_shortcut_number(slot_index + 1)
 
 
 
@@ -712,10 +749,8 @@ func _has_any_valid_move() -> bool:
 
 func _get_active_hand_block_data() -> Array[BlockData]:
 	var hand_blocks: Array[BlockData] = []
-	for child in hand_area.get_children():
-		if child.is_queued_for_deletion():
-			continue
-		if "block_data" in child and child.block_data is BlockData:
+	for child in _get_hand_blocks():
+		if child.block_data is BlockData:
 			hand_blocks.append(child.block_data)
 	return hand_blocks
 

@@ -7,7 +7,7 @@ signal pool_requested
 @onready var title_label: Label = $Margin/Panel/VBox/Title
 @onready var progress_label: Label = $Margin/Panel/VBox/Meta/Progress
 @onready var seed_label: Label = $Margin/Panel/VBox/Meta/Seed
-@onready var graph: Control = $Margin/Panel/VBox/Scroll/Graph
+@onready var graph: Control = $Margin/Panel/VBox/Scroll/Center/Graph
 
 
 func _ready() -> void:

@@ -1,26 +1,26 @@
 extends ColorRect
 class_name GridCell
 
+const SpellRuneBadgeScript = preload("res://scripts/ui/spell_rune_badge.gd")
+
 var grid_x: int
 var grid_y: int
 var manager: Node
 
 # 紀錄原本的顏色，用於復原
 var original_color: Color
-var spell_marker: Label
+var spell_marker: Control
 
 func init(x, y, m_manager):
 	grid_x = x
 	grid_y = y
 	manager = m_manager
 	original_color = color # 記住初始顏色 (深灰色)
-	spell_marker = Label.new()
-	spell_marker.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	spell_marker.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	spell_marker.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	spell_marker.add_theme_font_size_override("font_size", 28)
-	spell_marker.add_theme_color_override("font_color", Color(0.95, 0.9, 0.35))
-	spell_marker.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	spell_marker = SpellRuneBadgeScript.new()
+	spell_marker.custom_minimum_size = Vector2(46, 46)
+	spell_marker.position = Vector2(3, 3)
+	spell_marker.size = size - Vector2(6, 6)
+	spell_marker.visible = false
 	add_child(spell_marker)
 	
 	# (除錯 Label 這裡省略，你可以保留你的)
@@ -60,9 +60,9 @@ func reset_color():
 func set_spell(spell: BattleItem) -> void:
 	if spell_marker == null:
 		return
-	spell_marker.text = spell.icon_text if spell != null else ""
+	spell_marker.visible = spell != null
 	if spell != null:
-		spell_marker.add_theme_color_override("font_color", spell.get_icon_color())
+		spell_marker.configure(spell)
 	tooltip_text = spell.get_effect_tooltip("盤面咒文") if spell != null else ""
 
 # --- 核心互動邏輯更新 ---
