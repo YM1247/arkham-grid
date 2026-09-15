@@ -14,9 +14,7 @@
 [ext_resource type="PackedScene" path="res://scenes/system_menu.tscn" id="13_menu"]
 [ext_resource type="Script" path="res://scripts/audio/audio_manager.gd" id="14_audio"]
 [ext_resource type="PackedScene" path="res://scenes/build_pool_view.tscn" id="15_pool"]
-[ext_resource type="Texture2D" path="res://assets/art/backgrounds/ritual_chibi_stage.png" id="16_far"]
-[ext_resource type="Texture2D" path="res://assets/art/backgrounds/ritual_chibi_stage.png" id="17_mid"]
-[ext_resource type="Texture2D" path="res://assets/art/backgrounds/ritual_chibi_stage.png" id="18_fore"]
+[ext_resource type="Texture2D" path="res://assets/art/backgrounds/ritual_arena_v2.png" id="16_far"]
 [ext_resource type="Script" path="res://scripts/ui/battle_atmosphere.gd" id="19_atmosphere"]
 [ext_resource type="PackedScene" path="res://scenes/battle_stage_view.tscn" id="20_stage"]
 [ext_resource type="FontFile" path="res://assets/fonts/fusion-pixel-12px-zh_hant.ttf" id="21_pixel_font"]
@@ -25,12 +23,7 @@
 bg_color = Color(0, 0, 0, 0)
 
 [sub_resource type="StyleBoxFlat" id="StyleBoardSurface"]
-bg_color = Color(0.06, 0.1, 0.17, 0.76)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(0.3, 0.42, 0.56, 1)
+bg_color = Color(0.04, 0.08, 0.14, 0.62)
 content_margin_left = 10.0
 content_margin_top = 6.0
 content_margin_right = 10.0
@@ -52,20 +45,7 @@ texture_filter = 1
 texture = ExtResource("16_far")
 expand_mode = 1
 stretch_mode = 6
-self_modulate = Color(0.56, 0.6, 0.65, 1)
-
-[node name="Midground" type="TextureRect" parent="UILayer"]
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 2
-texture_filter = 1
-texture = ExtResource("17_mid")
-expand_mode = 1
-stretch_mode = 6
-self_modulate = Color(1, 1, 1, 0.0)
+self_modulate = Color(0.82, 0.86, 0.9, 1)
 
 [node name="Atmosphere" type="Control" parent="UILayer"]
 anchors_preset = 15
@@ -75,19 +55,6 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 script = ExtResource("19_atmosphere")
-
-[node name="Foreground" type="TextureRect" parent="UILayer"]
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 2
-texture_filter = 1
-texture = ExtResource("18_fore")
-expand_mode = 1
-stretch_mode = 6
-self_modulate = Color(1, 1, 1, 0.0)
 
 [node name="ScreenMargin" type="MarginContainer" parent="UILayer"]
 anchors_preset = 15

@@ -1,7 +1,6 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/battle_stage_view.gd" id="1_stage"]
-[ext_resource type="Texture2D" path="res://assets/art/backgrounds/ritual_arena_v2.png" id="2_arena"]
 [ext_resource type="Texture2D" path="res://assets/art/characters/investigator_chibi.png" id="3_player"]
 [ext_resource type="PackedScene" path="res://scenes/player_hud.tscn" id="4_hud"]
 
@@ -11,36 +10,13 @@ layout_mode = 2
 clip_contents = true
 script = ExtResource("1_stage")
 
-[node name="ArenaBackground" type="TextureRect" parent="."]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-texture_filter = 1
-texture = ExtResource("2_arena")
-expand_mode = 1
-stretch_mode = 6
-mouse_filter = 2
-
-[node name="ArenaShade" type="ColorRect" parent="."]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-color = Color(0.03, 0.06, 0.1, 0.22)
-mouse_filter = 2
-
 [node name="PlayerArt" type="TextureRect" parent="."]
 layout_mode = 1
 anchors_preset = 0
-offset_left = 34.0
-offset_top = 35.0
-offset_right = 174.0
-offset_bottom = 205.0
+offset_left = 190.0
+offset_top = 58.0
+offset_right = 390.0
+offset_bottom = 298.0
 texture_filter = 1
 texture = ExtResource("3_player")
 expand_mode = 1
@@ -49,27 +25,28 @@ mouse_filter = 2
 
 [node name="PlayerName" type="Label" parent="."]
 layout_mode = 1
-offset_left = 46.0
-offset_top = 18.0
-offset_right = 170.0
-offset_bottom = 38.0
+offset_left = 205.0
+offset_top = 32.0
+offset_right = 382.0
+offset_bottom = 56.0
+theme_override_font_sizes/font_size = 18
 text = "調查員"
 horizontal_alignment = 1
 mouse_filter = 2
 
 [node name="PlayerHUD" parent="." instance=ExtResource("4_hud")]
 layout_mode = 1
-offset_left = 28.0
-offset_top = 196.0
-offset_right = 202.0
-offset_bottom = 270.0
+offset_left = 198.0
+offset_top = 300.0
+offset_right = 386.0
+offset_bottom = 374.0
 
 [node name="EnemyAnchor" type="Control" parent="."]
 layout_mode = 1
 anchors_preset = 0
-anchor_left = 0.3
+anchor_left = 0.25
 anchor_top = 0.12
-anchor_right = 0.86
+anchor_right = 0.92
 anchor_bottom = 0.78
 grow_horizontal = 2
 grow_vertical = 2
