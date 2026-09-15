@@ -1,4 +1,4 @@
-[gd_scene load_steps=21 format=3 uid="uid://dwxw7ydj0iw88"]
+[gd_scene load_steps=22 format=3 uid="uid://dwxw7ydj0iw88"]
 
 [ext_resource type="Script" uid="uid://bynurhes78qkj" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" uid="uid://bveoo4lldlwhj" path="res://scripts/tablet_generator.gd" id="2_tablet"]
@@ -19,6 +19,7 @@
 [ext_resource type="Texture2D" path="res://assets/art/backgrounds/ritual_chibi_stage.png" id="18_fore"]
 [ext_resource type="Script" path="res://scripts/ui/battle_atmosphere.gd" id="19_atmosphere"]
 [ext_resource type="PackedScene" path="res://scenes/battle_stage_view.tscn" id="20_stage"]
+[ext_resource type="FontFile" path="res://assets/fonts/fusion-pixel-12px-zh_hant.ttf" id="21_pixel_font"]
 
 [node name="Main" type="Node"]
 script = ExtResource("1_main")
@@ -97,6 +98,7 @@ layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.901961, 0.72549, 0.360784, 1)
 theme_override_font_sizes/font_size = 28
+theme_override_fonts/font = ExtResource("21_pixel_font")
 text = "ARKHAM GRID"
 
 [node name="Context" type="Label" parent="UILayer/ScreenMargin/Screen/TopBar"]
@@ -131,6 +133,7 @@ layout_mode = 2
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 22
+theme_override_fonts/font = ExtResource("21_pixel_font")
 text = "儀式石板"
 
 [node name="Controls" type="Label" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardVBox/BoardHeader"]
@@ -193,7 +196,7 @@ size_flags_vertical = 10
 theme_override_constants/separation = 38
 
 [node name="InfoSection" type="VBoxContainer" parent="UILayer/ScreenMargin/Screen/Layout"]
-custom_minimum_size = Vector2(390, 0)
+custom_minimum_size = Vector2(300, 0)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_stretch_ratio = 1.0
@@ -206,7 +209,8 @@ layout_mode = 2
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 22
-text = "威脅"
+theme_override_fonts/font = ExtResource("21_pixel_font")
+text = "儀式狀態"
 
 [node name="TurnLabel" type="Label" parent="UILayer/ScreenMargin/Screen/Layout/InfoSection/EncounterHeader"]
 layout_mode = 2
@@ -253,6 +257,13 @@ text = "咒文圖例"
 visible = false
 layout_mode = 2
 text = "咒文圖例"
+autowrap_mode = 2
+
+[node name="IconLegend" type="Label" parent="UILayer/ScreenMargin/Screen/Layout/InfoSection"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.717647, 0.792157, 0.823529, 1)
+theme_override_font_sizes/font_size = 14
+text = "圖例｜↘ 攻擊　✹ 重擊　⬢ 防禦　◉ SAN\n　　　▲ 強化　▼ 弱化　☣ 中毒　◈ 護盾\n　　　⌛ 時限　● AP"
 autowrap_mode = 2
 
 [node name="RewardPanel" parent="UILayer" instance=ExtResource("8_reward")]

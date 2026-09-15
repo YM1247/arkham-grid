@@ -4,6 +4,7 @@ extends RefCounted
 
 static func build(document: Dictionary) -> Theme:
 	var theme := Theme.new()
+	var pixel_font := load("res://assets/fonts/fusion-pixel-12px-zh_hant.ttf") as FontFile
 	var palette: Dictionary = document.get("palette", {})
 	var typography: Dictionary = document.get("typography", {})
 	var spacing: Dictionary = document.get("spacing", {})
@@ -33,6 +34,12 @@ static func build(document: Dictionary) -> Theme:
 	theme.set_constant("h_separation", "GridContainer", int(spacing.get("xs", 6)))
 	theme.set_constant("v_separation", "GridContainer", int(spacing.get("xs", 6)))
 	theme.set_font_size("font_size", "TooltipLabel", int(typography.get("caption", 15)))
+	if pixel_font != null:
+		# 只讓按鈕、數字化控件與標題類型採像素字；敘述 Label 保留系統字提高閱讀性。
+		theme.set_font("font", "Button", pixel_font)
+		theme.set_font("font", "CheckButton", pixel_font)
+		theme.set_font("font", "OptionButton", pixel_font)
+		theme.set_font("font", "ProgressBar", pixel_font)
 
 	theme.set_stylebox("panel", "PanelContainer", _box(panel, border, radius, border_width, 10))
 	theme.set_stylebox("panel", "TooltipPanel", _box(panel, accent, radius, 1, 8))

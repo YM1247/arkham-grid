@@ -464,7 +464,7 @@ func _start_encounter(encounter_id: String) -> void:
 		content.get_document("run_config").get("difficulty_model", {}),
 		{"node_depth": int(current_node.get("floor", 0))}
 	)
-	var encounter_status := "遭遇：%s｜強度 %d｜獎勵 Tier %d｜安全時限 %d 回合" % [str(encounter.get("name", "未知遭遇")), int(current_difficulty.get("strength", 0)), int(current_difficulty.get("reward_tier", 1)), int(current_difficulty.get("turn_limit", 0))]
+	var encounter_status := "遭遇：%s｜強度 %d｜安全時限 %d 回合" % [str(encounter.get("name", "未知遭遇")), int(current_difficulty.get("strength", 0)), int(current_difficulty.get("turn_limit", 0))]
 	if int(current_difficulty.get("turn_limit", 0)) > 0 and not meta_state.has_seen_tutorial(TIME_PRESSURE_TUTORIAL_ID):
 		encounter_status += "\n%s" % str(content.get_document("run_config").get("tutorials", {}).get(TIME_PRESSURE_TUTORIAL_ID, ""))
 		if meta_state.mark_tutorial_seen(TIME_PRESSURE_TUTORIAL_ID) and not profile_service.save_meta(meta_state):

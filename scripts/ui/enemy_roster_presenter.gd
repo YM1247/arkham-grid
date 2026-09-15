@@ -96,6 +96,9 @@ func _rebuild(container: Node, enemies: Array[Entity], selected_callback: Callab
 		var card := ENEMY_CARD_SCENE.instantiate() as EnemyCard
 		container.add_child(card)
 		card.bind(enemy)
+		card.pivot_offset = card.custom_minimum_size * 0.5
+		card.scale = Vector2(0.92, 0.92)
+		card.self_modulate = Color(0.84, 0.9, 0.94, 1.0)
 		card.target_requested.connect(_on_target_requested)
 		_cards.append(card)
 		_roster_ids.append(enemy.get_instance_id())

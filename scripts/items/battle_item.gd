@@ -30,7 +30,7 @@ func get_effect_tooltip(header: String = "") -> String:
 	if header != "":
 		lines.append(header)
 	lines.append(spell_name)
-	lines.append("%s咒文｜Tier %d｜MP %d" % [_get_rarity_name(rarity), tier, mp_cost])
+	lines.append("%s咒文｜MP %d" % [_get_rarity_name(rarity), mp_cost])
 	lines.append("MP 不足時改以同額 Sanity 支付")
 	if description != "":
 		lines.append(description)

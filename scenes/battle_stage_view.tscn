@@ -4,7 +4,7 @@
 [ext_resource type="Texture2D" path="res://assets/art/characters/investigator_chibi.png" id="2_player"]
 [ext_resource type="PackedScene" path="res://scenes/player_hud.tscn" id="3_hud"]
 
-[node name="BattleStageView" type="PanelContainer"]
+[node name="BattleStageView" type="Control"]
 custom_minimum_size = Vector2(230, 0)
 layout_mode = 2
 script = ExtResource("1_stage")
@@ -38,7 +38,8 @@ horizontal_alignment = 1
 [node name="PlayerHUD" parent="VBox" instance=ExtResource("3_hud")]
 layout_mode = 2
 
-[node name="ActionPanel" type="PanelContainer" parent="VBox"]
+[node name="ActionPanel" type="Control" parent="VBox"]
+visible = false
 layout_mode = 2
 
 [node name="VBox" type="VBoxContainer" parent="VBox/ActionPanel"]
@@ -58,7 +59,8 @@ text = ""
 horizontal_alignment = 1
 autowrap_mode = 2
 
-[node name="LogPanel" type="PanelContainer" parent="VBox"]
+[node name="LogPanel" type="Control" parent="VBox"]
+visible = false
 custom_minimum_size = Vector2(0, 150)
 clip_contents = true
 layout_mode = 2

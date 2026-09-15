@@ -261,10 +261,10 @@ func _ensure_hand_slots() -> void:
 		slot.custom_minimum_size = HAND_SLOT_SIZE
 		slot.set_meta("hand_slot_index", index)
 		var style := StyleBoxFlat.new()
-		style.bg_color = Color(0.045, 0.055, 0.085, 0.72)
-		style.border_color = Color(0.28, 0.32, 0.42, 0.9)
-		style.set_border_width_all(2)
-		style.set_corner_radius_all(10)
+		style.bg_color = Color(0, 0, 0, 0)
+		style.border_color = Color(0, 0, 0, 0)
+		style.set_border_width_all(0)
+		style.set_corner_radius_all(0)
 		slot.add_theme_stylebox_override("panel", style)
 		hand_area.add_child(slot)
 

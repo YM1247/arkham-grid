@@ -1,5 +1,5 @@
 class_name EnemyCard
-extends PanelContainer
+extends Control
 
 signal target_requested(enemy: Entity)
 
@@ -44,17 +44,22 @@ func refresh(selected: bool) -> void:
 	stats_label.text = "%d / %d%s" % [entity.hp, entity.max_hp, "　護盾 %d" % entity.armor if entity.armor > 0 else ""]
 	var status := entity.get_status_summary()
 	status_label.text = "狀態｜%s" % ("無" if status.is_empty() else status)
-	intent_label.text = "下一步　%s" % str(entity.get_meta("intent_display", "--"))
-	tooltip_text = "%s\n%s\n點擊卡片鎖定" % [intent_label.text, status_label.text]
-	target_marker.text = "†" if entity.is_dead else "鎖定" if selected else ""
+	var intent_id := str(entity.get_meta("intent_id", ""))
+	var glyph := CombatIconRegistry.intent_glyph(intent_id)
+	intent_label.text = glyph
+	intent_label.tooltip_text = "下一步：%s" % CombatIconRegistry.intent_label(intent_id)
+	status_label.text = CombatIconRegistry.status_summary(entity)
+	status_label.visible = not status_label.text.is_empty()
+	tooltip_text = "%s\n%s\n點擊角色鎖定" % [intent_label.tooltip_text, entity.get_status_summary()]
+	target_marker.text = "†" if entity.is_dead else "◉" if selected else ""
 	target_button.text = "目前目標" if selected else "鎖定此敵人"
 	target_button.disabled = selected or entity.is_dead
 	modulate = Color(0.45, 0.45, 0.45) if entity.is_dead else Color.WHITE
 	var frame := StyleBoxFlat.new()
-	frame.bg_color = Color(0, 0, 0, 0)
+	frame.bg_color = Color("f7d889", 0.10) if selected and not entity.is_dead else Color(0, 0, 0, 0)
 	frame.border_color = Color("f7d889") if selected and not entity.is_dead else Color(0, 0, 0, 0)
-	frame.set_border_width_all(4 if selected and not entity.is_dead else 0)
-	frame.set_corner_radius_all(6)
+	frame.set_border_width_all(2 if selected and not entity.is_dead else 0)
+	frame.set_corner_radius_all(48)
 	target_frame.add_theme_stylebox_override("panel", frame)
 
 

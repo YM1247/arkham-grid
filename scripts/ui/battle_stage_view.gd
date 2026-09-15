@@ -1,5 +1,5 @@
 class_name BattleStageView
-extends PanelContainer
+extends Control
 
 const PLAYER_ART := "res://assets/art/characters/investigator_chibi.png"
 

@@ -345,7 +345,9 @@ func _update_player_hud() -> void:
 		max_mp,
 		sanity_rules.get_stage_name(player.sanity),
 		sanity_rules.get_active_summary(),
-		_last_sanity_message
+		_last_sanity_message,
+		current_action_points,
+		player_max_action_points
 	)
 
 func _update_status_label(label_path: NodePath, entity: Entity) -> void:
@@ -383,7 +385,7 @@ func _update_turn_status_label() -> void:
 			deadline_text = "  時限: %d/%d" % [current_battle_turn, turn_limit]
 			if current_battle_turn > turn_limit:
 				deadline_text += "（SAN 壓力累積）"
-		label.text = "玩家回合  AP: %d/%d%s%s" % [current_action_points, player_max_action_points, deadline_text, sanity_warning]
+		label.text = "玩家回合%s%s" % [deadline_text, sanity_warning]
 	else:
 		label.text = "敵人回合"
 
@@ -767,6 +769,7 @@ func _update_enemy_status_ui() -> void:
 		var state := active_enemy.get_meta("intent_state") as EnemyIntentState if active_enemy.has_meta("intent_state") else null
 		var intent: Dictionary = _intent_definitions.get(state.current_intent_id(active_enemy.hp, active_enemy.max_hp, int(_battle_stats.values.get("turns", 1))) if state != null else "", {})
 		active_enemy.set_meta("intent_display", str(intent.get("display_name", "--")))
+		active_enemy.set_meta("intent_id", str(intent.get("id", "")))
 	var label = get_node_or_null(enemy_status_label_path) as Label
 	_enemy_presenter.render(label, enemies, selected_enemy_index, _select_enemy)
 
