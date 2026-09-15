@@ -14,6 +14,7 @@ signal target_requested(enemy: Entity)
 @onready var target_frame: Panel = $TargetFrame
 
 var entity: Entity
+var _selected := false
 
 
 func _ready() -> void:
@@ -46,7 +47,7 @@ func refresh(selected: bool) -> void:
 	status_label.text = "狀態｜%s" % ("無" if status.is_empty() else status)
 	var intent_id := str(entity.get_meta("intent_id", ""))
 	var glyph := CombatIconRegistry.intent_glyph(intent_id)
-	intent_label.text = glyph
+	intent_label.text = "%s  %s" % [glyph, CombatIconRegistry.intent_label(intent_id)]
 	intent_label.tooltip_text = "下一步：%s" % CombatIconRegistry.intent_label(intent_id)
 	status_label.text = CombatIconRegistry.status_summary(entity)
 	status_label.visible = not status_label.text.is_empty()
@@ -55,12 +56,28 @@ func refresh(selected: bool) -> void:
 	target_button.text = "目前目標" if selected else "鎖定此敵人"
 	target_button.disabled = selected or entity.is_dead
 	modulate = Color(0.45, 0.45, 0.45) if entity.is_dead else Color.WHITE
-	var frame := StyleBoxFlat.new()
-	frame.bg_color = Color("f7d889", 0.10) if selected and not entity.is_dead else Color(0, 0, 0, 0)
-	frame.border_color = Color("f7d889") if selected and not entity.is_dead else Color(0, 0, 0, 0)
-	frame.set_border_width_all(2 if selected and not entity.is_dead else 0)
-	frame.set_corner_radius_all(48)
-	target_frame.add_theme_stylebox_override("panel", frame)
+	_selected = selected and not entity.is_dead
+	queue_redraw()
+
+
+func _draw() -> void:
+	if not _selected:
+		return
+	var color := Color("f7d889")
+	var portrait_rect := Rect2(portrait.position, portrait.size).grow(5.0)
+	var margin := 1.0
+	var arm := 22.0
+	var left := portrait_rect.position.x + margin
+	var top := portrait_rect.position.y + margin
+	var right := portrait_rect.end.x - margin
+	var bottom := portrait_rect.end.y - margin
+	for points in [
+		[Vector2(left, top + arm), Vector2(left, top), Vector2(left + arm, top)],
+		[Vector2(right - arm, top), Vector2(right, top), Vector2(right, top + arm)],
+		[Vector2(left, bottom - arm), Vector2(left, bottom), Vector2(left + arm, bottom)],
+		[Vector2(right - arm, bottom), Vector2(right, bottom), Vector2(right, bottom - arm)],
+	]:
+		draw_polyline(PackedVector2Array(points), color, 4.0, false)
 
 
 func play_windup() -> void:

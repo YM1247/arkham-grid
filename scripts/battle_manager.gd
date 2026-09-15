@@ -24,6 +24,7 @@ const MAX_ENEMIES := 5
 @export var player_hud_path: NodePath
 @export var enemy_status_label_path: NodePath
 @export var turn_status_label_path: NodePath
+@export var ap_status_label_path: NodePath
 @export var intent_label_path: NodePath
 @export var end_turn_button_path: NodePath
 @export var spell_summary_label_path: NodePath
@@ -328,6 +329,7 @@ func _update_all_status_labels() -> void:
 	_update_player_hud()
 	_update_enemy_status_ui()
 	_update_turn_status_label()
+	_update_ap_status_label()
 	_update_intent_label()
 	_update_end_turn_button()
 	_update_spell_summary_label()
@@ -385,9 +387,17 @@ func _update_turn_status_label() -> void:
 			deadline_text = "  時限: %d/%d" % [current_battle_turn, turn_limit]
 			if current_battle_turn > turn_limit:
 				deadline_text += "（SAN 壓力累積）"
-		label.text = "玩家回合%s%s" % [deadline_text, sanity_warning]
+		label.text = "回合 %d%s%s" % [maxi(current_battle_turn, 1), deadline_text, sanity_warning]
 	else:
-		label.text = "敵人回合"
+		label.text = "敵方回合"
+
+
+func _update_ap_status_label() -> void:
+	var label := get_node_or_null(ap_status_label_path) as Label
+	if label == null:
+		return
+	label.text = "AP  %d / %d" % [current_action_points, player_max_action_points]
+	label.tooltip_text = "剩餘行動點；放置一塊石板消耗 1 點。"
 
 func _update_intent_label() -> void:
 	var label = get_node_or_null(intent_label_path) as Label
@@ -797,11 +807,26 @@ func _spawn_floating_text(anchor: Label, message: String, color: Color) -> void:
 	floating_label.text = message
 	floating_label.modulate = color
 	floating_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	floating_label.z_index = 100
+	floating_label.size = Vector2(220, 52)
+	floating_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	floating_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	floating_label.add_theme_font_size_override("font_size", 28)
+	floating_label.add_theme_constant_override("outline_size", 6)
+	floating_label.add_theme_color_override("font_outline_color", Color(0.02, 0.03, 0.06, 0.96))
+	var pixel_font := load("res://assets/fonts/fusion-pixel-12px-zh_hant.ttf") as FontFile
+	if pixel_font != null:
+		floating_label.add_theme_font_override("font", pixel_font)
 	anchor.get_parent().add_child(floating_label)
-	floating_label.global_position = anchor.global_position + Vector2(220, -4)
+	floating_label.global_position = anchor.global_position + Vector2(anchor.size.x * 0.5 - 110.0, -38.0)
+	floating_label.pivot_offset = floating_label.size * 0.5
+	floating_label.scale = Vector2(0.72, 0.72)
 	var tween = create_tween()
-	tween.parallel().tween_property(floating_label, "global_position", floating_label.global_position + Vector2(0, -36), 0.65)
-	tween.parallel().tween_property(floating_label, "modulate:a", 0.0, 0.65)
+	tween.parallel().tween_property(floating_label, "scale", Vector2(1.15, 1.15), 0.16).set_trans(Tween.TRANS_BACK)
+	tween.parallel().tween_property(floating_label, "global_position", floating_label.global_position + Vector2(0, -16), 0.16)
+	tween.tween_interval(0.34)
+	tween.parallel().tween_property(floating_label, "global_position", floating_label.global_position + Vector2(0, -62), 0.42)
+	tween.parallel().tween_property(floating_label, "modulate:a", 0.0, 0.42)
 	tween.tween_callback(floating_label.queue_free)
 
 func _connect_statistics_signals(entity: Entity) -> void:

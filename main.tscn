@@ -25,7 +25,7 @@
 bg_color = Color(0, 0, 0, 0)
 
 [sub_resource type="StyleBoxFlat" id="StyleBoardSurface"]
-bg_color = Color(0.09, 0.14, 0.22, 0.94)
+bg_color = Color(0.06, 0.1, 0.17, 0.76)
 border_width_left = 2
 border_width_top = 2
 border_width_right = 2
@@ -133,17 +133,18 @@ theme_override_constants/separation = 12
 [node name="BattleStageView" parent="UILayer/ScreenMargin/Screen/Layout" instance=ExtResource("20_stage")]
 layout_mode = 2
 size_flags_horizontal = 3
+size_flags_vertical = 3
 
 [node name="BoardPanel" type="PanelContainer" parent="UILayer/ScreenMargin/Screen/Layout"]
+custom_minimum_size = Vector2(0, 478)
 layout_mode = 2
-size_flags_vertical = 3
 theme_override_styles/panel = SubResource("StyleBoardOuter")
 
 [node name="BoardCenter" type="CenterContainer" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel"]
 layout_mode = 2
 
 [node name="BoardSurface" type="PanelContainer" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter"]
-custom_minimum_size = Vector2(980, 0)
+custom_minimum_size = Vector2(850, 0)
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoardSurface")
 
@@ -151,7 +152,7 @@ theme_override_styles/panel = SubResource("StyleBoardSurface")
 layout_mode = 2
 
 [node name="BoardHeader" type="HBoxContainer" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox"]
-visible = false
+custom_minimum_size = Vector2(0, 42)
 layout_mode = 2
 
 [node name="Title" type="Label" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox/BoardHeader"]
@@ -159,12 +160,15 @@ layout_mode = 2
 size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 22
 theme_override_fonts/font = ExtResource("21_pixel_font")
-text = "儀式石板"
+text = "AP  3 / 3"
+tooltip_text = "剩餘行動點"
 
 [node name="Controls" type="Label" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox/BoardHeader"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.611765, 0.662745, 0.733333, 1)
-text = "1–3 選方塊　WASD 移動　Space 放置　X 取消"
+theme_override_colors/font_color = Color(0.901961, 0.72549, 0.360784, 1)
+theme_override_font_sizes/font_size = 22
+theme_override_fonts/font = ExtResource("21_pixel_font")
+text = "回合 1　時限 1/4"
 
 [node name="EnemyScroll" type="ScrollContainer" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox"]
 visible = false
@@ -207,6 +211,13 @@ layout_mode = 2
 
 [node name="Body" type="HBoxContainer" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox/TabletSection"]
 layout_mode = 2
+theme_override_constants/separation = 18
+
+[node name="HandArea" type="VBoxContainer" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox/TabletSection/Body"]
+custom_minimum_size = Vector2(184, 454)
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_constants/separation = 8
 
 [node name="RowIcons" type="VBoxContainer" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox/TabletSection/Body"]
 layout_mode = 2
@@ -214,12 +225,19 @@ layout_mode = 2
 [node name="GridCells" type="GridContainer" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox/TabletSection/Body"]
 layout_mode = 2
 
-[node name="HandArea" type="HBoxContainer" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox/TabletSection"]
-custom_minimum_size = Vector2(0, 180)
+[node name="RightRail" type="VBoxContainer" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox/TabletSection/Body"]
+custom_minimum_size = Vector2(166, 0)
 layout_mode = 2
-size_flags_horizontal = 4
-size_flags_vertical = 10
-theme_override_constants/separation = 12
+
+[node name="Spacer" type="Control" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox/TabletSection/Body/RightRail"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="EndTurnButton" type="Button" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox/TabletSection/Body/RightRail"]
+custom_minimum_size = Vector2(166, 64)
+layout_mode = 2
+theme_override_font_sizes/font_size = 21
+text = "結束回合\nEnter"
 
 [node name="InfoSection" type="VBoxContainer" parent="UILayer/ScreenMargin/Screen/Layout"]
 visible = false
@@ -324,10 +342,12 @@ player_path = NodePath("../Player")
 enemy_path = NodePath("../Enemy")
 tablet_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox/TabletSection")
 player_hud_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/BattleStageView/PlayerHUD")
+player_status_label_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/BattleStageView/PlayerHUD/VBox/HP/Value")
 enemy_status_label_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/BattleStageView/EnemyAnchor/EnemyContainer/EnemyHpLabel")
-turn_status_label_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/BattleStageView/TurnLabel")
+ap_status_label_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox/BoardHeader/Title")
 intent_label_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/BattleStageView/EnemyAnchor/EnemyContainer/IntentLabel")
-end_turn_button_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/BattleStageView/EndTurnButton")
+turn_status_label_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox/BoardHeader/Controls")
+end_turn_button_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox/TabletSection/Body/RightRail/EndTurnButton")
 spell_summary_label_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/InfoSection/LegendRow/SpellLabel")
 payment_preview_label_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/InfoSection/Actions/VBox/PaymentPreviewLabel")
 spell_legend_button_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/InfoSection/LegendRow/SpellLegendButton")

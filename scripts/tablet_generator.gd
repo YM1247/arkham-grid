@@ -11,7 +11,7 @@ signal payment_preview_changed(spells: Array)
 # 這裡的大小要跟 GridCell 的大小一致
 const CELL_SIZE = Vector2(46, 46)
 const GRID_DIMENSION = 8
-const HAND_SLOT_SIZE := Vector2(184, 180)
+const HAND_SLOT_SIZE := Vector2(184, 146)
 
 # --- 資源載入 ---
 # 載入剛剛做的格子場景
@@ -25,7 +25,7 @@ var _current_clear_preview_cells: Array[GridCell] = []
 @onready var col_icons_container = $Header/ColIcons
 @onready var row_icons_container = $Body/RowIcons
 @onready var grid_container = $Body/GridCells
-@onready var hand_area = $HandArea
+@onready var hand_area = $Body/HandArea
 
 # --- 手牌設定 ---
 @export var block_pool: Array[BlockData] = []
@@ -73,9 +73,9 @@ func _setup_layout_properties():
 	$Header.visible = false
 	row_icons_container.visible = false
 	corner_spacer.custom_minimum_size = Vector2.ZERO
-	hand_area.custom_minimum_size = Vector2(HAND_SLOT_SIZE.x * hand_size + 12.0 * max(hand_size - 1, 0), HAND_SLOT_SIZE.y)
+	hand_area.custom_minimum_size = Vector2(HAND_SLOT_SIZE.x, HAND_SLOT_SIZE.y * hand_size + 8.0 * max(hand_size - 1, 0))
 	hand_area.alignment = BoxContainer.ALIGNMENT_CENTER
-	hand_area.add_theme_constant_override("separation", 12)
+	hand_area.add_theme_constant_override("separation", 8)
 	_ensure_hand_slots()
 	
 	# 如果你在編輯器有用 PaddingContainer，這裡的 spacing 可以設為 0 或小一點

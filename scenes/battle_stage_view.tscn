@@ -6,7 +6,7 @@
 [ext_resource type="PackedScene" path="res://scenes/player_hud.tscn" id="4_hud"]
 
 [node name="BattleStageView" type="Control"]
-custom_minimum_size = Vector2(0, 276)
+custom_minimum_size = Vector2(0, 360)
 layout_mode = 2
 clip_contents = true
 script = ExtResource("1_stage")
@@ -68,9 +68,9 @@ offset_bottom = 270.0
 layout_mode = 1
 anchors_preset = 0
 anchor_left = 0.3
-anchor_top = 0.08
+anchor_top = 0.12
 anchor_right = 0.86
-anchor_bottom = 0.62
+anchor_bottom = 0.78
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
@@ -94,6 +94,7 @@ visible = false
 layout_mode = 2
 
 [node name="TurnLabel" type="Label" parent="."]
+visible = false
 layout_mode = 1
 anchors_preset = 1
 anchor_left = 1.0
@@ -106,6 +107,7 @@ horizontal_alignment = 2
 mouse_filter = 2
 
 [node name="EndTurnButton" type="Button" parent="."]
+visible = false
 layout_mode = 1
 anchors_preset = 1
 anchor_left = 1.0
@@ -127,7 +129,23 @@ offset_top = -52.0
 offset_right = -20.0
 offset_bottom = -10.0
 theme_override_colors/font_color = Color(0.78, 0.84, 0.85, 1)
-theme_override_font_sizes/font_size = 13
+theme_override_font_sizes/font_size = 16
 text = "行動紀錄"
 horizontal_alignment = 2
 mouse_filter = 2
+
+[node name="IntentLegend" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -760.0
+offset_top = 10.0
+offset_right = -18.0
+offset_bottom = 36.0
+theme_override_colors/font_color = Color(0.92, 0.82, 0.58, 1)
+theme_override_font_sizes/font_size = 15
+text = "意圖  ↘ 攻擊　✹ 重擊　⬢ 防禦　◉ 精神　◆ 弱化　▲ 強化　◌ 待機"
+horizontal_alignment = 2
+mouse_filter = 2
+tooltip_text = "敵人的意圖會顯示於角色下方；游標停留可查看完整說明。"
