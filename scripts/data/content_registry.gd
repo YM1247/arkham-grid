@@ -460,6 +460,9 @@ func _validate_values() -> void:
 	_validate_spell_upgrade_chains()
 	for enemy in definitions.get("enemies", []):
 		var id := str(enemy.get("id", ""))
+		var art_path := str(enemy.get("art_path", ""))
+		if art_path.is_empty() or not ResourceLoader.exists(art_path):
+			errors.append("enemy %s.art_path 引用不存在：%s" % [id, art_path])
 		if int(enemy.get("hp", 0)) <= 0 or int(enemy.get("attack", -1)) < 0 or int(enemy.get("tier", 0)) <= 0 or int(enemy.get("speed", 0)) <= 0:
 			errors.append("enemy %s 的 hp / attack / tier / speed 超出值域" % id)
 		var pattern = enemy.get("intent_pattern")
@@ -508,6 +511,9 @@ func _validate_values() -> void:
 	_validate_reward_pool()
 	_validate_choice_definitions()
 	var player: Dictionary = documents.get("player", {})
+	var player_art_path := str(player.get("art_path", ""))
+	if player_art_path.is_empty() or not ResourceLoader.exists(player_art_path):
+		errors.append("player.art_path 引用不存在：%s" % player_art_path)
 	if str(player.get("profession_id", "")).is_empty():
 		errors.append("player.profession_id 必須是非空字串")
 	if str(player.get("name", "")).is_empty() or int(player.get("max_hp", 0)) <= 0 or int(player.get("action_points", 0)) <= 0:

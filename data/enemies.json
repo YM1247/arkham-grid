@@ -4,6 +4,7 @@
   {
     "id": "abyss_thrall",
     "name": "深淵眷屬",
+    "art_path": "res://assets/art/characters/abyss_thrall.png",
     "hp": 35,
     "attack": 10,
     "speed": 8,
@@ -17,6 +18,7 @@
   {
     "id": "rotting_hound",
     "name": "腐敗獵犬",
+    "art_path": "res://assets/art/characters/rotting_hound.png",
     "hp": 35,
     "attack": 11,
     "speed": 14,
@@ -30,6 +32,7 @@
   {
     "id": "lightless_priest",
     "name": "無光祭司",
+    "art_path": "res://assets/art/characters/lightless_priest.png",
     "hp": 40,
     "attack": 13,
     "speed": 10,
@@ -43,6 +46,7 @@
   {
     "id": "grave_cultist",
     "name": "墓園教徒",
+    "art_path": "res://assets/art/characters/grave_cultist.png",
     "hp": 55,
     "attack": 12,
     "speed": 9,
@@ -56,6 +60,7 @@
   {
     "id": "warped_acolyte",
     "name": "扭曲侍僧",
+    "art_path": "res://assets/art/characters/warped_acolyte.png",
     "hp": 50,
     "attack": 11,
     "speed": 12,
@@ -69,6 +74,7 @@
   {
     "id": "abyss_guard",
     "name": "深淵守衛",
+    "art_path": "res://assets/art/characters/abyss_guard.png",
     "hp": 75,
     "attack": 15,
     "speed": 6,

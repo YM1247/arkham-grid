@@ -1,4 +1,4 @@
-[gd_scene load_steps=16 format=3 uid="uid://dwxw7ydj0iw88"]
+[gd_scene load_steps=21 format=3 uid="uid://dwxw7ydj0iw88"]
 
 [ext_resource type="Script" uid="uid://bynurhes78qkj" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" uid="uid://bveoo4lldlwhj" path="res://scripts/tablet_generator.gd" id="2_tablet"]
@@ -11,23 +11,67 @@
 [ext_resource type="PackedScene" path="res://scenes/map_container.tscn" id="9_map"]
 [ext_resource type="PackedScene" path="res://scenes/settlement_scene.tscn" id="10_settlement"]
 [ext_resource type="PackedScene" path="res://scenes/event_scene.tscn" id="11_event"]
-[ext_resource type="PackedScene" path="res://scenes/player_hud.tscn" id="12_hud"]
 [ext_resource type="PackedScene" path="res://scenes/system_menu.tscn" id="13_menu"]
 [ext_resource type="Script" path="res://scripts/audio/audio_manager.gd" id="14_audio"]
 [ext_resource type="PackedScene" path="res://scenes/build_pool_view.tscn" id="15_pool"]
+[ext_resource type="Texture2D" path="res://assets/art/backgrounds/ritual_far.png" id="16_far"]
+[ext_resource type="Texture2D" path="res://assets/art/backgrounds/ritual_mid.png" id="17_mid"]
+[ext_resource type="Texture2D" path="res://assets/art/backgrounds/ritual_fore.png" id="18_fore"]
+[ext_resource type="Script" path="res://scripts/ui/battle_atmosphere.gd" id="19_atmosphere"]
+[ext_resource type="PackedScene" path="res://scenes/battle_stage_view.tscn" id="20_stage"]
 
 [node name="Main" type="Node"]
 script = ExtResource("1_main")
 
 [node name="UILayer" type="CanvasLayer" parent="."]
 
-[node name="BG" type="ColorRect" parent="UILayer"]
+[node name="BG" type="TextureRect" parent="UILayer"]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.031373, 0.043137, 0.070588, 1)
+mouse_filter = 2
+texture_filter = 1
+texture = ExtResource("16_far")
+expand_mode = 1
+stretch_mode = 6
+self_modulate = Color(0.56, 0.6, 0.65, 1)
+
+[node name="Midground" type="TextureRect" parent="UILayer"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture_filter = 1
+texture = ExtResource("17_mid")
+expand_mode = 1
+stretch_mode = 6
+self_modulate = Color(1, 1, 1, 0.5)
+
+[node name="Atmosphere" type="Control" parent="UILayer"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("19_atmosphere")
+
+[node name="Foreground" type="TextureRect" parent="UILayer"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture_filter = 1
+texture = ExtResource("18_fore")
+expand_mode = 1
+stretch_mode = 6
+self_modulate = Color(1, 1, 1, 0.42)
 
 [node name="ScreenMargin" type="MarginContainer" parent="UILayer"]
 anchors_preset = 15
@@ -68,6 +112,9 @@ text = "選單  Esc"
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_constants/separation = 22
+
+[node name="BattleStageView" parent="UILayer/ScreenMargin/Screen/Layout" instance=ExtResource("20_stage")]
+layout_mode = 2
 
 [node name="BoardPanel" type="PanelContainer" parent="UILayer/ScreenMargin/Screen/Layout"]
 layout_mode = 2
@@ -150,9 +197,12 @@ custom_minimum_size = Vector2(0, 245)
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="EnemyContainer" type="VBoxContainer" parent="UILayer/ScreenMargin/Screen/Layout/InfoSection/EnemyScroll"]
+[node name="EnemyContainer" type="GridContainer" parent="UILayer/ScreenMargin/Screen/Layout/InfoSection/EnemyScroll"]
 layout_mode = 2
 size_flags_horizontal = 3
+columns = 2
+theme_override_constants/h_separation = 8
+theme_override_constants/v_separation = 8
 
 [node name="IntentLabel" type="Label" parent="UILayer/ScreenMargin/Screen/Layout/InfoSection/EnemyScroll/EnemyContainer"]
 visible = false
@@ -164,9 +214,6 @@ visible = false
 layout_mode = 2
 text = "Enemy HP: --"
 
-[node name="PlayerHUD" parent="UILayer/ScreenMargin/Screen/Layout/InfoSection" instance=ExtResource("12_hud")]
-layout_mode = 2
-
 [node name="Actions" type="PanelContainer" parent="UILayer/ScreenMargin/Screen/Layout/InfoSection"]
 layout_mode = 2
 
@@ -176,16 +223,18 @@ layout_mode = 2
 [node name="ResultLabel" type="Label" parent="UILayer/ScreenMargin/Screen/Layout/InfoSection/Actions/VBox"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.611765, 0.662745, 0.733333, 1)
+theme_override_font_sizes/font_size = 16
 text = "探索開始"
 autowrap_mode = 2
 
 [node name="PaymentPreviewLabel" type="Label" parent="UILayer/ScreenMargin/Screen/Layout/InfoSection/Actions/VBox"]
 layout_mode = 2
+theme_override_font_sizes/font_size = 16
 text = "選取或拖曳方塊可預覽支付"
 autowrap_mode = 2
 
 [node name="EndTurnButton" type="Button" parent="UILayer/ScreenMargin/Screen/Layout/InfoSection/Actions/VBox"]
-custom_minimum_size = Vector2(0, 54)
+custom_minimum_size = Vector2(0, 46)
 layout_mode = 2
 text = "結束回合  Enter"
 
@@ -237,7 +286,7 @@ hp = 120
 player_path = NodePath("../Player")
 enemy_path = NodePath("../Enemy")
 tablet_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardVBox/TabletSection")
-player_hud_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/InfoSection/PlayerHUD")
+player_hud_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/BattleStageView/VBox/PlayerHUD")
 enemy_status_label_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/InfoSection/EnemyScroll/EnemyContainer/EnemyHpLabel")
 turn_status_label_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/InfoSection/EncounterHeader/TurnLabel")
 intent_label_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/InfoSection/EnemyScroll/EnemyContainer/IntentLabel")
@@ -246,6 +295,7 @@ spell_summary_label_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/InfoS
 payment_preview_label_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/InfoSection/Actions/VBox/PaymentPreviewLabel")
 spell_legend_button_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/InfoSection/LegendRow/SpellLegendButton")
 spell_legend_label_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/InfoSection/SpellLegendLabel")
+battle_stage_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/BattleStageView")
 player_max_action_points = 3
 enemy_attack_damage = 8
 

@@ -1,6 +1,7 @@
 {
   "schema_version": 1,
   "name": "調查員",
+  "art_path": "res://assets/art/characters/investigator.png",
   "max_hp": 80,
   "hp": 80,
   "max_sanity": 100,

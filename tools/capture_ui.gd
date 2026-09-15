@@ -19,21 +19,38 @@ func _capture() -> void:
 	if system_menu != null and mode != "title":
 		system_menu.hide_menu()
 	var run_manager := main.get_node("RunManager") as RunManager
-	if mode in ["battle", "reward"] and run_manager != null and not run_manager.run_state.available_node_ids.is_empty():
+	if mode in ["battle", "battle_action", "reward"] and run_manager != null and not run_manager.run_state.available_node_ids.is_empty():
 		run_manager.select_map_node(run_manager.run_state.available_node_ids[0])
 		for _frame in range(3):
 			await process_frame
+		if mode in ["battle", "battle_action"]:
+			var battle_manager := main.get_node("BattleManager")
+			battle_manager.start_encounter(run_manager.enemies.slice(0, 5))
+			for _frame in range(3):
+				await process_frame
+			if mode == "battle_action":
+				battle_manager.end_player_turn()
+				await create_timer(0.72).timeout
 		if mode == "reward":
 			run_manager._show_reward_choices()
 			await process_frame
+	elif mode == "build" and run_manager != null:
+		run_manager._show_build_pool()
+		await process_frame
 	elif mode == "settlement" and run_manager != null:
 		run_manager._finish_run(false, "UI 預覽")
+		await process_frame
+	await create_timer(0.35).timeout
+	for _frame in range(2):
 		await process_frame
 	await RenderingServer.frame_post_draw
 	var image := root.get_texture().get_image()
 	var result := image.save_png(output_path)
 	if result == OK:
 		print("UI CAPTURE OK: %s" % output_path)
+		main.queue_free()
+		await process_frame
+		await process_frame
 		quit(0)
 	else:
 		push_error("UI CAPTURE FAILED: %d" % result)

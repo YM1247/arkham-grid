@@ -53,7 +53,7 @@ horizontal_alignment = 1
 
 [node name="Description" type="Label" parent="Background/Margin/Panel/VBox"]
 layout_mode = 2
-text = "將咒文加入構築，或擴充可抽取的方塊形狀。選擇後可在下一場戰鬥使用。"
+text = "每項獎勵都是形狀、咒文與效果格永久綁定的完整石板；選擇後可在下一場戰鬥抽到。"
 horizontal_alignment = 1
 autowrap_mode = 2
 

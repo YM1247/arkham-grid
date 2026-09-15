@@ -62,7 +62,7 @@
 - `spells.json`：`category_id`、`logic`、`mp_cost`、`effect_scope`、效果數值、狀態、rarity、tier、tags、trigger_hint、balance_cost，以及選用的形狀覆寫。
 - `blocks.json`：cells、complexity、tier、weight、tags、special、smart_score_bonus。
 - `run_config.json.starter_slates`：穩定 `slate_uid`、shape、spell 與 effect cell。
-- `enemies.json`：hp、attack、tier、speed、intent_pattern、intent_rules、sanity_pressure。
+- `enemies.json`：art_path、hp、attack、tier、speed、intent_pattern、intent_rules、sanity_pressure；角色圖必須是專案內可載入的透明 PNG。
 - `intents.json` action：damage、armor、sanity_damage、status_player、status_self、idle。
 
 每次改內容後執行 `tools/validate_all.sh`，並將有意義的平衡變動記入 `BALANCE_LOG.md`。

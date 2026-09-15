@@ -40,7 +40,9 @@ func _apply_ui_theme() -> void:
 	for child in $UILayer.get_children():
 		if child is Control:
 			child.theme = ui_theme
-	$UILayer/BG.color = UIThemeFactory.color(document, "background", Color("080b12"))
+	var background := $UILayer/BG
+	if background is ColorRect:
+		background.color = UIThemeFactory.color(document, "background", Color("080b12"))
 
 
 func _toggle_pause_menu() -> void:

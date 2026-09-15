@@ -358,6 +358,9 @@ def main():
         errors.append("player.name 必須是非空字串")
     if not isinstance(player.get("profession_id"), str) or not player.get("profession_id"):
         errors.append("player.profession_id 必須是非空字串")
+    player_art = player.get("art_path")
+    if not isinstance(player_art, str) or not player_art.startswith("res://") or not (ROOT / player_art.removeprefix("res://")).is_file():
+        errors.append("player.art_path 必須引用存在的專案圖片")
     for field in ("max_hp", "hp", "max_sanity", "sanity", "max_mp", "mp", "action_points"):
         if not isinstance(player.get(field), int):
             errors.append(f"player.{field} 必須是整數")
@@ -453,6 +456,9 @@ def main():
 
     for enemy in enemies:
         enemy_id = enemy.get("id")
+        enemy_art = enemy.get("art_path")
+        if not isinstance(enemy_art, str) or not enemy_art.startswith("res://") or not (ROOT / enemy_art.removeprefix("res://")).is_file():
+            errors.append(f"enemy {enemy_id}.art_path 必須引用存在的專案圖片")
         if "reward_tier" in enemy:
             errors.append(f"enemy {enemy_id} 不應再使用 reward_tier")
         if int(enemy.get("hp", 0)) <= 0:

@@ -18,7 +18,7 @@ func render(label: Label, enemies: Array[Entity], selected_index: int, selected_
 		return
 	var roster_ids: Array[int] = []
 	for enemy in enemies:
-		if enemy != null and not enemy.is_dead:
+		if enemy != null:
 			roster_ids.append(enemy.get_instance_id())
 	if roster_ids != _roster_ids:
 		_rebuild(container, enemies, selected_callback)
@@ -49,12 +49,49 @@ func get_card_instance_ids() -> Array[int]:
 	return ids
 
 
+func play_windup(entity: Entity) -> void:
+	var card := _find_card(entity)
+	if card != null:
+		await card.play_windup()
+
+
+func play_resolution(entity: Entity) -> void:
+	var card := _find_card(entity)
+	if card != null:
+		await card.play_resolution()
+
+
+func play_return(entity: Entity) -> void:
+	var card := _find_card(entity)
+	if card != null:
+		await card.play_return()
+
+
+func play_hit(entity: Entity) -> void:
+	var card := _find_card(entity)
+	if card != null:
+		card.play_hit()
+
+
+func play_death(entity: Entity) -> void:
+	var card := _find_card(entity)
+	if card != null:
+		card.play_death()
+
+
+func _find_card(entity: Entity) -> EnemyCard:
+	for card in _cards:
+		if card.entity == entity:
+			return card
+	return null
+
+
 func _rebuild(container: Node, enemies: Array[Entity], selected_callback: Callable) -> void:
 	clear()
 	_selected_callback = selected_callback
 	for enemy_index in range(enemies.size()):
 		var enemy := enemies[enemy_index]
-		if enemy == null or enemy.is_dead:
+		if enemy == null:
 			continue
 		var card := ENEMY_CARD_SCENE.instantiate() as EnemyCard
 		container.add_child(card)

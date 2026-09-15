@@ -9,7 +9,7 @@
 - `ProfileSaveService` 將 `SettingsState` 與共享 `MetaState` 分成兩份獨立版本檔案，沿用原子寫入與 last-known-good 備份；設定保存語言、視窗、音量與匿名回報偏好，Meta v3 保存共享貨幣、Run 統計、首次教學進度、最近 20 局結算摘要及職業／方塊／咒文解鎖。
 - `RunState` v6 因核心組合語意已改變，不近似遷移 v5 進行中 Run；`SaveGameService` 先封存舊自動槽，再由 RunManager 建立新版新局。Profile／Meta 檔案不受影響。
 - `BattleStartInput` 是 Run 進入戰鬥的唯一資料包；`BattleResult` 透過 `battle_finished` 回傳結果。戰鬥控制器不決定下一個場景。
-- `EnemyFactory` 建立敵人實例並套用內容資料；`EnemyRosterPresenter` 建立與更新目前原型敵人 UI；`BattleManager` 保留回合與效果規則。
+- `EnemyFactory` 建立敵人實例並套用內容與美術路徑；`EnemyRosterPresenter` 維護 2×3 敵人立繪卡及蓄力／結算／返回演出；`BattleStageView` 顯示玩家角色、目前行動與最近四筆結果；`BattleManager` 保留回合、命中結算時點與效果規則。
 - `EnemyIntentState`／`EnemyIntentExecutor`、`TargetResolver`、`BattleEffectContext` 與 `BattleOutcomeResolver` 分別承擔意圖、目標、效果輸入與結果判定；詳細時序見 `docs/COMBAT_SYSTEM.md`。
 - `BattleBatchSimulator` 使用相同 Entity、咒文 Resource、MP、意圖、目標與勝敗規則消耗棋盤事件，提供無 UI 的固定 seed 戰鬥回歸報告。
 - `RunPressureSimulator` 串接持久化盤面／手牌、HP／Sanity／MP、咒文與形狀獎勵，以及每節點 MP 回復，量測完整路線壓力；它是測試代理，不代表玩家選擇。
@@ -27,7 +27,7 @@ versioned JSON -> ContentRegistry -> definitions / runtime Resources
 RunState -> BattleStartInput -> BattleManager -> BattleResult -> RunManager
    |               |                     |
    |               |                     +-> EnemyFactory / EnemyRosterPresenter
-   |               +-> player / encounter / spell pool
+   |               +-> player / encounter / slate pool
    +-> BoardModel / effect cells / hand / slate pool / progress
 ```
 

@@ -11,7 +11,9 @@ godot --headless --path . --log-file /tmp/arkham-grid-tests.log --script res://t
 固定擷取 Phase 17 介面狀態供視覺回歸（模式可用 `title`、`map`、`battle`、`reward`、`settlement`）：
 
 ```bash
-godot --path . --script res://tools/capture_ui.gd -- battle /tmp/arkham-grid-ui.png
+godot --path . --resolution 1920x1080 --script res://tools/capture_ui.gd -- battle /tmp/arkham-grid-ui.png
+
+`mode` 可使用 `title`、`map`、`battle`、`battle_action`、`reward`、`build`、`settlement`；battle 會建立五名敵人的 2×3 壓力測試畫面，battle_action 會在第一名敵人結算時擷取。
 ```
 
 執行智慧手牌與權重隨機的棋盤基線比較：

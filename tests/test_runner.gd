@@ -796,7 +796,8 @@ func _test_phase_19_full_run_pressure() -> void:
 
 
 func _test_five_enemy_roster() -> void:
-	var host := VBoxContainer.new()
+	var host := GridContainer.new()
+	host.columns = 2
 	var label := Label.new()
 	host.add_child(label)
 	root.add_child(host)
@@ -809,6 +810,12 @@ func _test_five_enemy_roster() -> void:
 		enemy.set_meta("intent_display", "攻擊")
 		enemies.append(enemy)
 	var presenter := EnemyRosterPresenter.new()
+	var one_enemy: Array[Entity] = [enemies[0]]
+	presenter.render(label, one_enemy, 0, func(_index: int): pass)
+	_expect(presenter.get_card_instance_ids().size() == 1, "敵人 UI 應正確呈現單一敵人")
+	var three_enemies: Array[Entity] = [enemies[0], enemies[1], enemies[2]]
+	presenter.render(label, three_enemies, 0, func(_index: int): pass)
+	_expect(presenter.get_card_instance_ids().size() == 3, "敵人 UI 應正確呈現三名敵人")
 	presenter.render(label, enemies, 0, func(_index: int): pass)
 	var before := presenter.get_card_instance_ids()
 	_expect(before.size() == 5, "敵人 UI 應可建立 5 張獨立敵人卡")
@@ -817,7 +824,15 @@ func _test_five_enemy_roster() -> void:
 	_expect(presenter.get_card_instance_ids() == before, "五敵人數值更新不應重建卡片")
 	enemies[0].take_damage(10)
 	presenter.render(label, enemies, 1, func(_index: int): pass)
-	_expect(presenter.get_card_instance_ids().size() == 4, "死亡敵人應從敵人卡列消失")
+	_expect(presenter.get_card_instance_ids().size() == 5, "死亡敵人應留在原隊形播放淡出，避免其他敵人卡突然位移")
+	var stage := preload("res://scenes/battle_stage_view.tscn").instantiate() as BattleStageView
+	root.add_child(stage)
+	await process_frame
+	stage.begin_encounter("測試調查員")
+	for index in range(5):
+		stage._append_log("行動%d" % index)
+	_expect(stage._recent_entries.size() == 4 and not stage.combat_log.text.contains("行動0") and stage.combat_log.text.contains("行動4"), "戰鬥舞台應只保留最近四筆敵人行動")
+	stage.queue_free()
 	host.queue_free()
 	await process_frame
 	for enemy in enemies:
@@ -873,7 +888,7 @@ func _test_main_scene_smoke() -> void:
 	var graph = instance.get_node_or_null("UILayer/MapContainer/Margin/Panel/VBox/Scroll/Center/Graph")
 	_expect(graph != null and graph.get_edge_count() > 0, "地圖畫布應建立可見的節點連線資料")
 	_expect(FileAccess.file_exists(run_manager.save_service.get_run_path()), "新 Run 建立後應寫入單一自動存檔槽")
-	var player_hud := instance.get_node_or_null("UILayer/ScreenMargin/Screen/Layout/InfoSection/PlayerHUD") as PlayerHUD
+	var player_hud := instance.get_node_or_null("UILayer/ScreenMargin/Screen/Layout/BattleStageView/VBox/PlayerHUD") as PlayerHUD
 	var system_menu := instance.get_node_or_null("UILayer/SystemMenu") as SystemMenu
 	_expect(player_hud != null and player_hud.hp_bar.value == manager.player.hp, "正式 HUD 應以資源條呈現玩家狀態")
 	_expect(system_menu != null and system_menu.visible, "啟動時應顯示可繼續、新遊戲與設定的主選單")
@@ -989,6 +1004,7 @@ func _test_main_scene_smoke() -> void:
 	var hp_before: int = manager.player.hp
 	var hand_before_turn: Array[Dictionary] = tablet.get_hand_state()
 	manager.end_player_turn()
+	_expect(manager.current_turn == manager.TurnState.ENEMY_TURN and not tablet.placement_enabled, "敵人行動佇列期間應鎖定盤面輸入")
 	await create_timer(0.5).timeout
 	_expect(manager.player.hp == hp_before - 10, "核心迴圈應依調整後的資料化 attack 意圖完成敵人回合")
 	_expect(int(manager._battle_stats.values.get("damage_taken", 0)) == 10, "戰鬥統計應記錄調整後的承受傷害")

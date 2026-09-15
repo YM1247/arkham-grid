@@ -30,6 +30,7 @@ const MAX_ENEMIES := 5
 @export var payment_preview_label_path: NodePath
 @export var spell_legend_button_path: NodePath
 @export var spell_legend_label_path: NodePath
+@export var battle_stage_path: NodePath
 
 @export_group("回合設定")
 @export var player_max_action_points: int = 3
@@ -40,6 +41,7 @@ var enemy: Entity
 var enemies: Array[Entity] = []
 var selected_enemy_index := 0
 var tablet: Node
+var battle_stage: BattleStageView
 var current_turn := TurnState.PLAYER_TURN
 var current_action_points := 0
 var battle_active := false
@@ -69,6 +71,7 @@ func _ready():
 	player = get_node_or_null(player_path) as Entity
 	enemy = get_node_or_null(enemy_path) as Entity
 	tablet = get_node_or_null(tablet_path)
+	battle_stage = get_node_or_null(battle_stage_path) as BattleStageView
 	
 	if player == null:
 		push_error("BattleManager 設定錯誤：找不到 Player Entity。")
@@ -154,6 +157,8 @@ func _on_entity_died(entity: Entity) -> void:
 	print("戰鬥事件：", entity.entity_name, " 死亡。")
 	if entity != player and _get_selected_enemy() == entity:
 		selected_enemy_index = _first_living_enemy_index()
+	if entity != player:
+		_enemy_presenter.play_death(entity)
 	_update_all_status_labels()
 	_schedule_outcome_check()
 
@@ -161,6 +166,8 @@ func _on_player_sanity_depleted(_entity: Entity) -> void:
 	_schedule_outcome_check()
 
 func _on_entity_combat_feedback(entity: Entity, message: String, color: Color) -> void:
+	if entity != player:
+		_enemy_presenter.play_hit(entity)
 	var label = _get_status_label_for_entity(entity)
 	if label == null:
 		return
@@ -239,7 +246,17 @@ func _execute_enemy_turn() -> void:
 			_finish_battle(false, "敵人意圖資料錯誤")
 			return
 		print(active_enemy.entity_name, " 意圖發動：", intent.get("display_name", intent_id))
-		_intent_executor.execute(intent, active_enemy, player)
+		var intent_name := str(intent.get("display_name", intent_id))
+		await _present_enemy_windup(active_enemy, intent_name)
+		var before := {
+			"player_hp": player.hp,
+			"player_armor": player.armor,
+			"player_sanity": player.sanity,
+			"enemy_armor": active_enemy.armor,
+		}
+		var execution_result := _intent_executor.execute(intent, active_enemy, player)
+		var resolution_text := _format_enemy_action_result(intent, execution_result, active_enemy, before)
+		await _present_enemy_resolution(active_enemy, intent_name, resolution_text, str(intent.get("action", "")) in ["damage", "sanity_damage", "status_player"])
 		if intent_state != null:
 			intent_state.advance()
 		active_enemy.trigger_end_of_turn_statuses()
@@ -252,6 +269,49 @@ func _execute_enemy_turn() -> void:
 		return
 	await get_tree().create_timer(0.4).timeout
 	_start_player_turn()
+
+
+func _present_enemy_windup(active_enemy: Entity, intent_name: String) -> void:
+	if DisplayServer.get_name() == "headless":
+		return
+	await _enemy_presenter.play_windup(active_enemy)
+	if battle_stage != null:
+		await battle_stage.present_enemy_windup(active_enemy.entity_name, intent_name)
+
+
+func _present_enemy_resolution(active_enemy: Entity, intent_name: String, result_text: String, harms_player: bool) -> void:
+	if DisplayServer.get_name() == "headless":
+		return
+	await _enemy_presenter.play_resolution(active_enemy)
+	if battle_stage != null:
+		await battle_stage.present_enemy_resolution(active_enemy.entity_name, intent_name, result_text, harms_player)
+	await _enemy_presenter.play_return(active_enemy)
+	if battle_stage != null:
+		await battle_stage.finish_enemy_action()
+
+
+func _format_enemy_action_result(intent: Dictionary, execution_result: Dictionary, active_enemy: Entity, before: Dictionary) -> String:
+	match str(intent.get("action", "")):
+		"damage":
+			var hp_damage := maxi(int(before.get("player_hp", player.hp)) - player.hp, 0)
+			var blocked := maxi(int(before.get("player_armor", player.armor)) - player.armor, 0)
+			return "造成 %d HP 傷害%s" % [hp_damage, "，護甲吸收 %d" % blocked if blocked > 0 else ""]
+		"sanity_damage":
+			return "侵蝕 %d Sanity" % maxi(int(before.get("player_sanity", player.sanity)) - player.sanity, 0)
+		"armor":
+			return "取得 %d 護甲" % maxi(active_enemy.armor - int(before.get("enemy_armor", active_enemy.armor)), 0)
+		"status_player":
+			return "施加 %s ×%d" % [_status_display_name(str(intent.get("status_id", ""))), int(intent.get("amount", 0))]
+		"status_self":
+			return "獲得 %s ×%d" % [_status_display_name(str(intent.get("status_id", ""))), int(intent.get("amount", 0))]
+		"idle":
+			return "沒有直接行動"
+		_:
+			return "行動%s" % ("完成" if bool(execution_result.get("executed", false)) else "失敗")
+
+
+func _status_display_name(status_id: String) -> String:
+	return {"strength": "力量", "weak": "虛弱", "hard": "堅硬", "fragile": "脆弱", "poison": "中毒", "regen": "再生"}.get(status_id, status_id)
 
 func _update_all_status_labels() -> void:
 	_update_status_label(player_status_label_path, player)
@@ -500,6 +560,8 @@ func start_encounter(enemy_defs: Array) -> void:
 			_dynamic_enemies.append(active_enemy)
 		enemies.append(active_enemy)
 	enemy_attack_damage = int(enemies[0].get_meta("attack_damage", 8)) if not enemies.is_empty() else 8
+	if battle_stage != null:
+		battle_stage.begin_encounter(player.entity_name if player != null else "調查員")
 	battle_active = true
 	_start_player_turn()
 

@@ -4,6 +4,7 @@
     {
       "id": "example_enemy",
       "name": "範例敵人",
+      "art_path": "res://assets/art/characters/example_enemy.png",
       "hp": 30,
       "attack": 8,
       "speed": 8,
