@@ -14,7 +14,6 @@ var _corner_label: Label
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	custom_minimum_size = Vector2(46, 46)
 	_ensure_labels()
 	_refresh_labels()
 	queue_redraw()
@@ -62,13 +61,13 @@ func _refresh_labels() -> void:
 	if _glyph_label == null:
 		return
 	_glyph_label.text = glyph
-	_glyph_label.add_theme_font_size_override("font_size", maxi(24, int(minf(size.x, size.y) * 0.58)))
+	_glyph_label.add_theme_font_size_override("font_size", maxi(10, int(minf(size.x, size.y) * 0.58)))
 	_glyph_label.add_theme_color_override("font_color", accent_color)
 	_glyph_label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.95))
 	_glyph_label.add_theme_constant_override("shadow_offset_x", 2)
 	_glyph_label.add_theme_constant_override("shadow_offset_y", 2)
 	_corner_label.text = corner_marker
-	_corner_label.add_theme_font_size_override("font_size", 11)
+	_corner_label.add_theme_font_size_override("font_size", maxi(7, int(minf(size.x, size.y) * 0.26)))
 	_corner_label.add_theme_color_override("font_color", Color.WHITE)
 
 
@@ -76,8 +75,8 @@ func _badge_style() -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.035, 0.045, 0.07, 0.92)
 	style.border_color = accent_color
-	style.set_border_width_all(3)
-	style.set_corner_radius_all(9)
+	style.set_border_width_all(2 if minf(size.x, size.y) < 34.0 else 3)
+	style.set_corner_radius_all(maxi(3, int(minf(size.x, size.y) * 0.2)))
 	return style
 
 

@@ -7,6 +7,7 @@ signal target_requested(enemy: Entity)
 @onready var target_marker: Label = $VBox/Header/TargetMarker
 @onready var portrait: TextureRect = $VBox/Portrait
 @onready var hp_bar: ProgressBar = $VBox/HPRow/HP
+@onready var armor_overlay: ColorRect = $VBox/HPRow/ArmorOverlay
 @onready var stats_label: Label = $VBox/HPRow/Stats
 @onready var intent_label: Label = $VBox/Intent
 @onready var status_label: Label = $VBox/Status
@@ -42,6 +43,7 @@ func refresh(selected: bool) -> void:
 	name_label.text = entity.entity_name
 	hp_bar.max_value = maxi(entity.max_hp, 1)
 	hp_bar.value = entity.hp
+	_update_armor_overlay(entity.hp, entity.armor, entity.max_hp)
 	stats_label.text = "%d / %d%s" % [entity.hp, entity.max_hp, "　護盾 %d" % entity.armor if entity.armor > 0 else ""]
 	var status := entity.get_status_summary()
 	status_label.text = "狀態｜%s" % ("無" if status.is_empty() else status)
@@ -58,6 +60,17 @@ func refresh(selected: bool) -> void:
 	modulate = Color(0.45, 0.45, 0.45) if entity.is_dead else Color.WHITE
 	_selected = selected and not entity.is_dead
 	queue_redraw()
+
+
+func _update_armor_overlay(hp: int, armor: int, maximum: int) -> void:
+	armor_overlay.visible = armor > 0 and maximum > 0
+	if not armor_overlay.visible:
+		return
+	var hp_edge := clampf(float(hp) / float(maximum), 0.0, 1.0)
+	armor_overlay.anchor_left = clampf(hp_edge - float(armor) / float(maximum), 0.0, hp_edge)
+	armor_overlay.anchor_right = hp_edge
+	armor_overlay.offset_left = 0.0
+	armor_overlay.offset_right = 0.0
 
 
 func _draw() -> void:

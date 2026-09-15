@@ -5,6 +5,7 @@ extends Control
 @onready var armor_label: Label = $VBox/Header/Armor
 @onready var hp_bar: ProgressBar = $VBox/HP/Bar
 @onready var hp_value: Label = $VBox/HP/Value
+@onready var armor_overlay: ColorRect = $VBox/HP/ArmorOverlay
 @onready var sanity_bar: ProgressBar = $VBox/Sanity/Bar
 @onready var sanity_value: Label = $VBox/Sanity/Value
 @onready var mp_bar: ProgressBar = $VBox/MP/Bar
@@ -26,6 +27,8 @@ func refresh(entity: Entity, mp: int, max_mp: int, sanity_stage: String, sanity_
 	name_label.text = entity.entity_name
 	armor_label.text = "護盾 %d" % entity.armor
 	_set_bar(hp_bar, hp_value, entity.hp, entity.max_hp)
+	_update_armor_overlay(armor_overlay, entity.hp, entity.armor, entity.max_hp)
+	hp_value.text = "%d / %d%s" % [entity.hp, entity.max_hp, "　盾 %d" % entity.armor if entity.armor > 0 else ""]
 	_set_bar(sanity_bar, sanity_value, entity.sanity, entity.max_sanity)
 	_set_bar(mp_bar, mp_value, mp, max_mp)
 	var statuses: Array[String] = []
@@ -53,3 +56,16 @@ func _set_fill_color(bar: ProgressBar, color: Color) -> void:
 	style.bg_color = color
 	style.set_corner_radius_all(5)
 	bar.add_theme_stylebox_override("fill", style)
+
+
+func _update_armor_overlay(overlay: ColorRect, hp: int, armor: int, maximum: int) -> void:
+	if overlay == null:
+		return
+	overlay.visible = armor > 0 and maximum > 0
+	if not overlay.visible:
+		return
+	var hp_edge := clampf(float(hp) / float(maximum), 0.0, 1.0)
+	overlay.anchor_left = clampf(hp_edge - float(armor) / float(maximum), 0.0, hp_edge)
+	overlay.anchor_right = hp_edge
+	overlay.offset_left = 0.0
+	overlay.offset_right = 0.0

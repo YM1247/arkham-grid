@@ -27,6 +27,8 @@ static func build(document: Dictionary) -> Theme:
 	theme.set_color("font_focus_color", "Button", Color.WHITE)
 	theme.set_color("font_color", "TooltipLabel", text)
 	theme.set_color("font_shadow_color", "Label", Color(0, 0, 0, 0.7))
+	theme.set_color("font_outline_color", "Label", Color(0.01, 0.02, 0.04, 0.94))
+	theme.set_constant("outline_size", "Label", 3)
 	theme.set_constant("shadow_offset_x", "Label", 2)
 	theme.set_constant("shadow_offset_y", "Label", 2)
 	theme.set_constant("separation", "VBoxContainer", int(spacing.get("sm", 10)))
@@ -41,6 +43,9 @@ static func build(document: Dictionary) -> Theme:
 		theme.set_font("font", "CheckButton", pixel_font)
 		theme.set_font("font", "OptionButton", pixel_font)
 		theme.set_font("font", "ProgressBar", pixel_font)
+	for type in ["Button", "CheckButton", "OptionButton", "ProgressBar"]:
+		theme.set_color("font_outline_color", type, Color(0.01, 0.02, 0.04, 0.94))
+		theme.set_constant("outline_size", type, 2)
 
 	theme.set_stylebox("panel", "PanelContainer", _box(panel, border, radius, border_width, 10))
 	theme.set_stylebox("panel", "TooltipPanel", _box(panel, accent, radius, 1, 8))

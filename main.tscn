@@ -23,7 +23,7 @@
 bg_color = Color(0, 0, 0, 0)
 
 [sub_resource type="StyleBoxFlat" id="StyleBoardSurface"]
-bg_color = Color(0.04, 0.08, 0.14, 0.62)
+bg_color = Color(0, 0, 0, 0)
 content_margin_left = 10.0
 content_margin_top = 6.0
 content_margin_right = 10.0
@@ -45,7 +45,16 @@ texture_filter = 1
 texture = ExtResource("16_far")
 expand_mode = 1
 stretch_mode = 6
-self_modulate = Color(0.82, 0.86, 0.9, 1)
+self_modulate = Color(0.68, 0.72, 0.78, 1)
+
+[node name="BackdropGrade" type="ColorRect" parent="UILayer"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.015, 0.035, 0.075, 0.2)
 
 [node name="Atmosphere" type="Control" parent="UILayer"]
 anchors_preset = 15

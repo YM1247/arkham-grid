@@ -1,7 +1,7 @@
 class_name BattleStageView
 extends Control
 
-const PLAYER_ART := "res://assets/art/characters/investigator_chibi.png"
+const PLAYER_ART := "res://assets/art/characters/investigator_chibi_opaque.png"
 
 @onready var player_art: TextureRect = $PlayerArt
 @onready var player_name_label: Label = $PlayerName

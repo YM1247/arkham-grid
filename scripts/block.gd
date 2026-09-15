@@ -163,27 +163,40 @@ func _get_drag_data(at_position):
 		"source_block": self
 	}
 	
-	# --- 預覽圖 ---
-	var preview_wrapper = Control.new()
-	var visual_content = Control.new()
-	for child in get_children():
-		if child.has_meta("shape_visual"):
-			var dup = child.duplicate()
-			dup.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			visual_content.add_child(dup)
-	
-	visual_content.modulate.a = 1
-	
-	# 【修改】預覽圖的位置也要修正
-	# at_position 是滑鼠在 Block 裡的位置 (包含偏移)
-	# 我們要把 visual_content 往回推，讓滑鼠對準抓取點
-	visual_content.position = -at_position
-	
-	preview_wrapper.add_child(visual_content)
+	# 手牌可能為了側欄縮小；拖曳時重新以棋盤的原始格尺寸繪製，
+	# 避免沿用手牌縮放後的格子與符文尺寸。
+	var preview_wrapper := _build_drag_preview(at_position, grab_offset)
 	set_drag_preview(preview_wrapper)
 	_set_shape_visible(false)
 	
 	return data_packet
+
+
+func _build_drag_preview(at_position: Vector2, grab_offset: Vector2i) -> Control:
+	var wrapper := Control.new()
+	var selected_render_position := Vector2(grab_offset - render_min_cell) * render_stride + render_origin
+	var within_selected := Vector2(0.5, 0.5)
+	if render_cell_size.x > 0.0 and render_cell_size.y > 0.0:
+		within_selected = (at_position - selected_render_position) / render_cell_size
+		within_selected.x = clampf(within_selected.x, 0.0, 1.0)
+		within_selected.y = clampf(within_selected.y, 0.0, 1.0)
+	var full_stride := CELL_SIZE + Vector2(SPACING, SPACING)
+	var cursor_offset := within_selected * CELL_SIZE
+	for cell_pos in block_data.cells:
+		var cell_position := Vector2(cell_pos - grab_offset) * full_stride - cursor_offset
+		var rect := ColorRect.new()
+		rect.position = cell_position
+		rect.size = CELL_SIZE
+		rect.color = block_data.color
+		rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		wrapper.add_child(rect)
+		if block_data.spell != null and cell_pos == block_data.effect_cell:
+			var rune: Control = SpellRuneBadgeScript.new()
+			rune.position = cell_position + Vector2(3, 3)
+			rune.size = CELL_SIZE - Vector2(6, 6)
+			rune.configure(block_data.spell)
+			wrapper.add_child(rune)
+	return wrapper
 
 func _set_shape_visible(is_visible: bool) -> void:
 	for child in get_children():

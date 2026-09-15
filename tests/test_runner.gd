@@ -822,6 +822,7 @@ func _test_five_enemy_roster() -> void:
 	enemies[2].add_armor(3)
 	presenter.render(label, enemies, 0, func(_index: int): pass)
 	_expect(presenter.get_card_instance_ids() == before, "五敵人數值更新不應重建卡片")
+	_expect(presenter._cards[2].armor_overlay.visible and presenter._cards[2].armor_overlay.anchor_right > presenter._cards[2].armor_overlay.anchor_left, "敵人護盾應以可見區段疊在 HP 條上")
 	enemies[0].take_damage(10)
 	presenter.render(label, enemies, 1, func(_index: int): pass)
 	_expect(presenter.get_card_instance_ids().size() == 5, "死亡敵人應留在原隊形播放淡出，避免其他敵人卡突然位移")
@@ -844,8 +845,29 @@ func _test_drag_source_visibility() -> void:
 	root.add_child(block)
 	var data := BlockData.new()
 	data.id = "drag_test"
-	data.cells = [Vector2i.ZERO]
+	data.cells = [Vector2i.ZERO, Vector2i(0, 1), Vector2i(0, 2), Vector2i(0, 3)]
+	data.effect_cell = Vector2i(0, 1)
+	var spell := BattleItem.new()
+	spell.spell_name = "拖曳測試"
+	spell.category_glyph = "✦"
+	data.spell = spell
 	block.set_data(data)
+	var hand_rune: SpellRuneBadge = null
+	for child in block.get_children():
+		if child is SpellRuneBadge:
+			hand_rune = child
+	_expect(hand_rune != null and hand_rune.size.x < 40.0, "手牌縮放時咒文符文應跟隨格子等比例縮小")
+	var full_preview := block._build_drag_preview(block.render_origin + block.render_cell_size * 0.5, Vector2i.ZERO)
+	var preview_cell: ColorRect = null
+	var preview_rune: SpellRuneBadge = null
+	for child in full_preview.get_children():
+		if child is ColorRect and preview_cell == null:
+			preview_cell = child
+		elif child is SpellRuneBadge:
+			preview_rune = child
+	_expect(preview_cell != null and preview_cell.size == Block.CELL_SIZE, "拖曳預覽應恢復棋盤使用的原始格子尺寸")
+	_expect(preview_rune != null and preview_rune.size == Block.CELL_SIZE - Vector2(6, 6), "拖曳預覽的咒文符文應恢復原尺寸並留在效果格內")
+	full_preview.free()
 	block._set_shape_visible(false)
 	var source_hidden := true
 	for child in block.get_children():
