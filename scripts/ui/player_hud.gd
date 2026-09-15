@@ -23,7 +23,7 @@ func refresh(entity: Entity, mp: int, max_mp: int, sanity_stage: String, sanity_
 	if entity == null:
 		return
 	name_label.text = entity.entity_name
-	armor_label.text = "護甲 %d" % entity.armor
+	armor_label.text = "護盾 %d" % entity.armor
 	_set_bar(hp_bar, hp_value, entity.hp, entity.max_hp)
 	_set_bar(sanity_bar, sanity_value, entity.sanity, entity.max_sanity)
 	_set_bar(mp_bar, mp_value, mp, max_mp)

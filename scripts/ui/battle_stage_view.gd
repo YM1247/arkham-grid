@@ -1,7 +1,7 @@
 class_name BattleStageView
 extends PanelContainer
 
-const PLAYER_ART := "res://assets/art/characters/investigator.png"
+const PLAYER_ART := "res://assets/art/characters/investigator_chibi.png"
 
 @onready var player_art: TextureRect = $VBox/PlayerArt
 @onready var player_name_label: Label = $VBox/PlayerName
@@ -68,7 +68,7 @@ func _append_log(entry: String) -> void:
 
 
 func _refresh_log() -> void:
-	combat_log.text = "尚無行動紀錄" if _recent_entries.is_empty() else "\n\n".join(_recent_entries)
+	combat_log.text = "尚無行動紀錄" if _recent_entries.is_empty() else "\n".join(_recent_entries)
 
 
 func _start_idle_motion() -> void:

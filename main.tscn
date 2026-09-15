@@ -14,9 +14,9 @@
 [ext_resource type="PackedScene" path="res://scenes/system_menu.tscn" id="13_menu"]
 [ext_resource type="Script" path="res://scripts/audio/audio_manager.gd" id="14_audio"]
 [ext_resource type="PackedScene" path="res://scenes/build_pool_view.tscn" id="15_pool"]
-[ext_resource type="Texture2D" path="res://assets/art/backgrounds/ritual_far.png" id="16_far"]
-[ext_resource type="Texture2D" path="res://assets/art/backgrounds/ritual_mid.png" id="17_mid"]
-[ext_resource type="Texture2D" path="res://assets/art/backgrounds/ritual_fore.png" id="18_fore"]
+[ext_resource type="Texture2D" path="res://assets/art/backgrounds/ritual_chibi_stage.png" id="16_far"]
+[ext_resource type="Texture2D" path="res://assets/art/backgrounds/ritual_chibi_stage.png" id="17_mid"]
+[ext_resource type="Texture2D" path="res://assets/art/backgrounds/ritual_chibi_stage.png" id="18_fore"]
 [ext_resource type="Script" path="res://scripts/ui/battle_atmosphere.gd" id="19_atmosphere"]
 [ext_resource type="PackedScene" path="res://scenes/battle_stage_view.tscn" id="20_stage"]
 
@@ -49,7 +49,7 @@ texture_filter = 1
 texture = ExtResource("17_mid")
 expand_mode = 1
 stretch_mode = 6
-self_modulate = Color(1, 1, 1, 0.5)
+self_modulate = Color(1, 1, 1, 0.0)
 
 [node name="Atmosphere" type="Control" parent="UILayer"]
 anchors_preset = 15
@@ -71,7 +71,7 @@ texture_filter = 1
 texture = ExtResource("18_fore")
 expand_mode = 1
 stretch_mode = 6
-self_modulate = Color(1, 1, 1, 0.42)
+self_modulate = Color(1, 1, 1, 0.0)
 
 [node name="ScreenMargin" type="MarginContainer" parent="UILayer"]
 anchors_preset = 15
@@ -138,6 +138,27 @@ layout_mode = 2
 theme_override_colors/font_color = Color(0.611765, 0.662745, 0.733333, 1)
 text = "1–3 選方塊　WASD 移動　Space 放置　X 取消"
 
+[node name="EnemyScroll" type="ScrollContainer" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardVBox"]
+custom_minimum_size = Vector2(0, 148)
+layout_mode = 2
+horizontal_scroll_mode = 2
+vertical_scroll_mode = 0
+
+[node name="EnemyContainer" type="HBoxContainer" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardVBox/EnemyScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 10
+
+[node name="IntentLabel" type="Label" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardVBox/EnemyScroll/EnemyContainer"]
+visible = false
+layout_mode = 2
+text = "Intent: --"
+
+[node name="EnemyHpLabel" type="Label" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardVBox/EnemyScroll/EnemyContainer"]
+visible = false
+layout_mode = 2
+text = "Enemy HP: --"
+
 [node name="TabletSection" type="VBoxContainer" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardVBox"]
 layout_mode = 2
 size_flags_horizontal = 4
@@ -191,28 +212,6 @@ text = "威脅"
 layout_mode = 2
 theme_override_colors/font_color = Color(0.901961, 0.72549, 0.360784, 1)
 text = "玩家回合  AP --"
-
-[node name="EnemyScroll" type="ScrollContainer" parent="UILayer/ScreenMargin/Screen/Layout/InfoSection"]
-custom_minimum_size = Vector2(0, 245)
-layout_mode = 2
-size_flags_vertical = 3
-
-[node name="EnemyContainer" type="GridContainer" parent="UILayer/ScreenMargin/Screen/Layout/InfoSection/EnemyScroll"]
-layout_mode = 2
-size_flags_horizontal = 3
-columns = 2
-theme_override_constants/h_separation = 8
-theme_override_constants/v_separation = 8
-
-[node name="IntentLabel" type="Label" parent="UILayer/ScreenMargin/Screen/Layout/InfoSection/EnemyScroll/EnemyContainer"]
-visible = false
-layout_mode = 2
-text = "Intent: --"
-
-[node name="EnemyHpLabel" type="Label" parent="UILayer/ScreenMargin/Screen/Layout/InfoSection/EnemyScroll/EnemyContainer"]
-visible = false
-layout_mode = 2
-text = "Enemy HP: --"
 
 [node name="Actions" type="PanelContainer" parent="UILayer/ScreenMargin/Screen/Layout/InfoSection"]
 layout_mode = 2
@@ -287,9 +286,9 @@ player_path = NodePath("../Player")
 enemy_path = NodePath("../Enemy")
 tablet_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardVBox/TabletSection")
 player_hud_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/BattleStageView/VBox/PlayerHUD")
-enemy_status_label_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/InfoSection/EnemyScroll/EnemyContainer/EnemyHpLabel")
+enemy_status_label_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardVBox/EnemyScroll/EnemyContainer/EnemyHpLabel")
 turn_status_label_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/InfoSection/EncounterHeader/TurnLabel")
-intent_label_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/InfoSection/EnemyScroll/EnemyContainer/IntentLabel")
+intent_label_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardVBox/EnemyScroll/EnemyContainer/IntentLabel")
 end_turn_button_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/InfoSection/Actions/VBox/EndTurnButton")
 spell_summary_label_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/InfoSection/LegendRow/SpellLabel")
 payment_preview_label_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/InfoSection/Actions/VBox/PaymentPreviewLabel")

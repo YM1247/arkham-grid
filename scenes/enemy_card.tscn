@@ -3,7 +3,7 @@
 [ext_resource type="Script" path="res://scripts/ui/enemy_card.gd" id="1_card"]
 
 [node name="EnemyCard" type="PanelContainer"]
-custom_minimum_size = Vector2(178, 136)
+custom_minimum_size = Vector2(184, 138)
 mouse_default_cursor_shape = 2
 script = ExtResource("1_card")
 
@@ -24,6 +24,15 @@ layout_mode = 2
 theme_override_colors/font_color = Color(0.964706, 0.847059, 0.537255, 1)
 text = ""
 
+[node name="TargetFrame" type="Panel" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
 [node name="Portrait" type="TextureRect" parent="VBox"]
 custom_minimum_size = Vector2(0, 48)
 layout_mode = 2
@@ -32,20 +41,28 @@ expand_mode = 1
 stretch_mode = 5
 mouse_filter = 2
 
-[node name="HPRow" type="HBoxContainer" parent="VBox"]
+[node name="HPRow" type="Control" parent="VBox"]
+custom_minimum_size = Vector2(0, 22)
 layout_mode = 2
 
 [node name="HP" type="ProgressBar" parent="VBox/HPRow"]
-custom_minimum_size = Vector2(0, 18)
-layout_mode = 2
-size_flags_horizontal = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 show_percentage = false
 
 [node name="Stats" type="Label" parent="VBox/HPRow"]
-custom_minimum_size = Vector2(72, 0)
-layout_mode = 2
-horizontal_alignment = 2
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+horizontal_alignment = 1
+vertical_alignment = 1
 theme_override_font_sizes/font_size = 14
+mouse_filter = 2
 
 [node name="Intent" type="Label" parent="VBox"]
 layout_mode = 2

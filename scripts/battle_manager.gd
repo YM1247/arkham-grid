@@ -42,6 +42,7 @@ var enemies: Array[Entity] = []
 var selected_enemy_index := 0
 var tablet: Node
 var battle_stage: BattleStageView
+var _pending_enemy_death_presentation := false
 var current_turn := TurnState.PLAYER_TURN
 var current_action_points := 0
 var battle_active := false
@@ -158,7 +159,14 @@ func _on_entity_died(entity: Entity) -> void:
 	if entity != player and _get_selected_enemy() == entity:
 		selected_enemy_index = _first_living_enemy_index()
 	if entity != player:
+		if DisplayServer.get_name() == "headless":
+			_enemy_presenter.play_death(entity)
+			_update_all_status_labels()
+			_schedule_outcome_check()
+			return
+		_pending_enemy_death_presentation = true
 		_enemy_presenter.play_death(entity)
+		_finish_enemy_death_presentation_deferred()
 	_update_all_status_labels()
 	_schedule_outcome_check()
 
@@ -314,6 +322,8 @@ func _status_display_name(status_id: String) -> String:
 	return {"strength": "力量", "weak": "虛弱", "hard": "堅硬", "fragile": "脆弱", "poison": "中毒", "regen": "再生"}.get(status_id, status_id)
 
 func _update_all_status_labels() -> void:
+	if tablet != null and tablet.has_method("set_preview_entity"):
+		tablet.set_preview_entity(player)
 	_update_status_label(player_status_label_path, player)
 	_update_player_hud()
 	_update_enemy_status_ui()
@@ -712,6 +722,9 @@ func _run_scheduled_outcome_check() -> void:
 func _settle_battle_outcome() -> void:
 	if not battle_active:
 		return
+	# 讓最後一擊的死亡演出完整播放，再切到戰鬥結算畫面。
+	if _pending_enemy_death_presentation:
+		return
 	match _outcome_resolver.resolve(player, enemies):
 		BattleOutcomeResolver.Outcome.VICTORY:
 			_finish_battle(true, "敵人已倒下")
@@ -719,6 +732,11 @@ func _settle_battle_outcome() -> void:
 			_finish_battle(false, "HP 歸零")
 		BattleOutcomeResolver.Outcome.SANITY_DEFEAT:
 			_finish_battle(false, "Sanity 歸零")
+
+func _finish_enemy_death_presentation_deferred() -> void:
+	await get_tree().create_timer(0.38).timeout
+	_pending_enemy_death_presentation = false
+	_settle_battle_outcome()
 
 
 func _apply_time_pressure_if_needed() -> void:

@@ -49,6 +49,7 @@ var placement_enabled := true
 var _is_recovering_from_no_moves := false
 var _keyboard_selected_block: Block
 var _keyboard_origin := Vector2i(3, 3)
+var _preview_entity: Entity
 
 func _ready():
 	rng.randomize()
@@ -131,6 +132,7 @@ func _spawn_block(data):
 		return null
 	slot.add_child(block)
 	block.set_data(data)
+	block.set_preview_entity(_preview_entity)
 	block.selection_requested.connect(_select_block)
 	_refresh_hand_shortcuts()
 	if block.has_method("set_drag_enabled"):
@@ -293,6 +295,11 @@ func set_placement_enabled(enabled: bool):
 		_select_block(null)
 		clear_preview()
 	_sync_hand_drag_enabled()
+
+func set_preview_entity(entity: Entity) -> void:
+	_preview_entity = entity
+	for block in _get_hand_blocks():
+		block.set_preview_entity(entity)
 
 func set_block_pool(new_block_pool: Array):
 	block_pool.clear()
