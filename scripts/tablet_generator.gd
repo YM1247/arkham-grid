@@ -3,6 +3,7 @@ extends VBoxContainer
 signal row_activated(row_index: int)
 signal col_activated(col_index: int)
 signal spell_activated(spell: BattleItem, board_cell: Vector2i)
+signal spell_announcement_requested(spell: BattleItem)
 signal block_placed(block_data: BlockData)
 signal no_valid_moves(penalty: int)
 signal payment_preview_changed(spells: Array)
@@ -11,7 +12,7 @@ signal payment_preview_changed(spells: Array)
 # 這裡的大小要跟 GridCell 的大小一致
 const CELL_SIZE = Vector2(46, 46)
 const GRID_DIMENSION = 8
-const HAND_SLOT_SIZE := Vector2(184, 146)
+const HAND_SLOT_SIZE := Vector2(280, 146)
 
 # --- 資源載入 ---
 # 載入剛剛做的格子場景
@@ -47,6 +48,7 @@ var friendly_board_generator = preload("res://scripts/board/friendly_board_gener
 var rng := RandomNumberGenerator.new()
 var placement_enabled := true
 var _is_recovering_from_no_moves := false
+var _is_resolving_clear := false
 var _keyboard_selected_block: Block
 var _keyboard_origin := Vector2i(3, 3)
 var _preview_entity: Entity
@@ -406,7 +408,7 @@ func reset_tablet():
 
 # 檢查是否可以放置
 func check_placement_valid(origin_x: int, origin_y: int, block_data: BlockData) -> bool:
-	return placement_enabled and block_data != null and board_model.can_place(origin_x, origin_y, block_data.cells)
+	return placement_enabled and not _is_resolving_clear and block_data != null and board_model.can_place(origin_x, origin_y, block_data.cells)
 
 # 【新增】更新預覽狀態 (被 GridCell 呼叫)
 func update_preview(origin_x: int, origin_y: int, block_data: BlockData, is_valid: bool):
@@ -487,7 +489,11 @@ func _check_and_clear_lines():
 
 	# 3. 執行消除 (Visual & Data Clear)
 	# 這裡我們定義一個 helper function 來處理清除
+	_is_resolving_clear = true
+	_sync_hand_drag_enabled()
 	await _execute_clear(rows_to_clear, cols_to_clear)
+	_is_resolving_clear = false
+	_sync_hand_drag_enabled()
 
 func _execute_clear(rows: Array, cols: Array):
 	# --- 階段 1: 視覺特效 (只閃爍，不刪資料) ---
@@ -509,15 +515,21 @@ func _execute_clear(rows: Array, cols: Array):
 			if not Vector2i(x, y) in cells_to_clear:
 				cells_to_clear.append(Vector2i(x, y))
 
+	# 先亮起將被消除的格子，再逐一報出並結算咒文。
+	for coord in cells_to_clear:
+		_play_flash_effect(coord.x, coord.y)
+
 	# 每個被消除的效果格只觸發一次；Row／Col 交會不重複結算。
 	for coord in cells_to_clear:
 		var spell := grid_spells[coord.x][coord.y] as BattleItem
 		if spell != null:
+			if DisplayServer.get_name() != "headless":
+				spell_announcement_requested.emit(spell)
+				# 等名稱完整彈出、停留並淡出後才結算，讓多個咒文不會疊在一起。
+				await get_tree().create_timer(0.62).timeout
 			spell_activated.emit(spell, coord)
-	
-	# 對這些格子播放閃爍特效
-	for coord in cells_to_clear:
-		_play_flash_effect(coord.x, coord.y)
+			if DisplayServer.get_name() != "headless":
+				await get_tree().create_timer(0.18).timeout
 	
 	# --- 階段 2: 停頓 (關鍵延遲) ---
 	# 這裡設定 0.3 秒，你可以自己調整喜歡的節奏
@@ -659,12 +671,12 @@ func _count_active_hand_blocks() -> int:
 
 func _sync_hand_drag_enabled():
 	for child in _get_hand_blocks():
-		child.set_drag_enabled(placement_enabled)
+		child.set_drag_enabled(placement_enabled and not _is_resolving_clear)
 	_refresh_hand_shortcuts()
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if not placement_enabled or not event.is_pressed() or event.is_echo():
+	if not placement_enabled or _is_resolving_clear or not event.is_pressed() or event.is_echo():
 		return
 	for index in range(3):
 		if event.is_action_pressed("hand_slot_%d" % [index + 1]):

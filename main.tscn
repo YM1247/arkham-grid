@@ -120,7 +120,7 @@ theme_override_styles/panel = SubResource("StyleBoardOuter")
 layout_mode = 2
 
 [node name="BoardSurface" type="PanelContainer" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter"]
-custom_minimum_size = Vector2(850, 0)
+custom_minimum_size = Vector2(1180, 0)
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoardSurface")
 
@@ -190,7 +190,7 @@ layout_mode = 2
 theme_override_constants/separation = 18
 
 [node name="HandArea" type="VBoxContainer" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox/TabletSection/Body"]
-custom_minimum_size = Vector2(184, 454)
+custom_minimum_size = Vector2(280, 454)
 layout_mode = 2
 size_flags_vertical = 4
 theme_override_constants/separation = 8
@@ -202,16 +202,30 @@ layout_mode = 2
 layout_mode = 2
 
 [node name="RightRail" type="VBoxContainer" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox/TabletSection/Body"]
-custom_minimum_size = Vector2(166, 0)
+custom_minimum_size = Vector2(300, 0)
 layout_mode = 2
+
+[node name="PreviewTitle" type="Label" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox/TabletSection/Body/RightRail"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.901961, 0.72549, 0.360784, 1)
+theme_override_font_sizes/font_size = 21
+text = "消除預覽"
+
+[node name="EffectPreview" type="Label" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox/TabletSection/Body/RightRail"]
+custom_minimum_size = Vector2(0, 250)
+layout_mode = 2
+theme_override_font_sizes/font_size = 17
+text = "拖曳石板至棋盤\n查看將觸發的咒文"
+autowrap_mode = 2
 
 [node name="Spacer" type="Control" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox/TabletSection/Body/RightRail"]
 layout_mode = 2
 size_flags_vertical = 3
 
 [node name="EndTurnButton" type="Button" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox/TabletSection/Body/RightRail"]
-custom_minimum_size = Vector2(166, 64)
+custom_minimum_size = Vector2(300, 64)
 layout_mode = 2
+focus_mode = 0
 theme_override_font_sizes/font_size = 21
 text = "結束回合\nEnter"
 
@@ -325,7 +339,7 @@ intent_label_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/BattleStageV
 turn_status_label_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox/BoardHeader/Controls")
 end_turn_button_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox/TabletSection/Body/RightRail/EndTurnButton")
 spell_summary_label_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/InfoSection/LegendRow/SpellLabel")
-payment_preview_label_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/InfoSection/Actions/VBox/PaymentPreviewLabel")
+payment_preview_label_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox/TabletSection/Body/RightRail/EffectPreview")
 spell_legend_button_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/InfoSection/LegendRow/SpellLegendButton")
 spell_legend_label_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/InfoSection/SpellLegendLabel")
 battle_stage_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/BattleStageView")

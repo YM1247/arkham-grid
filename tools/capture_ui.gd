@@ -19,11 +19,11 @@ func _capture() -> void:
 	if system_menu != null and mode != "title":
 		system_menu.hide_menu()
 	var run_manager := main.get_node("RunManager") as RunManager
-	if mode in ["battle", "battle_action", "battle_armor", "reward"] and run_manager != null and not run_manager.run_state.available_node_ids.is_empty():
+	if mode in ["battle", "battle_action", "battle_armor", "battle_preview", "reward"] and run_manager != null and not run_manager.run_state.available_node_ids.is_empty():
 		run_manager.select_map_node(run_manager.run_state.available_node_ids[0])
 		for _frame in range(3):
 			await process_frame
-		if mode in ["battle", "battle_action", "battle_armor"]:
+		if mode in ["battle", "battle_action", "battle_armor", "battle_preview"]:
 			var battle_manager := main.get_node("BattleManager")
 			battle_manager.start_encounter(run_manager.enemies.slice(0, 5))
 			for _frame in range(3):
@@ -37,6 +37,11 @@ func _capture() -> void:
 			if mode == "battle_action":
 				battle_manager.end_player_turn()
 				await create_timer(0.72).timeout
+			if mode == "battle_preview":
+				battle_manager._on_payment_preview_changed([
+					run_manager.content.get_spell("pistol"),
+					run_manager.content.get_spell("vest"),
+				])
 		if mode == "reward":
 			run_manager._show_reward_choices()
 			await process_frame

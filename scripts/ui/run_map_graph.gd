@@ -65,15 +65,17 @@ func _draw() -> void:
 			var target_id := str(next_id_value)
 			if not _node_positions.has(target_id):
 				continue
-			var color := Color(0.38, 0.42, 0.5, 0.9)
-			var width := 3.0
-			if source_id in _completed_ids and (target_id in _completed_ids or target_id in _available_ids):
-				color = Color(0.2, 0.9, 0.55, 1.0)
-				width = 5.0
-			elif source_id == _current_id or target_id in _available_ids:
-				color = Color(1.0, 0.83, 0.25, 1.0)
-				width = 4.0
-			draw_line(_node_positions[source_id], _node_positions[target_id], color, width, true)
+			var style := get_edge_style(source_id, target_id)
+			draw_line(_node_positions[source_id], _node_positions[target_id], style.color, style.width, true)
+
+
+func get_edge_style(source_id: String, target_id: String) -> Dictionary:
+	if source_id in _completed_ids and target_id in _completed_ids:
+		return {"color": Color(0.2, 0.9, 0.55, 1.0), "width": 5.0, "state": "completed"}
+	# 可前往的是「已完成節點通往目前候選」的那一段；同一候選的其他匯入線仍為灰色。
+	if source_id in _completed_ids and target_id in _available_ids:
+		return {"color": Color(1.0, 0.83, 0.25, 1.0), "width": 4.0, "state": "available"}
+	return {"color": Color(0.38, 0.42, 0.5, 0.9), "width": 3.0, "state": "locked"}
 
 
 func _node_color(type: String, node_id: String) -> Color:

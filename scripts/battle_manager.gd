@@ -64,7 +64,6 @@ var _battle_stats = BattleStatisticsScript.new()
 var sanity_rules = SanityRuleEngineScript.new()
 var sanity_history: Array[Dictionary] = []
 var _battle_sanity_history_start := 0
-var _last_sanity_message := ""
 var turn_limit := 0
 var time_pressure_sanity_base := 0
 var time_pressure_sanity_growth := 0
@@ -101,6 +100,8 @@ func _ready():
 		tablet.no_valid_moves.connect(_on_tablet_no_valid_moves)
 		if tablet.has_signal("spell_activated"):
 			tablet.spell_activated.connect(execute_spell)
+		if tablet.has_signal("spell_announcement_requested"):
+			tablet.spell_announcement_requested.connect(_on_spell_announcement_requested)
 		if tablet.has_signal("payment_preview_changed"):
 			tablet.payment_preview_changed.connect(_on_payment_preview_changed)
 	
@@ -151,6 +152,11 @@ func execute_spell(spell: BattleItem, board_cell: Vector2i = Vector2i(-1, -1)) -
 	current_turn_spell_triggers += 1
 	_update_all_status_labels()
 	return true
+
+
+func _on_spell_announcement_requested(spell: BattleItem) -> void:
+	if battle_stage != null and spell != null:
+		battle_stage.present_spell_trigger(spell.spell_name, spell.category_glyph, spell.get_icon_color())
 
 func _on_entity_stats_changed(_entity: Entity) -> void:
 	_update_all_status_labels()
@@ -347,7 +353,6 @@ func _update_player_hud() -> void:
 		max_mp,
 		sanity_rules.get_stage_name(player.sanity),
 		sanity_rules.get_active_summary(),
-		_last_sanity_message,
 		current_action_points,
 		player_max_action_points
 	)
@@ -367,8 +372,6 @@ func _update_status_label(label_path: NodePath, entity: Entity) -> void:
 		var status_summary = entity.get_status_summary()
 		if status_summary != "":
 			label.text += "  %s" % status_summary
-	if entity == player and not _last_sanity_message.is_empty():
-		label.text += "\n最近理智變化：%s" % _last_sanity_message
 
 func _update_turn_status_label() -> void:
 	var label = get_node_or_null(turn_status_label_path) as Label
@@ -433,14 +436,14 @@ func _on_payment_preview_changed(spells: Array) -> void:
 	if label == null:
 		return
 	if spells.is_empty():
-		label.text = "拖曳方塊可預覽咒文支付"
+		label.text = "拖曳石板至棋盤\n查看將觸發的所有咒文"
 		label.remove_theme_color_override("font_color")
 		return
 	var projected_mp := mp
 	var projected_sanity := player.sanity if player != null else 0
 	var mp_cost := 0
 	var sanity_cost := 0
-	var names: Array[String] = []
+	var lines: Array[String] = ["預計觸發 %d 個咒文" % spells.size(), ""]
 	for value in spells:
 		if not value is BattleItem:
 			continue
@@ -453,8 +456,11 @@ func _on_payment_preview_changed(spells: Array) -> void:
 		else:
 			sanity_cost += cost
 			projected_sanity -= cost
-		names.append("%s%s" % [spell.category_glyph, spell.spell_name])
-	label.text = "消除預覽：%s\n支付 MP %d｜代付 SAN %d" % ["、".join(names), mp_cost, sanity_cost]
+		lines.append("%s  %s　MP %d" % [spell.category_glyph, spell.spell_name, cost])
+		lines.append("　%s" % spell.get_runtime_summary(player))
+	lines.append("")
+	lines.append("合計：MP %d%s" % [mp_cost, "｜SAN 代付 %d" % sanity_cost if sanity_cost > 0 else ""])
+	label.text = "\n".join(lines)
 	if sanity_cost > 0:
 		var fatal := player != null and projected_sanity <= 0
 		label.add_theme_color_override("font_color", Color(1.0, 0.25, 0.25) if fatal else Color(1.0, 0.65, 0.25))
@@ -746,7 +752,7 @@ func _settle_battle_outcome() -> void:
 			_finish_battle(false, "Sanity 歸零")
 
 func _finish_enemy_death_presentation_deferred() -> void:
-	await get_tree().create_timer(0.38).timeout
+	await get_tree().create_timer(0.72).timeout
 	_pending_enemy_death_presentation = false
 	_settle_battle_outcome()
 
@@ -854,14 +860,9 @@ func _on_sanity_spent(entity: Entity, amount: int) -> void:
 
 
 func _on_player_sanity_changed(_entity: Entity, delta: int, source: String, before: int, after: int) -> void:
-	var change := sanity_rules.synchronize(after)
+	sanity_rules.synchronize(after)
 	sanity_rules.apply_entity_modifiers(player)
 	var source_label := sanity_rules.get_source_label(source)
-	_last_sanity_message = "%s %s%d（%d → %d）" % [source_label, "+" if delta > 0 else "", delta, before, after]
-	if not change.added.is_empty():
-		_last_sanity_message += "；新增 %s" % sanity_rules.get_active_summary()
-	elif not change.removed.is_empty():
-		_last_sanity_message += "；瘋狂效果已解除"
 	sanity_history.append({"source": source, "source_label": source_label, "delta": delta, "before": before, "after": after, "active_effect_ids": sanity_rules.active_effect_ids.duplicate()})
 	_update_all_status_labels()
 

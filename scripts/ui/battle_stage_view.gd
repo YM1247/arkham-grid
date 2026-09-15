@@ -6,6 +6,7 @@ const PLAYER_ART := "res://assets/art/characters/investigator_chibi_opaque.png"
 @onready var player_art: TextureRect = $PlayerArt
 @onready var player_name_label: Label = $PlayerName
 @onready var combat_log: Label = $ActionLog
+@onready var spell_announcement: Label = $SpellAnnouncement
 
 var _recent_entries: Array[String] = []
 var _idle_tween: Tween
@@ -50,6 +51,24 @@ func present_enemy_resolution(enemy_name: String, intent_name: String, result_te
 
 func finish_enemy_action() -> void:
 	await get_tree().create_timer(0.14).timeout
+
+
+func present_spell_trigger(spell_name: String, glyph: String, color: Color) -> void:
+	spell_announcement.visible = true
+	spell_announcement.text = "%s  %s" % [glyph, spell_name]
+	spell_announcement.add_theme_color_override("font_color", color)
+	spell_announcement.add_theme_color_override("font_outline_color", Color(0.01, 0.02, 0.04, 0.98))
+	spell_announcement.add_theme_constant_override("outline_size", 8)
+	spell_announcement.pivot_offset = spell_announcement.size * 0.5
+	spell_announcement.scale = Vector2(0.62, 0.62)
+	spell_announcement.modulate.a = 0.0
+	var tween := create_tween()
+	tween.parallel().tween_property(spell_announcement, "scale", Vector2(1.12, 1.12), 0.16).set_trans(Tween.TRANS_BACK)
+	tween.parallel().tween_property(spell_announcement, "modulate:a", 1.0, 0.08)
+	tween.tween_interval(0.2)
+	tween.tween_property(spell_announcement, "scale", Vector2.ONE, 0.1)
+	tween.tween_property(spell_announcement, "modulate:a", 0.0, 0.12)
+	tween.tween_callback(func(): spell_announcement.visible = false)
 
 
 func _append_log(entry: String) -> void:

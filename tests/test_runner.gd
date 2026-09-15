@@ -857,6 +857,15 @@ func _test_drag_source_visibility() -> void:
 		if child is SpellRuneBadge:
 			hand_rune = child
 	_expect(hand_rune != null and hand_rune.size.x < 40.0, "手牌縮放時咒文符文應跟隨格子等比例縮小")
+	var compact_block := preload("res://scripts/block.gd").new() as Block
+	root.add_child(compact_block)
+	var compact_data := data.duplicate(true) as BlockData
+	compact_data.cells = [Vector2i.ZERO]
+	compact_data.effect_cell = Vector2i.ZERO
+	compact_block.set_data(compact_data)
+	_expect(compact_block.render_cell_size.is_equal_approx(block.render_cell_size), "不同外框尺寸的石板在手牌中應使用相同格子縮放比例")
+	_expect(block.custom_minimum_size.x >= 280.0 and block.custom_minimum_size.y >= 146.0, "每張手牌應提供放大的完整點選區域")
+	compact_block.queue_free()
 	var full_preview := block._build_drag_preview(block.render_origin + block.render_cell_size * 0.5, Vector2i.ZERO)
 	var preview_cell: ColorRect = null
 	var preview_rune: SpellRuneBadge = null
@@ -909,6 +918,13 @@ func _test_main_scene_smoke() -> void:
 	tablet_ui.refill_hand()
 	var graph = instance.get_node_or_null("UILayer/MapContainer/Margin/Panel/VBox/Scroll/Center/Graph")
 	_expect(graph != null and graph.get_edge_count() > 0, "地圖畫布應建立可見的節點連線資料")
+	if graph != null:
+		var completed_edge_ids: Array[String] = ["done", "other_done"]
+		var available_edge_ids: Array[String] = ["next"]
+		graph._completed_ids = completed_edge_ids
+		graph._available_ids = available_edge_ids
+		_expect(graph.get_edge_style("done", "next").state == "available", "已完成節點通往可選節點的路線應顯示金色")
+		_expect(graph.get_edge_style("locked", "next").state == "locked", "未完成來源通往同一候選的路線不得誤標為金色")
 	_expect(FileAccess.file_exists(run_manager.save_service.get_run_path()), "新 Run 建立後應寫入單一自動存檔槽")
 	var player_hud := instance.get_node_or_null("UILayer/ScreenMargin/Screen/Layout/BattleStageView/PlayerHUD") as PlayerHUD
 	var system_menu := instance.get_node_or_null("UILayer/SystemMenu") as SystemMenu
@@ -916,14 +932,17 @@ func _test_main_scene_smoke() -> void:
 	_expect(system_menu != null and system_menu.visible, "啟動時應顯示可繼續、新遊戲與設定的主選單")
 	_expect(InputMap.has_action("hand_slot_1") and InputMap.has_action("place_selected") and InputMap.has_action("toggle_pause"), "PC 鍵盤操作應完成輸入映射")
 	instance._resume_game()
-	var payment_label := instance.get_node_or_null("UILayer/ScreenMargin/Screen/Layout/InfoSection/Actions/VBox/PaymentPreviewLabel") as Label
+	var payment_label := instance.get_node_or_null("UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox/TabletSection/Body/RightRail/EffectPreview") as Label
 	var legend_label := instance.get_node_or_null("UILayer/ScreenMargin/Screen/Layout/InfoSection/SpellLegendLabel") as Label
+	var end_turn_button := instance.get_node_or_null("UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox/TabletSection/Body/RightRail/EndTurnButton") as Button
 	var original_mp: int = manager.mp
 	var original_sanity: int = manager.player.sanity
 	manager.mp = 0
 	manager.player.sanity = 2
 	manager._on_payment_preview_changed([run_manager.content.get_spell("pistol")])
-	_expect(payment_label != null and "代付 SAN" in payment_label.text and "理智歸零" in payment_label.text, "支付預覽應顯示 MP 不足的 Sanity 代付與致死警告")
+	_expect(payment_label != null and "秘銀飛矢" in payment_label.text and "SAN 代付" in payment_label.text and "理智歸零" in payment_label.text, "棋盤右側預覽應列出即將觸發的咒文、Sanity 代付與致死警告")
+	_expect(end_turn_button != null and end_turn_button.focus_mode == Control.FOCUS_NONE, "結束回合按鈕不得接受 Space 鍵的 UI 焦點確認")
+	_expect(not run_manager.content.get_spell("pistol").get_effect_tooltip("").contains("MP 不足"), "個別咒文資訊不應重複顯示共通的 MP／Sanity 支付規則")
 	manager.mp = original_mp
 	manager.player.sanity = original_sanity
 	manager._toggle_spell_legend()

@@ -525,9 +525,10 @@ func _show_reward_choices() -> void:
 	for i in range(current_rewards.size()):
 		var reward = current_rewards[i]
 		var button = Button.new()
-		button.custom_minimum_size = Vector2(300, 330)
+		button.custom_minimum_size = Vector2(340, 470)
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		button.add_theme_font_size_override("font_size", 17)
 		button.text = _get_reward_label(reward)
 		button.tooltip_text = _get_reward_tooltip(reward)
 		button.pressed.connect(_on_reward_selected.bind(i))
@@ -535,15 +536,15 @@ func _show_reward_choices() -> void:
 		var slate := content.create_slate(reward)
 		if slate != null:
 			var preview: Control = SlatePreviewScript.new()
-			preview.position = Vector2(84, 14)
-			preview.size = Vector2(132, 112)
-			preview.set_slate(slate, 25.0)
+			preview.position = Vector2(90, 16)
+			preview.size = Vector2(160, 148)
+			preview.set_slate(slate, 32.0)
 			button.add_child(preview)
 		if first_button == null:
 			first_button = button
 	var skip_button := Button.new()
 	var skip_currency := int(content.get_document("run_config").get("skip_reward_currency", 10))
-	skip_button.custom_minimum_size = Vector2(220, 330)
+	skip_button.custom_minimum_size = Vector2(240, 470)
 	skip_button.text = "暫不取用\n\n獲得 %d 金錢\n\n保持目前構築" % skip_currency
 	skip_button.pressed.connect(_on_reward_skipped.bind(skip_currency))
 	reward_buttons_container.add_child(skip_button)
@@ -600,7 +601,7 @@ func _get_reward_label(reward: Dictionary) -> String:
 	var slate := content.create_slate(reward)
 	if slate == null:
 		return "未知石板"
-	return "\n\n\n\n%s  %s\n%s｜MP %d｜%d 格／複雜度 %d\n%s" % [slate.spell.category_glyph, slate.spell.spell_name, slate.spell.get_category_label(), slate.spell.mp_cost, slate.cells.size(), slate.complexity, slate.spell.description]
+	return "\n\n\n\n\n\n%s\n\n%s" % [slate.spell.get_effect_tooltip(""), "特殊石板｜不可重複取得" if slate.is_special else "取得後加入石板構築"]
 
 
 func _rarity_name(rarity: String) -> String:
