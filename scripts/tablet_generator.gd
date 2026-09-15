@@ -12,7 +12,7 @@ signal payment_preview_changed(spells: Array)
 # 這裡的大小要跟 GridCell 的大小一致
 const CELL_SIZE = Vector2(46, 46)
 const GRID_DIMENSION = 8
-const HAND_SLOT_SIZE := Vector2(280, 146)
+const HAND_SLOT_SIZE := Vector2(300, 146)
 
 # --- 資源載入 ---
 # 載入剛剛做的格子場景

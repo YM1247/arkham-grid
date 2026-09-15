@@ -289,6 +289,13 @@
 - 新增 `DESIGN_CORE_LOOP.md`、`NUMERIC_MODEL.md`、`CONTENT_GUIDE.md`、`BALANCE_LOG.md`，建立短局快測、Sanity 壓力與強連動道具的企劃 / 數值基準。
 - 擴充 `items.json`、`blocks.json`、`enemies.json` 的企劃欄位，加入 tags、rarity、trigger_hint、balance_cost、tier、weight、intent_pattern 等資料。
 - 更新 `data/README.md`，補充新增敵人與道具平衡欄位的說明。
+## 2026-09-16 — Phase 17.8 戰利品定位與戰鬥資訊降噪
+
+- `SlatePreview` 的石板與效果格符文改用同一個實際控制項尺寸計算置中原點，並在預覽框改變尺寸時同步更新，修正戰利品符文偏移。
+- 手牌槽擴至 300×146，名稱／類型／MP／效果數值字級同步放大；純敘事描述暫時退出手牌、tooltip、圖例、戰利品與構築頁。
+- 消除預覽在沒有觸發咒文時完全隱藏；有內容時使用固定 320 px 裁切區與緊湊單行摘要，大量觸發不再改變棋盤或整體版面尺寸。
+- 玩家與敵人護盾由藍色覆蓋改為 HP 條上的白色輪廓區段，保留護盾數字並與藍色 MP 資源明確區分。
+
 ## 2026-09-16 — Phase 17.7 手牌、消除預覽與流程介面修正
 
 - 手牌石板改用統一格子縮放並整體放大，固定槽擴為完整可點選區；拖曳預覽仍還原棋盤原始格尺寸與符文位置。

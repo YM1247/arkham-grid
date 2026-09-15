@@ -7,7 +7,7 @@ signal target_requested(enemy: Entity)
 @onready var target_marker: Label = $VBox/Header/TargetMarker
 @onready var portrait: TextureRect = $VBox/Portrait
 @onready var hp_bar: ProgressBar = $VBox/HPRow/HP
-@onready var armor_overlay: ColorRect = $VBox/HPRow/ArmorOverlay
+@onready var armor_overlay: Panel = $VBox/HPRow/ArmorOverlay
 @onready var stats_label: Label = $VBox/HPRow/Stats
 @onready var intent_label: Label = $VBox/Intent
 @onready var status_label: Label = $VBox/Status

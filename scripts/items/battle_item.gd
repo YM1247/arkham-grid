@@ -31,8 +31,6 @@ func get_effect_tooltip(header: String = "") -> String:
 		lines.append(header)
 	lines.append(spell_name)
 	lines.append("%s｜%s咒文｜MP %d" % [get_category_label(), _get_rarity_name(rarity), mp_cost])
-	if description != "":
-		lines.append(description)
 	lines.append("範圍：%s" % _get_effect_scope_name(effect_scope))
 	if logic == "attack" or logic == "conditional_attack":
 		lines.append("傷害：%d x %d" % [_get_int_property("damage", 0), _get_int_property("hit_count", 1)])
@@ -94,7 +92,7 @@ func get_runtime_summary(user: Entity = null) -> String:
 	if not status_effects_self.is_empty() or not status_effects_target.is_empty():
 		for effect in status_effects_self + status_effects_target:
 			parts.append("%s+%d" % [_get_status_display_name(str(effect.get("id", ""))), int(effect.get("amount", 0))])
-	return "　".join(parts) if not parts.is_empty() else get_short_summary()
+	return "　".join(parts) if not parts.is_empty() else ""
 
 func _get_rarity_name(value: String) -> String:
 	match value:

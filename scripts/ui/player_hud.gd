@@ -5,7 +5,7 @@ extends Control
 @onready var armor_label: Label = $VBox/Header/Armor
 @onready var hp_bar: ProgressBar = $VBox/HP/Bar
 @onready var hp_value: Label = $VBox/HP/Value
-@onready var armor_overlay: ColorRect = $VBox/HP/ArmorOverlay
+@onready var armor_overlay: Panel = $VBox/HP/ArmorOverlay
 @onready var sanity_bar: ProgressBar = $VBox/Sanity/Bar
 @onready var sanity_value: Label = $VBox/Sanity/Value
 @onready var mp_bar: ProgressBar = $VBox/MP/Bar
@@ -55,7 +55,7 @@ func _set_fill_color(bar: ProgressBar, color: Color) -> void:
 	bar.add_theme_stylebox_override("fill", style)
 
 
-func _update_armor_overlay(overlay: ColorRect, hp: int, armor: int, maximum: int) -> void:
+func _update_armor_overlay(overlay: Control, hp: int, armor: int, maximum: int) -> void:
 	if overlay == null:
 		return
 	overlay.visible = armor > 0 and maximum > 0

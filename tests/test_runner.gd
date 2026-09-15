@@ -823,6 +823,8 @@ func _test_five_enemy_roster() -> void:
 	presenter.render(label, enemies, 0, func(_index: int): pass)
 	_expect(presenter.get_card_instance_ids() == before, "五敵人數值更新不應重建卡片")
 	_expect(presenter._cards[2].armor_overlay.visible and presenter._cards[2].armor_overlay.anchor_right > presenter._cards[2].armor_overlay.anchor_left, "敵人護盾應以可見區段疊在 HP 條上")
+	var armor_style := presenter._cards[2].armor_overlay.get_theme_stylebox("panel") as StyleBoxFlat
+	_expect(armor_style != null and armor_style.border_width_top >= 2 and armor_style.border_color.r > 0.9, "護盾區段應使用白色輪廓，不再與藍色 MP 填色混淆")
 	enemies[0].take_damage(10)
 	presenter.render(label, enemies, 1, func(_index: int): pass)
 	_expect(presenter.get_card_instance_ids().size() == 5, "死亡敵人應留在原隊形播放淡出，避免其他敵人卡突然位移")
@@ -864,7 +866,14 @@ func _test_drag_source_visibility() -> void:
 	compact_data.effect_cell = Vector2i.ZERO
 	compact_block.set_data(compact_data)
 	_expect(compact_block.render_cell_size.is_equal_approx(block.render_cell_size), "不同外框尺寸的石板在手牌中應使用相同格子縮放比例")
-	_expect(block.custom_minimum_size.x >= 280.0 and block.custom_minimum_size.y >= 146.0, "每張手牌應提供放大的完整點選區域")
+	_expect(block.custom_minimum_size.x >= 300.0 and block.custom_minimum_size.y >= 146.0, "每張手牌應提供放大的完整點選區域")
+	var reward_preview := preload("res://scripts/ui/slate_preview.gd").new() as SlatePreview
+	reward_preview.size = Vector2(160, 148)
+	root.add_child(reward_preview)
+	reward_preview.set_slate(data, 32.0)
+	var expected_badge_position := reward_preview._preview_origin(reward_preview._bounds()) + Vector2(data.effect_cell) * 32.0 + Vector2(2, 2)
+	_expect(reward_preview.badge != null and reward_preview.badge.position.is_equal_approx(expected_badge_position), "戰利品石板的咒文符文應與實際形狀共用同一個置中座標")
+	reward_preview.queue_free()
 	compact_block.queue_free()
 	var full_preview := block._build_drag_preview(block.render_origin + block.render_cell_size * 0.5, Vector2i.ZERO)
 	var preview_cell: ColorRect = null
@@ -932,7 +941,9 @@ func _test_main_scene_smoke() -> void:
 	_expect(system_menu != null and system_menu.visible, "啟動時應顯示可繼續、新遊戲與設定的主選單")
 	_expect(InputMap.has_action("hand_slot_1") and InputMap.has_action("place_selected") and InputMap.has_action("toggle_pause"), "PC 鍵盤操作應完成輸入映射")
 	instance._resume_game()
-	var payment_label := instance.get_node_or_null("UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox/TabletSection/Body/RightRail/EffectPreview") as Label
+	var payment_label := instance.get_node_or_null("UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox/TabletSection/Body/RightRail/PreviewClip/EffectPreview") as Label
+	var payment_clip := payment_label.get_parent() as Control if payment_label != null else null
+	var payment_title := instance.get_node_or_null("UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox/TabletSection/Body/RightRail/PreviewTitle") as Label
 	var legend_label := instance.get_node_or_null("UILayer/ScreenMargin/Screen/Layout/InfoSection/SpellLegendLabel") as Label
 	var end_turn_button := instance.get_node_or_null("UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox/TabletSection/Body/RightRail/EndTurnButton") as Button
 	var original_mp: int = manager.mp
@@ -941,8 +952,19 @@ func _test_main_scene_smoke() -> void:
 	manager.player.sanity = 2
 	manager._on_payment_preview_changed([run_manager.content.get_spell("pistol")])
 	_expect(payment_label != null and "秘銀飛矢" in payment_label.text and "SAN 代付" in payment_label.text and "理智歸零" in payment_label.text, "棋盤右側預覽應列出即將觸發的咒文、Sanity 代付與致死警告")
+	_expect(payment_clip != null and payment_clip.visible and payment_title != null and payment_title.visible, "有咒文將觸發時才應顯示消除預覽標題與內容")
+	var board_position_before_long_preview := grid.global_position
+	var many_preview_spells: Array = []
+	for _index in range(16):
+		many_preview_spells.append(run_manager.content.get_spell("pistol"))
+	manager._on_payment_preview_changed(many_preview_spells)
+	await process_frame
+	_expect(payment_clip.size.y <= 320.5 and grid.global_position.distance_to(board_position_before_long_preview) <= 0.5, "大量咒文預覽必須限制在固定高度內且不得推動棋盤")
+	manager._on_payment_preview_changed([])
+	_expect(not payment_clip.visible and not payment_title.visible and payment_label.text.is_empty(), "沒有消除預覽時不應顯示標題、附註或佔位文字")
 	_expect(end_turn_button != null and end_turn_button.focus_mode == Control.FOCUS_NONE, "結束回合按鈕不得接受 Space 鍵的 UI 焦點確認")
 	_expect(not run_manager.content.get_spell("pistol").get_effect_tooltip("").contains("MP 不足"), "個別咒文資訊不應重複顯示共通的 MP／Sanity 支付規則")
+	_expect(not run_manager.content.get_spell("pistol").get_effect_tooltip("").contains(run_manager.content.get_spell("pistol").description), "咒文資訊只應顯示規則與數值，不顯示純敘事描述")
 	manager.mp = original_mp
 	manager.player.sanity = original_sanity
 	manager._toggle_spell_legend()

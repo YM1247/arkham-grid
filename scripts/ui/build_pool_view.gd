@@ -59,7 +59,7 @@ func _slate_card(slate: BlockData) -> PanelContainer:
 	details.add_child(meta)
 	var description := Label.new()
 	description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	description.text = slate.spell.description if slate.spell != null else ""
+	description.text = slate.spell.get_runtime_summary() if slate.spell != null else ""
 	description.tooltip_text = slate.spell.get_effect_tooltip("目前構築") if slate.spell != null else ""
 	details.add_child(description)
 	row.add_child(details)

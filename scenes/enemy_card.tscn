@@ -1,6 +1,14 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/enemy_card.gd" id="1_card"]
+
+[sub_resource type="StyleBoxFlat" id="ArmorOutline"]
+bg_color = Color(1, 1, 1, 0.08)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.96, 0.98, 1, 0.96)
 
 [node name="EnemyCard" type="Control"]
 custom_minimum_size = Vector2(188, 238)
@@ -54,14 +62,14 @@ grow_horizontal = 2
 grow_vertical = 2
 show_percentage = false
 
-[node name="ArmorOverlay" type="ColorRect" parent="VBox/HPRow"]
+[node name="ArmorOverlay" type="Panel" parent="VBox/HPRow"]
 anchors_preset = 12
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.35, 0.8, 1, 0.82)
 mouse_filter = 2
+theme_override_styles/panel = SubResource("ArmorOutline")
 
 [node name="Stats" type="Label" parent="VBox/HPRow"]
 anchors_preset = 15

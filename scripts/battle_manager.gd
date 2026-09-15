@@ -436,14 +436,18 @@ func _on_payment_preview_changed(spells: Array) -> void:
 	if label == null:
 		return
 	if spells.is_empty():
-		label.text = "拖曳石板至棋盤\n查看將觸發的所有咒文"
+		label.text = ""
+		label.tooltip_text = ""
 		label.remove_theme_color_override("font_color")
+		_set_payment_preview_visible(label, false)
 		return
+	_set_payment_preview_visible(label, true)
+	label.add_theme_font_size_override("font_size", 15 if spells.size() > 6 else 17)
 	var projected_mp := mp
 	var projected_sanity := player.sanity if player != null else 0
 	var mp_cost := 0
 	var sanity_cost := 0
-	var lines: Array[String] = ["預計觸發 %d 個咒文" % spells.size(), ""]
+	var lines: Array[String] = ["預計觸發 %d 個咒文" % spells.size()]
 	for value in spells:
 		if not value is BattleItem:
 			continue
@@ -456,11 +460,11 @@ func _on_payment_preview_changed(spells: Array) -> void:
 		else:
 			sanity_cost += cost
 			projected_sanity -= cost
-		lines.append("%s  %s　MP %d" % [spell.category_glyph, spell.spell_name, cost])
-		lines.append("　%s" % spell.get_runtime_summary(player))
-	lines.append("")
+		var summary: String = spell.get_runtime_summary(player)
+		lines.append("%s  %s｜MP %d%s" % [spell.category_glyph, spell.spell_name, cost, "｜%s" % summary if not summary.is_empty() else ""])
 	lines.append("合計：MP %d%s" % [mp_cost, "｜SAN 代付 %d" % sanity_cost if sanity_cost > 0 else ""])
 	label.text = "\n".join(lines)
+	label.tooltip_text = label.text
 	if sanity_cost > 0:
 		var fatal := player != null and projected_sanity <= 0
 		label.add_theme_color_override("font_color", Color(1.0, 0.25, 0.25) if fatal else Color(1.0, 0.65, 0.25))
@@ -468,6 +472,16 @@ func _on_payment_preview_changed(spells: Array) -> void:
 			label.text += "｜警告：將導致理智歸零"
 	else:
 		label.add_theme_color_override("font_color", Color(0.45, 0.9, 1.0))
+
+
+func _set_payment_preview_visible(label: Label, active: bool) -> void:
+	label.visible = active
+	var clip := label.get_parent() as Control
+	if clip != null:
+		clip.visible = active
+		var title := clip.get_parent().get_node_or_null("PreviewTitle") as Label
+		if title != null:
+			title.visible = active
 
 
 func _toggle_spell_legend() -> void:
@@ -504,7 +518,8 @@ func _update_spell_legend() -> void:
 		var group: Dictionary = grouped[category_id]
 		lines.append("%s  %s" % [group.glyph, group.name])
 		for spell in group.spells:
-			lines.append("　%s｜MP %d｜%s" % [spell.spell_name, sanity_rules.modify_spell_mp_cost(spell.mp_cost), spell.description])
+			var summary: String = str(spell.get_runtime_summary(player))
+			lines.append("　%s｜MP %d%s" % [spell.spell_name, sanity_rules.modify_spell_mp_cost(spell.mp_cost), "｜%s" % summary if not summary.is_empty() else ""])
 	legend.text = "\n".join(lines)
 
 func _update_tablet_slot_labels() -> void:
