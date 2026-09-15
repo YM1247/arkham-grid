@@ -7,7 +7,7 @@ signal selection_requested(block: Block)
 
 # --- 設定 ---
 # 這裡的大小必須跟你的棋盤格子一樣大，不然會對不齊
-const CELL_SIZE = Vector2(58, 58)
+const CELL_SIZE = Vector2(46, 46)
 const SPACING = 4
 
 # 存方塊的資料
@@ -67,13 +67,16 @@ func _redraw_shape():
 		max_cell.y = maxi(max_cell.y, coord.y)
 	render_min_cell = min_cell
 	var dimensions := max_cell - min_cell + Vector2i.ONE
-	var scale_factor := minf(1.0, 184.0 / (float(dimensions.x) * CELL_SIZE.x + float(dimensions.x - 1) * SPACING))
+	var visual_width_at_full := float(dimensions.x) * CELL_SIZE.x + float(dimensions.x - 1) * SPACING
+	var visual_height_at_full := float(dimensions.y) * CELL_SIZE.y + float(dimensions.y - 1) * SPACING
+	# 手牌的說明列必須保有空間；長條石板也要完整留在槽內。
+	var scale_factor := minf(1.0, minf(164.0 / visual_width_at_full, 112.0 / visual_height_at_full))
 	render_cell_size = CELL_SIZE * scale_factor
 	render_stride = (CELL_SIZE + Vector2(SPACING, SPACING)) * scale_factor
 	var visual_width := float(dimensions.x) * render_cell_size.x + float(dimensions.x - 1) * SPACING * scale_factor
-	render_origin = Vector2((200.0 - visual_width) * 0.5, 8.0)
+	render_origin = Vector2((184.0 - visual_width) * 0.5, 4.0)
 	var visual_height := float(dimensions.y) * render_cell_size.y + float(dimensions.y - 1) * SPACING * scale_factor
-	var text_y := minf(150.0, render_origin.y + visual_height + 4.0)
+	var text_y := minf(122.0, render_origin.y + visual_height + 3.0)
 		
 	for cell_pos in block_data.cells:
 		var rect = ColorRect.new()
@@ -97,27 +100,27 @@ func _redraw_shape():
 
 	var name_label := Label.new()
 	name_label.position = Vector2(4, text_y)
-	name_label.size = Vector2(192, 24)
+	name_label.size = Vector2(176, 20)
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	name_label.text = "%d　%s" % [shortcut_number, block_data.spell.spell_name] if shortcut_number > 0 and block_data.spell != null else block_data.spell.spell_name if block_data.spell != null else "空白石板"
-	name_label.add_theme_font_size_override("font_size", 17)
+	name_label.add_theme_font_size_override("font_size", 14)
 	name_label.add_theme_color_override("font_color", block_data.spell.get_icon_color() if block_data.spell != null else Color.WHITE)
 	name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(name_label)
 	var detail_label := Label.new()
-	detail_label.position = Vector2(6, text_y + 22.0)
-	detail_label.size = Vector2(188, 34)
+	detail_label.position = Vector2(4, text_y + 18.0)
+	detail_label.size = Vector2(176, 30)
 	detail_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	detail_label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 	detail_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	detail_label.text = "%s｜MP %d\n%s" % [block_data.spell.get_category_label(), block_data.spell.mp_cost, block_data.spell.get_runtime_summary(preview_entity)] if block_data.spell != null else "無咒文"
-	detail_label.add_theme_font_size_override("font_size", 11)
+	detail_label.add_theme_font_size_override("font_size", 10)
 	detail_label.add_theme_color_override("font_color", Color(0.78, 0.82, 0.9))
 	detail_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(detail_label)
 	
 	# 【建議】把最小尺寸設大一點，確保能包住位移後的方塊 (3x3 格子約 220x220)
-	custom_minimum_size = Vector2(200, 234)
+	custom_minimum_size = Vector2(184, 180)
 
 
 func _draw() -> void:

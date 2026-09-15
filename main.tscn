@@ -1,4 +1,4 @@
-[gd_scene load_steps=22 format=3 uid="uid://dwxw7ydj0iw88"]
+[gd_scene load_steps=23 format=3 uid="uid://dwxw7ydj0iw88"]
 
 [ext_resource type="Script" uid="uid://bynurhes78qkj" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" uid="uid://bveoo4lldlwhj" path="res://scripts/tablet_generator.gd" id="2_tablet"]
@@ -20,6 +20,21 @@
 [ext_resource type="Script" path="res://scripts/ui/battle_atmosphere.gd" id="19_atmosphere"]
 [ext_resource type="PackedScene" path="res://scenes/battle_stage_view.tscn" id="20_stage"]
 [ext_resource type="FontFile" path="res://assets/fonts/fusion-pixel-12px-zh_hant.ttf" id="21_pixel_font"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoardOuter"]
+bg_color = Color(0, 0, 0, 0)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoardSurface"]
+bg_color = Color(0.09, 0.14, 0.22, 0.94)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.3, 0.42, 0.56, 1)
+content_margin_left = 10.0
+content_margin_top = 6.0
+content_margin_right = 10.0
+content_margin_bottom = 6.0
 
 [node name="Main" type="Node"]
 script = ExtResource("1_main")
@@ -110,59 +125,70 @@ custom_minimum_size = Vector2(120, 0)
 layout_mode = 2
 text = "選單  Esc"
 
-[node name="Layout" type="HBoxContainer" parent="UILayer/ScreenMargin/Screen"]
+[node name="Layout" type="VBoxContainer" parent="UILayer/ScreenMargin/Screen"]
 layout_mode = 2
 size_flags_vertical = 3
-theme_override_constants/separation = 22
+theme_override_constants/separation = 12
 
 [node name="BattleStageView" parent="UILayer/ScreenMargin/Screen/Layout" instance=ExtResource("20_stage")]
 layout_mode = 2
+size_flags_horizontal = 3
 
 [node name="BoardPanel" type="PanelContainer" parent="UILayer/ScreenMargin/Screen/Layout"]
 layout_mode = 2
-size_flags_horizontal = 3
-size_flags_stretch_ratio = 2.65
+size_flags_vertical = 3
+theme_override_styles/panel = SubResource("StyleBoardOuter")
 
-[node name="BoardVBox" type="VBoxContainer" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel"]
+[node name="BoardCenter" type="CenterContainer" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel"]
 layout_mode = 2
 
-[node name="BoardHeader" type="HBoxContainer" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardVBox"]
+[node name="BoardSurface" type="PanelContainer" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter"]
+custom_minimum_size = Vector2(980, 0)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoardSurface")
+
+[node name="BoardVBox" type="VBoxContainer" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface"]
 layout_mode = 2
 
-[node name="Title" type="Label" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardVBox/BoardHeader"]
+[node name="BoardHeader" type="HBoxContainer" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox"]
+visible = false
+layout_mode = 2
+
+[node name="Title" type="Label" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox/BoardHeader"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 22
 theme_override_fonts/font = ExtResource("21_pixel_font")
 text = "儀式石板"
 
-[node name="Controls" type="Label" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardVBox/BoardHeader"]
+[node name="Controls" type="Label" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox/BoardHeader"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.611765, 0.662745, 0.733333, 1)
 text = "1–3 選方塊　WASD 移動　Space 放置　X 取消"
 
-[node name="EnemyScroll" type="ScrollContainer" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardVBox"]
+[node name="EnemyScroll" type="ScrollContainer" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox"]
+visible = false
 custom_minimum_size = Vector2(0, 148)
 layout_mode = 2
 horizontal_scroll_mode = 2
 vertical_scroll_mode = 0
 
-[node name="EnemyContainer" type="HBoxContainer" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardVBox/EnemyScroll"]
+[node name="EnemyContainer" type="HBoxContainer" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox/EnemyScroll"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 10
 
-[node name="IntentLabel" type="Label" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardVBox/EnemyScroll/EnemyContainer"]
+[node name="IntentLabel" type="Label" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox/EnemyScroll/EnemyContainer"]
 visible = false
 layout_mode = 2
 text = "Intent: --"
 
-[node name="EnemyHpLabel" type="Label" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardVBox/EnemyScroll/EnemyContainer"]
+[node name="EnemyHpLabel" type="Label" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox/EnemyScroll/EnemyContainer"]
 visible = false
 layout_mode = 2
 text = "Enemy HP: --"
 
-[node name="TabletSection" type="VBoxContainer" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardVBox"]
+[node name="TabletSection" type="VBoxContainer" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox"]
 layout_mode = 2
 size_flags_horizontal = 4
 size_flags_vertical = 3
@@ -170,32 +196,33 @@ script = ExtResource("2_tablet")
 block_pool = Array[ExtResource("3_l")]([ExtResource("3_l"), ExtResource("4_t")])
 hand_size = 3
 
-[node name="Header" type="HBoxContainer" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardVBox/TabletSection"]
+[node name="Header" type="HBoxContainer" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox/TabletSection"]
 layout_mode = 2
 
-[node name="Corner" type="Control" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardVBox/TabletSection/Header"]
+[node name="Corner" type="Control" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox/TabletSection/Header"]
 layout_mode = 2
 
-[node name="ColIcons" type="HBoxContainer" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardVBox/TabletSection/Header"]
+[node name="ColIcons" type="HBoxContainer" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox/TabletSection/Header"]
 layout_mode = 2
 
-[node name="Body" type="HBoxContainer" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardVBox/TabletSection"]
+[node name="Body" type="HBoxContainer" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox/TabletSection"]
 layout_mode = 2
 
-[node name="RowIcons" type="VBoxContainer" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardVBox/TabletSection/Body"]
+[node name="RowIcons" type="VBoxContainer" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox/TabletSection/Body"]
 layout_mode = 2
 
-[node name="GridCells" type="GridContainer" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardVBox/TabletSection/Body"]
+[node name="GridCells" type="GridContainer" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox/TabletSection/Body"]
 layout_mode = 2
 
-[node name="HandArea" type="HBoxContainer" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardVBox/TabletSection"]
-custom_minimum_size = Vector2(0, 190)
+[node name="HandArea" type="HBoxContainer" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox/TabletSection"]
+custom_minimum_size = Vector2(0, 180)
 layout_mode = 2
 size_flags_horizontal = 4
 size_flags_vertical = 10
-theme_override_constants/separation = 38
+theme_override_constants/separation = 12
 
 [node name="InfoSection" type="VBoxContainer" parent="UILayer/ScreenMargin/Screen/Layout"]
+visible = false
 custom_minimum_size = Vector2(300, 0)
 layout_mode = 2
 size_flags_horizontal = 3
@@ -295,12 +322,12 @@ hp = 120
 [node name="BattleManager" parent="." instance=ExtResource("5_battle")]
 player_path = NodePath("../Player")
 enemy_path = NodePath("../Enemy")
-tablet_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardVBox/TabletSection")
-player_hud_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/BattleStageView/VBox/PlayerHUD")
-enemy_status_label_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardVBox/EnemyScroll/EnemyContainer/EnemyHpLabel")
-turn_status_label_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/InfoSection/EncounterHeader/TurnLabel")
-intent_label_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardVBox/EnemyScroll/EnemyContainer/IntentLabel")
-end_turn_button_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/InfoSection/Actions/VBox/EndTurnButton")
+tablet_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox/TabletSection")
+player_hud_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/BattleStageView/PlayerHUD")
+enemy_status_label_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/BattleStageView/EnemyAnchor/EnemyContainer/EnemyHpLabel")
+turn_status_label_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/BattleStageView/TurnLabel")
+intent_label_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/BattleStageView/EnemyAnchor/EnemyContainer/IntentLabel")
+end_turn_button_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/BattleStageView/EndTurnButton")
 spell_summary_label_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/InfoSection/LegendRow/SpellLabel")
 payment_preview_label_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/InfoSection/Actions/VBox/PaymentPreviewLabel")
 spell_legend_button_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/InfoSection/LegendRow/SpellLegendButton")
@@ -312,7 +339,7 @@ enemy_attack_damage = 8
 [node name="RunManager" type="Node" parent="."]
 script = ExtResource("7_run")
 battle_manager_path = NodePath("../BattleManager")
-tablet_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardVBox/TabletSection")
+tablet_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox/TabletSection")
 result_label_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/InfoSection/Actions/VBox/ResultLabel")
 reward_panel_path = NodePath("../UILayer/RewardPanel")
 reward_buttons_container_path = NodePath("../UILayer/RewardPanel/Background/Margin/Panel/VBox/RewardButtons")
@@ -332,5 +359,5 @@ bus = &"Music"
 [node name="SFX" type="AudioStreamPlayer" parent="AudioManager"]
 bus = &"SFX"
 
-[connection signal="col_activated" from="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardVBox/TabletSection" to="." method="_on_tablet_section_col_activated"]
-[connection signal="row_activated" from="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardVBox/TabletSection" to="." method="_on_tablet_section_row_activated"]
+[connection signal="col_activated" from="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox/TabletSection" to="." method="_on_tablet_section_col_activated"]
+[connection signal="row_activated" from="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox/TabletSection" to="." method="_on_tablet_section_row_activated"]

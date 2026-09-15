@@ -8,7 +8,7 @@ static func build(document: Dictionary) -> Theme:
 	var palette: Dictionary = document.get("palette", {})
 	var typography: Dictionary = document.get("typography", {})
 	var spacing: Dictionary = document.get("spacing", {})
-	var radius := int(document.get("shape", {}).get("corner_radius", 8))
+	var radius := mini(int(document.get("shape", {}).get("corner_radius", 8)), 2)
 	var border_width := int(document.get("shape", {}).get("border_width", 2))
 	var text := _color(palette, "text", Color("f1ebdd"))
 	var muted := _color(palette, "muted", Color("9ca9bb"))
@@ -35,7 +35,8 @@ static func build(document: Dictionary) -> Theme:
 	theme.set_constant("v_separation", "GridContainer", int(spacing.get("xs", 6)))
 	theme.set_font_size("font_size", "TooltipLabel", int(typography.get("caption", 15)))
 	if pixel_font != null:
-		# 只讓按鈕、數字化控件與標題類型採像素字；敘述 Label 保留系統字提高閱讀性。
+		# 常態介面統一採像素字；密集效果內文則由個別元件覆寫為易讀字體。
+		theme.set_font("font", "Label", pixel_font)
 		theme.set_font("font", "Button", pixel_font)
 		theme.set_font("font", "CheckButton", pixel_font)
 		theme.set_font("font", "OptionButton", pixel_font)

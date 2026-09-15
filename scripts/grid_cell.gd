@@ -19,7 +19,7 @@ func init(x, y, m_manager):
 	spell_marker = SpellRuneBadgeScript.new()
 	spell_marker.custom_minimum_size = Vector2(46, 46)
 	spell_marker.position = Vector2(3, 3)
-	spell_marker.size = size - Vector2(6, 6)
+	spell_marker.size = Vector2(40, 40)
 	spell_marker.visible = false
 	add_child(spell_marker)
 	

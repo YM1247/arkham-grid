@@ -9,9 +9,9 @@ signal payment_preview_changed(spells: Array)
 
 # --- 設定參數 ---
 # 這裡的大小要跟 GridCell 的大小一致
-const CELL_SIZE = Vector2(58, 58)
+const CELL_SIZE = Vector2(46, 46)
 const GRID_DIMENSION = 8
-const HAND_SLOT_SIZE := Vector2(204, 238)
+const HAND_SLOT_SIZE := Vector2(184, 180)
 
 # --- 資源載入 ---
 # 載入剛剛做的格子場景
@@ -70,10 +70,12 @@ func _notification(what):
 
 func _setup_layout_properties():
 	grid_container.columns = GRID_DIMENSION
-	corner_spacer.custom_minimum_size = CELL_SIZE
-	hand_area.custom_minimum_size = Vector2(HAND_SLOT_SIZE.x * hand_size + 18.0 * max(hand_size - 1, 0), HAND_SLOT_SIZE.y)
+	$Header.visible = false
+	row_icons_container.visible = false
+	corner_spacer.custom_minimum_size = Vector2.ZERO
+	hand_area.custom_minimum_size = Vector2(HAND_SLOT_SIZE.x * hand_size + 12.0 * max(hand_size - 1, 0), HAND_SLOT_SIZE.y)
 	hand_area.alignment = BoxContainer.ALIGNMENT_CENTER
-	hand_area.add_theme_constant_override("separation", 18)
+	hand_area.add_theme_constant_override("separation", 12)
 	_ensure_hand_slots()
 	
 	# 如果你在編輯器有用 PaddingContainer，這裡的 spacing 可以設為 0 或小一點
@@ -90,27 +92,7 @@ func _init_grid_data():
 		grid_spells.append(column)
 
 func _generate_tablet():
-	# 1. 生成 Header (直行圖示)
-	for i in range(GRID_DIMENSION):
-		var icon = Label.new()
-		icon.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		icon.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		icon.custom_minimum_size = CELL_SIZE
-		icon.add_theme_color_override("font_color", Color(0.7, 0.8, 1.0))
-		icon.text = _get_col_slot_label(i, null)
-		col_icons_container.add_child(icon)
-		
-	# 2. 生成 Left (橫列圖示)
-	for i in range(GRID_DIMENSION):
-		var icon = Label.new()
-		icon.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		icon.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		icon.custom_minimum_size = CELL_SIZE
-		icon.add_theme_color_override("font_color", Color(1.0, 0.75, 0.75))
-		icon.text = _get_row_slot_label(i, null)
-		row_icons_container.add_child(icon)
-		
-	# 3. 生成 GridCell (核心改動)
+	# 盤面刻度已移除，僅保留獨立的石板桌與格子。
 	for i in range(GRID_DIMENSION * GRID_DIMENSION):
 		# 實例化格子場景
 		var cell = grid_cell_scene.instantiate()

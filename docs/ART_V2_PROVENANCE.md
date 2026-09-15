@@ -5,8 +5,11 @@
 - `assets/art/characters/investigator_chibi.png`：Q 版調查員；由純黑背景來源去背。
 - `assets/art/characters/cultist_chibi.png`：Q 版邪教徒；供後續敵人立繪逐張替換時使用。
 - `assets/art/backgrounds/ritual_chibi_stage.png`：Q 版儀式室戰鬥舞台。
+- `assets/art/backgrounds/ritual_arena_v2.png`：本輪戰鬥用的 2.5D 儀式圓台與前景石板桌背景；以內建圖像生成流程產生的原創素材，不含既有作品角色、標誌或素材。
 
 生成提示重點：16-bit、粗顆粒方形像素、3 頭身、粗深色輪廓、平面 8–10 色陰影、禁止漸層、禁止反鋸齒、禁止文字與浮水印。角色來源採平面色去背後輸出透明 PNG。
+
+`ritual_arena_v2.png` 的提示另明定：橫向 16:9、克蘇魯風 Q 版儀式室、後景拱門與月光、中景環形儀式地磚、下方獨立書桌／石板桌、午夜藍與黃銅色盤、前中後景明確分層；最終在 Godot 內以 nearest filter 顯示。
 
 ## 後續資產
 

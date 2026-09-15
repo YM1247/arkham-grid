@@ -3,11 +3,9 @@ extends Control
 
 const PLAYER_ART := "res://assets/art/characters/investigator_chibi.png"
 
-@onready var player_art: TextureRect = $VBox/PlayerArt
-@onready var player_name_label: Label = $VBox/PlayerName
-@onready var action_banner: Label = $VBox/ActionPanel/VBox/ActionBanner
-@onready var action_result: Label = $VBox/ActionPanel/VBox/ActionResult
-@onready var combat_log: Label = $VBox/LogPanel/VBox/CombatLog
+@onready var player_art: TextureRect = $PlayerArt
+@onready var player_name_label: Label = $PlayerName
+@onready var combat_log: Label = $ActionLog
 
 var _recent_entries: Array[String] = []
 var _idle_tween: Tween
@@ -17,8 +15,6 @@ func _ready() -> void:
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	if ResourceLoader.exists(PLAYER_ART):
 		player_art.texture = load(PLAYER_ART)
-	action_banner.text = "等待敵人行動"
-	action_result.text = ""
 	_refresh_log()
 	_start_idle_motion()
 
@@ -26,22 +22,18 @@ func _ready() -> void:
 func begin_encounter(player_name: String) -> void:
 	player_name_label.text = player_name
 	_recent_entries.clear()
-	action_banner.text = "調查開始"
-	action_result.text = "敵人的意圖會在此逐一結算"
 	_refresh_log()
 
 
 func present_enemy_windup(enemy_name: String, intent_name: String) -> void:
-	action_banner.text = "%s  ▸  %s" % [enemy_name, intent_name]
-	action_result.text = "行動準備中…"
+	combat_log.text = "%s　%s" % [enemy_name, intent_name]
 	var tween := create_tween()
-	tween.tween_property(action_banner, "modulate", Color("f6d889"), 0.08)
-	tween.tween_property(action_banner, "modulate", Color.WHITE, 0.18)
+	tween.tween_property(combat_log, "modulate", Color("f6d889"), 0.08)
+	tween.tween_property(combat_log, "modulate", Color.WHITE, 0.18)
 	await get_tree().create_timer(0.22).timeout
 
 
 func present_enemy_resolution(enemy_name: String, intent_name: String, result_text: String, harms_player: bool) -> void:
-	action_result.text = result_text
 	_append_log("%s｜%s｜%s" % [enemy_name, intent_name, result_text])
 	if harms_player:
 		var base_x := player_art.position.x

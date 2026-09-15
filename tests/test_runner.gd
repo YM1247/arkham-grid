@@ -877,7 +877,7 @@ func _test_main_scene_smoke() -> void:
 	_expect(instance.get_node_or_null("BattleManager") != null, "核心迴圈應建立 BattleManager")
 	var manager = instance.get_node("BattleManager")
 	var run_manager = instance.get_node("RunManager")
-	var tablet_ui = instance.get_node("UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardVBox/TabletSection")
+	var tablet_ui = instance.get_node("UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox/TabletSection")
 	var grid := tablet_ui.get_node("Body/GridCells") as Control
 	var stable_board_position := grid.global_position
 	for held in tablet_ui._get_hand_blocks():
@@ -888,7 +888,7 @@ func _test_main_scene_smoke() -> void:
 	var graph = instance.get_node_or_null("UILayer/MapContainer/Margin/Panel/VBox/Scroll/Center/Graph")
 	_expect(graph != null and graph.get_edge_count() > 0, "地圖畫布應建立可見的節點連線資料")
 	_expect(FileAccess.file_exists(run_manager.save_service.get_run_path()), "新 Run 建立後應寫入單一自動存檔槽")
-	var player_hud := instance.get_node_or_null("UILayer/ScreenMargin/Screen/Layout/BattleStageView/VBox/PlayerHUD") as PlayerHUD
+	var player_hud := instance.get_node_or_null("UILayer/ScreenMargin/Screen/Layout/BattleStageView/PlayerHUD") as PlayerHUD
 	var system_menu := instance.get_node_or_null("UILayer/SystemMenu") as SystemMenu
 	_expect(player_hud != null and player_hud.hp_bar.value == manager.player.hp, "正式 HUD 應以資源條呈現玩家狀態")
 	_expect(system_menu != null and system_menu.visible, "啟動時應顯示可繼續、新遊戲與設定的主選單")
