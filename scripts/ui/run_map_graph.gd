@@ -3,8 +3,8 @@ extends Control
 
 signal node_selected(node_id: String)
 
-const NODE_SIZE := Vector2(184, 58)
-const FLOOR_GAP := 98.0
+const NODE_SIZE := Vector2(174, 54)
+const FLOOR_GAP := 92.0
 const SIDE_MARGIN := 150.0
 
 var _map_data: Dictionary = {}
@@ -45,7 +45,7 @@ func render(map_data: Dictionary, available_ids: Array[String], completed_ids: A
 		button.text = "%s  %s%s" % [_type_icon(str(node.get("type", ""))), _type_name(str(node.get("type", ""))), "  ✓" if node_id in _completed_ids else ""]
 		button.tooltip_text = "第 %d 層｜%s\n路線節點：%s" % [int(node.get("floor", 0)) + 1, _type_name(str(node.get("type", ""))), node_id]
 		button.disabled = node_id not in _available_ids
-		button.modulate = _node_color(str(node.get("type", "")), node_id)
+		_configure_node_style(button, str(node.get("type", "")), node_id)
 		button.pressed.connect(func(): node_selected.emit(node_id))
 		add_child(button)
 	_configure_focus_navigation()
@@ -66,7 +66,17 @@ func _draw() -> void:
 			if not _node_positions.has(target_id):
 				continue
 			var style := get_edge_style(source_id, target_id)
-			draw_line(_node_positions[source_id], _node_positions[target_id], style.color, style.width, true)
+			draw_line(_node_positions[source_id], _node_positions[target_id], Color(0.015, 0.02, 0.03, 0.9), style.width + 4.0, false)
+			draw_line(_node_positions[source_id], _node_positions[target_id], style.color, style.width, false)
+	for node_id in _node_positions:
+		var center: Vector2 = _node_positions[node_id]
+		var ring_color := Color(0.48, 0.38, 0.22, 0.58)
+		if node_id in _available_ids:
+			ring_color = Color(0.92, 0.72, 0.32, 0.95)
+		elif node_id in _completed_ids:
+			ring_color = Color(0.32, 0.72, 0.5, 0.82)
+		draw_circle(center, 31.0, Color(0.02, 0.027, 0.038, 0.52))
+		draw_arc(center, 31.0, 0.0, TAU, 16, ring_color, 2.0, false)
 
 
 func get_edge_style(source_id: String, target_id: String) -> Dictionary:
@@ -89,6 +99,31 @@ func _node_color(type: String, node_id: String) -> Color:
 		"shop": return Color(0.95, 0.78, 0.35)
 		"rest": return Color(0.45, 0.85, 0.6)
 		_: return Color.WHITE
+
+
+func _configure_node_style(button: Button, type: String, node_id: String) -> void:
+	var color := _node_color(type, node_id)
+	button.add_theme_font_size_override("font_size", 18)
+	button.add_theme_color_override("font_color", color.lightened(0.24))
+	button.add_theme_color_override("font_disabled_color", color.darkened(0.22))
+	button.add_theme_color_override("font_outline_color", Color(0.01, 0.015, 0.025, 0.96))
+	button.add_theme_constant_override("outline_size", 3)
+	button.add_theme_stylebox_override("normal", _node_style(Color(0.02, 0.03, 0.045, 0.38), color.darkened(0.25), 1))
+	button.add_theme_stylebox_override("hover", _node_style(Color(0.12, 0.11, 0.09, 0.72), color, 2))
+	button.add_theme_stylebox_override("pressed", _node_style(Color(0.2, 0.15, 0.08, 0.78), color.lightened(0.18), 2))
+	button.add_theme_stylebox_override("disabled", _node_style(Color(0.02, 0.03, 0.045, 0.2), color.darkened(0.5), 1))
+	button.add_theme_stylebox_override("focus", _node_style(Color(0, 0, 0, 0), Color("f2ce78"), 3))
+
+
+func _node_style(background: Color, border: Color, width: int) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = background
+	style.border_color = border
+	style.set_border_width_all(width)
+	style.set_corner_radius_all(1)
+	style.content_margin_left = 10
+	style.content_margin_right = 10
+	return style
 
 
 func _type_name(type: String) -> String:

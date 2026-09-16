@@ -94,6 +94,33 @@ func get_runtime_summary(user: Entity = null) -> String:
 			parts.append("%s+%d" % [_get_status_display_name(str(effect.get("id", ""))), int(effect.get("amount", 0))])
 	return "　".join(parts) if not parts.is_empty() else ""
 
+
+func get_runtime_rules_text(user: Entity = null) -> String:
+	var lines: Array[String] = ["%s｜MP %d" % [get_category_label(), mp_cost], "範圍｜%s" % _get_effect_scope_name(effect_scope)]
+	if logic == "attack" or logic == "conditional_attack":
+		var damage := _get_int_property("damage", 0)
+		if user != null:
+			damage = user.modify_attack_damage(damage)
+		var hits := _get_int_property("hit_count", 1)
+		lines.append("傷害｜%d%s" % [damage, " × %d" % hits if hits > 1 else ""])
+		var bonus_damage := _get_int_property("bonus_damage", 0)
+		if bonus_damage > 0:
+			lines.append("條件追加｜%d" % bonus_damage)
+	if logic == "support":
+		var armor_gain := _get_int_property("armor_gain", 0)
+		if armor_gain > 0:
+			if user != null:
+				armor_gain = user.modify_armor_gain(armor_gain)
+			lines.append("護盾｜+%d" % armor_gain)
+		var heal_amount := _get_int_property("heal_amount", 0)
+		if heal_amount > 0:
+			lines.append("回復｜+%d" % heal_amount)
+	for effect in status_effects_self:
+		lines.append("自身｜%s +%d" % [_get_status_display_name(str(effect.get("id", ""))), int(effect.get("amount", 0))])
+	for effect in status_effects_target:
+		lines.append("目標｜%s +%d" % [_get_status_display_name(str(effect.get("id", ""))), int(effect.get("amount", 0))])
+	return "\n".join(lines)
+
 func _get_rarity_name(value: String) -> String:
 	match value:
 		"uncommon": return "非凡"

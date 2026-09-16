@@ -4,7 +4,7 @@
   {
     "id": "shape_L",
     "name": "L 型石板",
-    "color": "#ff8c00",
+    "color": "#B06F38",
     "cells": [
       [0, 0],
       [0, -1],
@@ -19,7 +19,7 @@
   {
     "id": "shape_T",
     "name": "T 型石板",
-    "color": "#f88aff",
+    "color": "#835F88",
     "cells": [
       [0, 0],
       [0, 1],
@@ -34,7 +34,7 @@
   {
     "id": "shape_I",
     "name": "長條石板",
-    "color": "#36c5f0",
+    "color": "#3F8194",
     "cells": [
       [0, 0],
       [0, -1],
@@ -49,7 +49,7 @@
   {
     "id": "shape_O",
     "name": "方形石板",
-    "color": "#ffd447",
+    "color": "#A78943",
     "cells": [
       [0, 0],
       [1, 0],
@@ -64,7 +64,7 @@
   {
     "id": "shape_S",
     "name": "S 型石板",
-    "color": "#42d77d",
+    "color": "#5E846C",
     "cells": [
       [0, 0],
       [1, 0],
@@ -79,7 +79,7 @@
   {
     "id": "shape_Z",
     "name": "Z 型石板",
-    "color": "#ff5a5f",
+    "color": "#8E4E58",
     "cells": [
       [0, 0],
       [-1, 0],
@@ -94,7 +94,7 @@
   {
     "id": "shape_J",
     "name": "J 型石板",
-    "color": "#4d7cff",
+    "color": "#536A91",
     "cells": [
       [0, 0],
       [0, -1],
@@ -109,7 +109,7 @@
   {
     "id": "shape_short_I",
     "name": "短條石板",
-    "color": "#9adbcf",
+    "color": "#789B93",
     "cells": [
       [0, 0],
       [0, -1],
@@ -123,7 +123,7 @@
   {
     "id": "special_dot",
     "name": "星點石板",
-    "color": "#ffffff",
+    "color": "#B8AE90",
     "cells": [
       [0, 0]
     ],
@@ -137,7 +137,7 @@
   {
     "id": "special_domino",
     "name": "雙星石板",
-    "color": "#d6ff4d",
+    "color": "#8B9B55",
     "cells": [
       [0, 0],
       [1, 0]
@@ -152,7 +152,7 @@
   {
     "id": "special_cross",
     "name": "十字石板",
-    "color": "#b36bff",
+    "color": "#735B89",
     "cells": [
       [0, 0],
       [1, 0],

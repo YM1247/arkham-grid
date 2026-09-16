@@ -2,6 +2,7 @@ extends Control
 class_name Block
 
 const SpellRuneBadgeScript = preload("res://scripts/ui/spell_rune_badge.gd")
+const SlateCellScript = preload("res://scripts/ui/slate_cell.gd")
 
 signal selection_requested(block: Block)
 
@@ -9,8 +10,9 @@ signal selection_requested(block: Block)
 # 這裡的大小必須跟你的棋盤格子一樣大，不然會對不齊
 const CELL_SIZE = Vector2(46, 46)
 const SPACING = 4
-const HAND_CELL_SCALE := 0.72
-const HAND_VISUAL_CENTER := Vector2(75, 72)
+const HAND_CELL_SCALE := 0.78
+const HAND_VISUAL_CENTER := Vector2(82, 72)
+const DRAG_GRAB_TOLERANCE := 22.0
 
 # 存方塊的資料
 var block_data: BlockData
@@ -78,9 +80,9 @@ func _redraw_shape():
 	render_origin = HAND_VISUAL_CENTER - Vector2(visual_width, visual_height) * 0.5
 		
 	for cell_pos in block_data.cells:
-		var rect = ColorRect.new()
+		var rect: Control = SlateCellScript.new()
 		rect.size = render_cell_size
-		rect.color = block_data.color
+		rect.configure(block_data.color)
 		rect.mouse_filter = Control.MOUSE_FILTER_IGNORE 
 		
 		# 【修改】繪製位置加上偏移量
@@ -98,8 +100,8 @@ func _redraw_shape():
 			rune.set_meta("shape_visual", true)
 
 	var name_label := Label.new()
-	name_label.position = Vector2(150, 14)
-	name_label.size = Vector2(146, 30)
+	name_label.position = Vector2(166, 10)
+	name_label.size = Vector2(188, 30)
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	name_label.text = "%d　%s" % [shortcut_number, block_data.spell.spell_name] if shortcut_number > 0 and block_data.spell != null else block_data.spell.spell_name if block_data.spell != null else "空白石板"
 	name_label.add_theme_font_size_override("font_size", 19)
@@ -107,14 +109,13 @@ func _redraw_shape():
 	name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(name_label)
 	var detail_label := Label.new()
-	detail_label.position = Vector2(150, 48)
-	detail_label.size = Vector2(146, 88)
+	detail_label.position = Vector2(166, 42)
+	detail_label.size = Vector2(188, 98)
 	detail_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	detail_label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 	detail_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	if block_data.spell != null:
-		var runtime_summary := block_data.spell.get_runtime_summary(preview_entity)
-		detail_label.text = "%s｜MP %d%s" % [block_data.spell.get_category_label(), block_data.spell.mp_cost, "\n%s" % runtime_summary if not runtime_summary.is_empty() else ""]
+		detail_label.text = block_data.spell.get_runtime_rules_text(preview_entity)
 	else:
 		detail_label.text = "無咒文"
 	detail_label.add_theme_font_size_override("font_size", 14)
@@ -123,7 +124,7 @@ func _redraw_shape():
 	add_child(detail_label)
 	
 	# 【建議】把最小尺寸設大一點，確保能包住位移後的方塊 (3x3 格子約 220x220)
-	custom_minimum_size = Vector2(300, 146)
+	custom_minimum_size = Vector2(360, 146)
 
 
 func _draw() -> void:
@@ -144,17 +145,8 @@ func _get_drag_data(at_position):
 	if block_data == null or not drag_enabled:
 		return null
 	
-	# 【修改】計算抓取座標時，要把偏移量「扣回來」
-	# 這樣我們算出來的 grab_offset 才會變回正確的邏輯座標 (例如 0, -1)
-	var adjusted_pos = at_position - render_origin
-	
-	# 使用 floor() 確保負數除法運算正確 (例如 -35 / 70 應該是 -1 而不是 0)
-	var grab_idx_x = floor(adjusted_pos.x / render_stride.x)
-	var grab_idx_y = floor(adjusted_pos.y / render_stride.y)
-	var grab_offset = Vector2i(grab_idx_x, grab_idx_y) + render_min_cell
-	
-	# 空氣牆檢查
-	if not block_data.cells.has(grab_offset):
+	var grab_offset := _resolve_grab_offset(at_position)
+	if grab_offset.x == 9999:
 		return null
 	
 	print("開始拖曳: ", block_data.id)
@@ -187,10 +179,10 @@ func _build_drag_preview(at_position: Vector2, grab_offset: Vector2i) -> Control
 	var cursor_offset := within_selected * CELL_SIZE
 	for cell_pos in block_data.cells:
 		var cell_position := Vector2(cell_pos - grab_offset) * full_stride - cursor_offset
-		var rect := ColorRect.new()
+		var rect: Control = SlateCellScript.new()
 		rect.position = cell_position
 		rect.size = CELL_SIZE
-		rect.color = block_data.color
+		rect.configure(block_data.color)
 		rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		wrapper.add_child(rect)
 		if block_data.spell != null and cell_pos == block_data.effect_cell:
@@ -200,6 +192,22 @@ func _build_drag_preview(at_position: Vector2, grab_offset: Vector2i) -> Control
 			rune.configure(block_data.spell)
 			wrapper.add_child(rune)
 	return wrapper
+
+
+func _resolve_grab_offset(at_position: Vector2) -> Vector2i:
+	var nearest := Vector2i(9999, 9999)
+	var nearest_distance := INF
+	for cell_pos in block_data.cells:
+		var top_left := Vector2(cell_pos - render_min_cell) * render_stride + render_origin
+		var hit_rect := Rect2(top_left, render_cell_size).grow(DRAG_GRAB_TOLERANCE)
+		if not hit_rect.has_point(at_position):
+			continue
+		var center := top_left + render_cell_size * 0.5
+		var distance := center.distance_squared_to(at_position)
+		if distance < nearest_distance:
+			nearest_distance = distance
+			nearest = cell_pos
+	return nearest
 
 func _set_shape_visible(is_visible: bool) -> void:
 	for child in get_children():

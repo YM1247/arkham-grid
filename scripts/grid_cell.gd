@@ -2,6 +2,7 @@ extends ColorRect
 class_name GridCell
 
 const SpellRuneBadgeScript = preload("res://scripts/ui/spell_rune_badge.gd")
+const SlateCellScript = preload("res://scripts/ui/slate_cell.gd")
 
 var grid_x: int
 var grid_y: int
@@ -55,6 +56,28 @@ func set_clear_preview(active: bool):
 func reset_color():
 	color = original_color
 	set_highlight(false)
+	queue_redraw()
+
+
+func set_slate_color(value: Color) -> void:
+	color = SlateCellScript.stylized_color(value)
+	original_color = color
+	queue_redraw()
+
+
+func set_empty_color() -> void:
+	color = Color("171b22")
+	original_color = color
+	queue_redraw()
+
+
+func _draw() -> void:
+	var edge_light := color.lightened(0.18)
+	var edge_dark := color.darkened(0.42)
+	draw_line(Vector2(1, 1), Vector2(size.x - 1, 1), edge_light, 1.0)
+	draw_line(Vector2(1, 1), Vector2(1, size.y - 1), edge_light, 1.0)
+	draw_line(Vector2(1, size.y - 2), Vector2(size.x - 1, size.y - 2), edge_dark, 2.0)
+	draw_line(Vector2(size.x - 2, 1), Vector2(size.x - 2, size.y - 1), edge_dark, 2.0)
 
 
 func set_spell(spell: BattleItem) -> void:

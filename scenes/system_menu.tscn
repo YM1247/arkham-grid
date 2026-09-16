@@ -1,7 +1,17 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/system_menu.gd" id="1_menu"]
 [ext_resource type="Texture2D" path="res://assets/art/backgrounds/harbor_map.png" id="2_harbor"]
+
+[sub_resource type="StyleBoxFlat" id="MenuPanelStyle"]
+bg_color = Color(0.015, 0.025, 0.04, 0.2)
+border_width_top = 2
+border_width_bottom = 2
+border_color = Color(0.56, 0.43, 0.23, 0.72)
+content_margin_left = 30.0
+content_margin_top = 28.0
+content_margin_right = 30.0
+content_margin_bottom = 28.0
 
 [node name="SystemMenu" type="Control"]
 visible = false
@@ -25,7 +35,7 @@ texture_filter = 1
 texture = ExtResource("2_harbor")
 expand_mode = 1
 stretch_mode = 6
-self_modulate = Color(0.34, 0.4, 0.48, 1)
+self_modulate = Color(0.4, 0.44, 0.48, 1)
 
 [node name="Center" type="CenterContainer" parent="Background"]
 layout_mode = 1
@@ -36,8 +46,9 @@ grow_horizontal = 2
 grow_vertical = 2
 
 [node name="Panel" type="PanelContainer" parent="Background/Center"]
-custom_minimum_size = Vector2(620, 690)
+custom_minimum_size = Vector2(570, 660)
 layout_mode = 2
+theme_override_styles/panel = SubResource("MenuPanelStyle")
 
 [node name="VBox" type="VBoxContainer" parent="Background/Center/Panel"]
 layout_mode = 2

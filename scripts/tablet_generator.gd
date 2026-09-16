@@ -12,7 +12,7 @@ signal payment_preview_changed(spells: Array)
 # 這裡的大小要跟 GridCell 的大小一致
 const CELL_SIZE = Vector2(46, 46)
 const GRID_DIMENSION = 8
-const HAND_SLOT_SIZE := Vector2(300, 146)
+const HAND_SLOT_SIZE := Vector2(360, 146)
 
 # --- 資源載入 ---
 # 載入剛剛做的格子場景
@@ -72,6 +72,8 @@ func _notification(what):
 
 func _setup_layout_properties():
 	grid_container.columns = GRID_DIMENSION
+	grid_container.add_theme_constant_override("h_separation", 2)
+	grid_container.add_theme_constant_override("v_separation", 2)
 	$Header.visible = false
 	row_icons_container.visible = false
 	corner_spacer.custom_minimum_size = Vector2.ZERO
@@ -396,8 +398,7 @@ func reset_tablet():
 	_init_grid_data()
 	for child in grid_container.get_children():
 		if child is GridCell:
-			child.color = Color(0.15, 0.15, 0.15)
-			child.original_color = child.color
+			child.set_empty_color()
 			child.set_spell(null)
 			child.reset_color()
 	if seed_board_on_start:
@@ -409,6 +410,27 @@ func reset_tablet():
 # 檢查是否可以放置
 func check_placement_valid(origin_x: int, origin_y: int, block_data: BlockData) -> bool:
 	return placement_enabled and not _is_resolving_clear and block_data != null and board_model.can_place(origin_x, origin_y, block_data.cells)
+
+
+func preview_drop_at_cell(grid_x: int, grid_y: int, data) -> bool:
+	if typeof(data) != TYPE_DICTIONARY or not data.has("block_data"):
+		return false
+	var block := data["block_data"] as BlockData
+	var offset: Vector2i = data.get("grab_offset", Vector2i.ZERO)
+	var origin := Vector2i(grid_x, grid_y) - offset
+	var valid := check_placement_valid(origin.x, origin.y, block)
+	update_preview(origin.x, origin.y, block, valid)
+	return valid
+
+
+func commit_drop_at_cell(grid_x: int, grid_y: int, data) -> void:
+	if typeof(data) != TYPE_DICTIONARY or not data.has("block_data"):
+		return
+	var block := data["block_data"] as BlockData
+	var offset: Vector2i = data.get("grab_offset", Vector2i.ZERO)
+	var origin := Vector2i(grid_x, grid_y) - offset
+	if check_placement_valid(origin.x, origin.y, block):
+		place_block(origin.x, origin.y, block, data.get("source_block"))
 
 # 【新增】更新預覽狀態 (被 GridCell 呼叫)
 func update_preview(origin_x: int, origin_y: int, block_data: BlockData, is_valid: bool):
@@ -463,8 +485,7 @@ func place_block(origin_x: int, origin_y: int, block_data: BlockData, source_blo
 		var cell_node = grid_container.get_child(cell_index) as GridCell
 		
 		# 更新顏色並記住新的「原始顏色」
-		cell_node.color = block_data.color
-		cell_node.original_color = block_data.color
+		cell_node.set_slate_color(block_data.color)
 		if offset == block_data.effect_cell and block_data.spell != null:
 			grid_spells[target_x][target_y] = block_data.spell
 			cell_node.set_spell(block_data.spell)
@@ -560,8 +581,7 @@ func _clear_cell_data(x: int, y: int):
 	var cell_index = y * GRID_DIMENSION + x
 	var cell_node = grid_container.get_child(cell_index) as GridCell
 	
-	cell_node.color = Color(0.15, 0.15, 0.15) # 變回深灰色
-	cell_node.original_color = cell_node.color
+	cell_node.set_empty_color()
 	cell_node.set_spell(null)
 
 
@@ -577,8 +597,10 @@ func restore_board_state(serialized: Array[String]) -> bool:
 		for x in range(GRID_DIMENSION):
 			var cell_node = grid_container.get_child(y * GRID_DIMENSION + x) as GridCell
 			var value = grid_data[x][y]
-			cell_node.color = value if value is Color else Color(0.15, 0.15, 0.15)
-			cell_node.original_color = cell_node.color
+			if value is Color:
+				cell_node.set_slate_color(value)
+			else:
+				cell_node.set_empty_color()
 			cell_node.reset_color()
 	return true
 
@@ -800,8 +822,7 @@ func _clear_board_cells():
 	_init_grid_data()
 	for child in grid_container.get_children():
 		if child is GridCell:
-			child.color = Color(0.15, 0.15, 0.15)
-			child.original_color = child.color
+			child.set_empty_color()
 			child.set_spell(null)
 			child.reset_color()
 
@@ -821,8 +842,7 @@ func _set_seed_cell(coord: Vector2i, color: Color):
 	var cell_node = grid_container.get_child(cell_index) as GridCell
 	if cell_node == null:
 		return
-	cell_node.color = color
-	cell_node.original_color = color
+	cell_node.set_slate_color(color)
 	cell_node.reset_color()
 
 func _get_row_slot_label(index: int, item: BattleItem) -> String:

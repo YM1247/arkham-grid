@@ -47,3 +47,18 @@ Phase 17.1 的角色與背景由 OpenAI 內建 ImageGen 於 2026-09-14／15 生�
 - 原始解析度只存一份，Godot 以 TextureRect 縮放，不建立多份同內容貼圖。
 - 所有像素圖使用 nearest filter；背景為單張遠景加兩張透明疊層，霧與暗角由低數量、無貼圖的程式繪製完成。
 - 本輪不宣稱這些靜態圖是逐格動畫；待機、蓄力、命中與受擊由位移、縮放、閃白及淡色完成。
+
+## 2026-09-16：Q 版敵人統一稿
+
+六名敵人另以 `*_chibi_v2.png` 保存新版，不覆寫第一版原檔。每張皆使用原敵人圖作角色辨識參考、`investigator_chibi_opaque.png` 作比例與像素語言參考；共同提示要求大頭短身、2–6 px 粗顆粒、左上暖光與 charcoal／navy／teal／ivory／brass／burgundy 限制色盤。生成稿使用純綠背景，再經同一去背流程輸出透明 PNG。
+
+| ID | 新版角色重點 | 原始綠幕稿 | 遊戲最終檔 |
+| --- | --- | --- | --- |
+| abyss_thrall | 佝僂兩棲眷屬、長爪與藤壺骨質；縮短軀幹並放大頭部 | `source_chroma/abyss_thrall_chibi_v2.png` | `characters/abyss_thrall_chibi_v2.png` |
+| rotting_hound | 低伏墓犬、巨大骨面與簡化骨板 | `source_chroma/rotting_hound_chibi_v2.png` | `characters/rotting_hound_chibi_v2.png` |
+| lightless_priest | 裂紋無口面具、短身分層祭袍與黃銅香爐 | `source_chroma/lightless_priest_chibi_v2.png` | `characters/lightless_priest_chibi_v2.png` |
+| grave_cultist | 石質半面具、舊大衣、鏟槍與酒紅儀式布 | `source_chroma/grave_cultist_chibi_v2.png` | `characters/grave_cultist_chibi_v2.png` |
+| warped_acolyte | 碎瓷面具、不對稱短袍與 2–3 條粗塊影觸 | `source_chroma/warped_acolyte_chibi_v2.png` | `characters/warped_acolyte_chibi_v2.png` |
+| abyss_guard | 寬重短身、巨大籠盔、矩形盾與錨形鈍器 | `source_chroma/abyss_guard_chibi_v2.png` | `characters/abyss_guard_chibi_v2.png` |
+
+提示詞亦共同要求：全身置中、無地面／陰影／場景／UI／文字，角色不可含綠色。角色差異只由上表描述替換；素材由 OpenAI 內建 ImageGen 生成。

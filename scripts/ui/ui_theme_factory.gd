@@ -49,8 +49,8 @@ static func build(document: Dictionary) -> Theme:
 
 	theme.set_stylebox("panel", "PanelContainer", _box(panel, border, radius, border_width, 10))
 	theme.set_stylebox("panel", "TooltipPanel", _box(panel, accent, radius, 1, 8))
-	theme.set_stylebox("normal", "Button", _box(panel, border, radius, border_width, 8))
-	theme.set_stylebox("hover", "Button", _box(hover, accent, radius, border_width, 8))
+	theme.set_stylebox("normal", "Button", _box(panel.darkened(0.08), border, radius, 1, 8))
+	theme.set_stylebox("hover", "Button", _box(hover, accent, radius, 2, 8))
 	theme.set_stylebox("pressed", "Button", _box(palette.get("accent_dark", "#8B6532"), accent, radius, border_width, 8))
 	theme.set_stylebox("disabled", "Button", _box(panel.darkened(0.3), border.darkened(0.35), radius, 1, 8))
 	theme.set_stylebox("focus", "Button", _outline(focus, radius, 3))

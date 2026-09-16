@@ -2,6 +2,7 @@ class_name SlatePreview
 extends Control
 
 const BadgeScript = preload("res://scripts/ui/spell_rune_badge.gd")
+const SlateCellScript = preload("res://scripts/ui/slate_cell.gd")
 
 var block_data: BlockData
 var cell_size := 28.0
@@ -23,8 +24,12 @@ func _draw() -> void:
 	var origin := _preview_origin(bounds)
 	for coord in block_data.cells:
 		var rect := Rect2(origin + Vector2(coord) * cell_size + Vector2(1, 1), Vector2.ONE * (cell_size - 2.0))
-		draw_rect(rect, block_data.color, true)
-		draw_rect(rect, block_data.color.lightened(0.28), false, 2.0)
+		var slate_color := SlateCellScript.stylized_color(block_data.color)
+		draw_rect(rect, Color("090d13"), true)
+		var face := rect.grow(-2.0)
+		draw_rect(face, slate_color, true)
+		draw_line(face.position, face.position + Vector2(face.size.x, 0), slate_color.lightened(0.24), 2.0)
+		draw_line(face.end, Vector2(face.position.x, face.end.y), slate_color.darkened(0.38), 2.0)
 
 
 func _rebuild_badge() -> void:

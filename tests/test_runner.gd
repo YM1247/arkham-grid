@@ -866,7 +866,9 @@ func _test_drag_source_visibility() -> void:
 	compact_data.effect_cell = Vector2i.ZERO
 	compact_block.set_data(compact_data)
 	_expect(compact_block.render_cell_size.is_equal_approx(block.render_cell_size), "不同外框尺寸的石板在手牌中應使用相同格子縮放比例")
-	_expect(block.custom_minimum_size.x >= 300.0 and block.custom_minimum_size.y >= 146.0, "每張手牌應提供放大的完整點選區域")
+	_expect(block.custom_minimum_size.x >= 360.0 and block.custom_minimum_size.y >= 146.0, "每張手牌應提供放大的完整點選區域與全文資訊")
+	var tolerant_grab := block._resolve_grab_offset(block.render_origin - Vector2(12, 0))
+	_expect(tolerant_grab.x != 9999, "拖曳起點在石板邊緣外仍應被放大的容許範圍吸附")
 	var reward_preview := preload("res://scripts/ui/slate_preview.gd").new() as SlatePreview
 	reward_preview.size = Vector2(160, 148)
 	root.add_child(reward_preview)
@@ -876,10 +878,10 @@ func _test_drag_source_visibility() -> void:
 	reward_preview.queue_free()
 	compact_block.queue_free()
 	var full_preview := block._build_drag_preview(block.render_origin + block.render_cell_size * 0.5, Vector2i.ZERO)
-	var preview_cell: ColorRect = null
+	var preview_cell: SlateCell = null
 	var preview_rune: SpellRuneBadge = null
 	for child in full_preview.get_children():
-		if child is ColorRect and preview_cell == null:
+		if child is SlateCell and preview_cell == null:
 			preview_cell = child
 		elif child is SpellRuneBadge:
 			preview_rune = child
@@ -889,13 +891,13 @@ func _test_drag_source_visibility() -> void:
 	block._set_shape_visible(false)
 	var source_hidden := true
 	for child in block.get_children():
-		if child is ColorRect and child.visible:
+		if child is SlateCell and child.visible:
 			source_hidden = false
 	_expect(source_hidden, "拖曳時來源位置的方塊圖形應隱藏")
 	block._set_shape_visible(true)
 	var source_restored := true
 	for child in block.get_children():
-		if child is ColorRect and not child.visible:
+		if child is SlateCell and not child.visible:
 			source_restored = false
 	_expect(source_restored, "取消拖曳後來源方塊圖形應恢復")
 	block.queue_free()

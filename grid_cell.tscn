@@ -6,5 +6,5 @@
 custom_minimum_size = Vector2(46, 46)
 offset_right = 40.0
 offset_bottom = 40.0
-color = Color(0.13333334, 0.13333334, 0.13333334, 1)
+color = Color(0.09019608, 0.10588235, 0.13333334, 1)
 script = ExtResource("1_024bi")
