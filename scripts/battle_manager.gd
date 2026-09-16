@@ -464,7 +464,7 @@ func _on_payment_preview_changed(spells: Array) -> void:
 		lines.append("%s  %s｜MP %d%s" % [spell.category_glyph, spell.spell_name, cost, "｜%s" % summary if not summary.is_empty() else ""])
 	lines.append("合計：MP %d%s" % [mp_cost, "｜SAN 代付 %d" % sanity_cost if sanity_cost > 0 else ""])
 	label.text = "\n".join(lines)
-	label.tooltip_text = label.text
+	label.tooltip_text = ""
 	if sanity_cost > 0:
 		var fatal := player != null and projected_sanity <= 0
 		label.add_theme_color_override("font_color", Color(1.0, 0.25, 0.25) if fatal else Color(1.0, 0.65, 0.25))

@@ -28,8 +28,8 @@ func _draw() -> void:
 		draw_rect(rect, Color("090d13"), true)
 		var face := rect.grow(-2.0)
 		draw_rect(face, slate_color, true)
-		draw_line(face.position, face.position + Vector2(face.size.x, 0), slate_color.lightened(0.24), 2.0)
-		draw_line(face.end, Vector2(face.position.x, face.end.y), slate_color.darkened(0.38), 2.0)
+		draw_line(face.position, face.position + Vector2(face.size.x, 0), slate_color.lightened(0.36), 2.0)
+		draw_line(face.end, Vector2(face.position.x, face.end.y), slate_color.darkened(0.46), 2.0)
 
 
 func _rebuild_badge() -> void:
@@ -42,6 +42,8 @@ func _rebuild_badge() -> void:
 	badge.size = Vector2.ONE * (cell_size - 4.0)
 	badge.custom_minimum_size = badge.size
 	badge.configure(block_data.spell)
+	# SlatePreview 只用於已在卡面列出完整規則的獎勵／構築介面。
+	badge.tooltip_text = ""
 	add_child(badge)
 	_update_badge_position()
 

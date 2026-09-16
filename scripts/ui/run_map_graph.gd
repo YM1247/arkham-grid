@@ -68,15 +68,6 @@ func _draw() -> void:
 			var style := get_edge_style(source_id, target_id)
 			draw_line(_node_positions[source_id], _node_positions[target_id], Color(0.015, 0.02, 0.03, 0.9), style.width + 4.0, false)
 			draw_line(_node_positions[source_id], _node_positions[target_id], style.color, style.width, false)
-	for node_id in _node_positions:
-		var center: Vector2 = _node_positions[node_id]
-		var ring_color := Color(0.48, 0.38, 0.22, 0.58)
-		if node_id in _available_ids:
-			ring_color = Color(0.92, 0.72, 0.32, 0.95)
-		elif node_id in _completed_ids:
-			ring_color = Color(0.32, 0.72, 0.5, 0.82)
-		draw_circle(center, 31.0, Color(0.02, 0.027, 0.038, 0.52))
-		draw_arc(center, 31.0, 0.0, TAU, 16, ring_color, 2.0, false)
 
 
 func get_edge_style(source_id: String, target_id: String) -> Dictionary:

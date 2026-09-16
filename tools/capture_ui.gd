@@ -19,11 +19,11 @@ func _capture() -> void:
 	if system_menu != null and mode != "title":
 		system_menu.hide_menu()
 	var run_manager := main.get_node("RunManager") as RunManager
-	if mode in ["battle", "battle_action", "battle_armor", "battle_preview", "reward"] and run_manager != null and not run_manager.run_state.available_node_ids.is_empty():
+	if mode in ["battle", "battle_action", "battle_armor", "battle_preview", "battle_dead_board", "reward"] and run_manager != null and not run_manager.run_state.available_node_ids.is_empty():
 		run_manager.select_map_node(run_manager.run_state.available_node_ids[0])
 		for _frame in range(3):
 			await process_frame
-		if mode in ["battle", "battle_action", "battle_armor", "battle_preview"]:
+		if mode in ["battle", "battle_action", "battle_armor", "battle_preview", "battle_dead_board"]:
 			var battle_manager := main.get_node("BattleManager")
 			battle_manager.start_encounter(run_manager.enemies.slice(0, 5))
 			for _frame in range(3):
@@ -42,6 +42,11 @@ func _capture() -> void:
 					run_manager.content.get_spell("pistol"),
 					run_manager.content.get_spell("vest"),
 				])
+			if mode == "battle_dead_board":
+				var tablet = battle_manager.tablet
+				tablet._play_dead_board_warning()
+				# 下方共用穩定等待會再走 0.35 秒，此處只補一幀以擷取掃描波峰。
+				await create_timer(0.03).timeout
 		if mode == "reward":
 			run_manager._show_reward_choices()
 			await process_frame
@@ -59,6 +64,8 @@ func _capture() -> void:
 	var result := image.save_png(output_path)
 	if result == OK:
 		print("UI CAPTURE OK: %s" % output_path)
+		if mode == "battle_dead_board":
+			await create_timer(0.45).timeout
 		main.queue_free()
 		await process_frame
 		await process_frame

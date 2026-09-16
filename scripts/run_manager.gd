@@ -530,7 +530,8 @@ func _show_reward_choices() -> void:
 		button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		button.add_theme_font_size_override("font_size", 17)
 		button.text = _get_reward_label(reward)
-		button.tooltip_text = _get_reward_tooltip(reward)
+		# 卡面已列出完整咒文規則，避免滑鼠停留時再覆蓋一份相同資訊。
+		button.tooltip_text = ""
 		button.pressed.connect(_on_reward_selected.bind(i))
 		reward_buttons_container.add_child(button)
 		var slate := content.create_slate(reward)

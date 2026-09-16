@@ -54,13 +54,10 @@ func _slate_card(slate: BlockData) -> PanelContainer:
 	title.add_theme_font_size_override("font_size", 18)
 	title.add_theme_color_override("font_color", slate.spell.get_icon_color() if slate.spell != null else Color.WHITE)
 	details.add_child(title)
-	var meta := Label.new()
-	meta.text = "%s｜MP %d｜複雜度 %d" % [slate.spell.get_category_label(), slate.spell.mp_cost, slate.complexity] if slate.spell != null else "無咒文"
-	details.add_child(meta)
 	var description := Label.new()
 	description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	description.text = slate.spell.get_runtime_summary() if slate.spell != null else ""
-	description.tooltip_text = slate.spell.get_effect_tooltip("目前構築") if slate.spell != null else ""
+	description.text = slate.spell.get_runtime_rules_text() if slate.spell != null else "無咒文"
+	description.tooltip_text = ""
 	details.add_child(description)
 	row.add_child(details)
 	panel.add_child(row)

@@ -11,6 +11,10 @@ var manager: Node
 # 紀錄原本的顏色，用於復原
 var original_color: Color
 var spell_marker: Control
+var dead_board_warning_intensity := 0.0:
+	set(value):
+		dead_board_warning_intensity = clampf(value, 0.0, 1.0)
+		queue_redraw()
 
 func init(x, y, m_manager):
 	grid_x = x
@@ -72,12 +76,15 @@ func set_empty_color() -> void:
 
 
 func _draw() -> void:
-	var edge_light := color.lightened(0.18)
-	var edge_dark := color.darkened(0.42)
-	draw_line(Vector2(1, 1), Vector2(size.x - 1, 1), edge_light, 1.0)
-	draw_line(Vector2(1, 1), Vector2(1, size.y - 1), edge_light, 1.0)
+	var edge_light := color.lightened(0.3)
+	var edge_dark := color.darkened(0.5)
+	draw_line(Vector2(1, 1), Vector2(size.x - 1, 1), edge_light, 2.0)
+	draw_line(Vector2(1, 1), Vector2(1, size.y - 1), edge_light, 2.0)
 	draw_line(Vector2(1, size.y - 2), Vector2(size.x - 1, size.y - 2), edge_dark, 2.0)
 	draw_line(Vector2(size.x - 2, 1), Vector2(size.x - 2, size.y - 1), edge_dark, 2.0)
+	if dead_board_warning_intensity > 0.0:
+		draw_rect(Rect2(Vector2(2, 2), size - Vector2(4, 4)), Color(0.92, 0.04, 0.1, 0.72 * dead_board_warning_intensity), true)
+		draw_rect(Rect2(Vector2(1, 1), size - Vector2(2, 2)), Color(1.0, 0.48, 0.5, dead_board_warning_intensity), false, 2.0)
 
 
 func set_spell(spell: BattleItem) -> void:

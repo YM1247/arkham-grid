@@ -6,6 +6,7 @@ signal spell_activated(spell: BattleItem, board_cell: Vector2i)
 signal spell_announcement_requested(spell: BattleItem)
 signal block_placed(block_data: BlockData)
 signal no_valid_moves(penalty: int)
+signal dead_board_warning_started
 signal payment_preview_changed(spells: Array)
 
 # --- 設定參數 ---
@@ -48,6 +49,7 @@ var friendly_board_generator = preload("res://scripts/board/friendly_board_gener
 var rng := RandomNumberGenerator.new()
 var placement_enabled := true
 var _is_recovering_from_no_moves := false
+var _dead_board_warning_active := false
 var _is_resolving_clear := false
 var _keyboard_selected_block: Block
 var _keyboard_origin := Vector2i(3, 3)
@@ -693,12 +695,12 @@ func _count_active_hand_blocks() -> int:
 
 func _sync_hand_drag_enabled():
 	for child in _get_hand_blocks():
-		child.set_drag_enabled(placement_enabled and not _is_resolving_clear)
+		child.set_drag_enabled(placement_enabled and not _is_resolving_clear and not _is_recovering_from_no_moves)
 	_refresh_hand_shortcuts()
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if not placement_enabled or _is_resolving_clear or not event.is_pressed() or event.is_echo():
+	if not placement_enabled or _is_resolving_clear or _is_recovering_from_no_moves or not event.is_pressed() or event.is_echo():
 		return
 	for index in range(3):
 		if event.is_action_pressed("hand_slot_%d" % [index + 1]):
@@ -795,13 +797,40 @@ func _handle_no_valid_moves_if_needed():
 		return
 	print("盤面無任何可放置方塊，觸發 Sanity 懲罰：", no_valid_moves_sanity_penalty)
 	_is_recovering_from_no_moves = true
-	no_valid_moves.emit(no_valid_moves_sanity_penalty)
 	clear_preview()
+	_sync_hand_drag_enabled()
+	# 保留一小段辨識時間，再以斜向紅色脈衝提示死盤；動畫完成後才結算 Sanity。
+	await get_tree().create_timer(0.22).timeout
+	await _play_dead_board_warning()
+	no_valid_moves.emit(no_valid_moves_sanity_penalty)
+	await get_tree().create_timer(0.16).timeout
 	_clear_board_cells()
 	if seed_board_on_start:
 		_seed_friendly_board()
 	draw_new_hand()
 	_is_recovering_from_no_moves = false
+	_sync_hand_drag_enabled()
+
+
+func _play_dead_board_warning() -> void:
+	_dead_board_warning_active = true
+	dead_board_warning_started.emit()
+	for index in range(grid_container.get_child_count()):
+		var cell := grid_container.get_child(index) as GridCell
+		if cell == null:
+			continue
+		var x := index % GRID_DIMENSION
+		var y := index / GRID_DIMENSION
+		var tween := create_tween()
+		tween.tween_interval(float(x + y) * 0.018)
+		tween.tween_property(cell, "dead_board_warning_intensity", 1.0, 0.1)
+		tween.tween_property(cell, "dead_board_warning_intensity", 0.42, 0.14)
+		tween.tween_property(cell, "dead_board_warning_intensity", 0.0, 0.2)
+	await get_tree().create_timer(0.72).timeout
+	for child in grid_container.get_children():
+		if child is GridCell:
+			child.dead_board_warning_intensity = 0.0
+	_dead_board_warning_active = false
 
 func _has_any_valid_move() -> bool:
 	for block_data in _get_active_hand_block_data():

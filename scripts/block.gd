@@ -29,7 +29,8 @@ var render_min_cell := Vector2i.ZERO
 # --- 初始化 ---
 func set_data(data: BlockData):
 	block_data = data
-	tooltip_text = block_data.spell.get_effect_tooltip("此方塊的咒文") if block_data != null and block_data.spell != null else ""
+	# 手牌已常駐顯示完整規則，不再用相同 tooltip 遮住拖曳區域。
+	tooltip_text = ""
 	_redraw_shape()
 	queue_redraw()
 

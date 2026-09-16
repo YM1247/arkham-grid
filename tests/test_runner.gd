@@ -854,6 +854,7 @@ func _test_drag_source_visibility() -> void:
 	spell.category_glyph = "✦"
 	data.spell = spell
 	block.set_data(data)
+	_expect(block.tooltip_text.is_empty(), "手牌已常駐顯示完整效果時不應再出現重複 tooltip")
 	var hand_rune: SpellRuneBadge = null
 	for child in block.get_children():
 		if child is SpellRuneBadge:
@@ -954,6 +955,7 @@ func _test_main_scene_smoke() -> void:
 	manager.player.sanity = 2
 	manager._on_payment_preview_changed([run_manager.content.get_spell("pistol")])
 	_expect(payment_label != null and "秘銀飛矢" in payment_label.text and "SAN 代付" in payment_label.text and "理智歸零" in payment_label.text, "棋盤右側預覽應列出即將觸發的咒文、Sanity 代付與致死警告")
+	_expect(payment_label != null and payment_label.tooltip_text.is_empty(), "已完整顯示的消除預覽不應再提供重複 tooltip")
 	_expect(payment_clip != null and payment_clip.visible and payment_title != null and payment_title.visible, "有咒文將觸發時才應顯示消除預覽標題與內容")
 	var board_position_before_long_preview := grid.global_position
 	var many_preview_spells: Array = []
@@ -976,7 +978,18 @@ func _test_main_scene_smoke() -> void:
 	run_manager._show_build_pool()
 	var spell_grid := build_pool_view.get_node_or_null("Background/Margin/Panel/VBox/Scroll/Content/SpellGrid") if build_pool_view != null else null
 	_expect(build_pool_view != null and build_pool_view.visible and spell_grid != null and spell_grid.get_child_count() > 0, "地圖應可開啟戰鬥外咒文與方塊構築檢視")
+	var build_has_duplicate_tooltip := false
+	if spell_grid != null:
+		for card in spell_grid.get_children():
+			for control in card.find_children("*", "Control", true, false):
+				if control is Control and not control.tooltip_text.is_empty():
+					build_has_duplicate_tooltip = true
+	_expect(not build_has_duplicate_tooltip, "構築卡已顯示完整規則時不應再提供重複 tooltip")
 	build_pool_view.hide_pool()
+	var dead_board_warning_state := {"seen": false}
+	tablet_ui.dead_board_warning_started.connect(func(): dead_board_warning_state.seen = true, CONNECT_ONE_SHOT)
+	await tablet_ui._play_dead_board_warning()
+	_expect(bool(dead_board_warning_state.seen) and not tablet_ui._dead_board_warning_active, "死盤應先在棋盤播放完整警示動畫，再進入懲罰結算")
 	var event_view = instance.get_node_or_null("UILayer/EventView")
 	_expect(event_view != null, "主場景應掛載事件選項介面")
 	if event_view != null:
@@ -1089,6 +1102,10 @@ func _test_main_scene_smoke() -> void:
 	await process_frame
 	await process_frame
 	_expect(run_manager.flow.current_state == run_manager.flow.State.REWARD, "普通戰鬥勝利後應由狀態機進入獎勵")
+	var reward_buttons = run_manager.reward_buttons_container.get_children()
+	for reward_button in reward_buttons:
+		if reward_button is Button:
+			_expect(reward_button.tooltip_text.is_empty(), "戰利品卡已顯示完整效果時不應再出現重複 tooltip")
 	var mp_before_node_completion: int = manager.mp
 	run_manager._on_reward_skipped(10)
 	await process_frame
