@@ -85,28 +85,40 @@ func verify_connectivity(map_data: Dictionary) -> bool:
 
 func _connect_floors(nodes: Dictionary, floors: Array, max_links: int) -> void:
 	for floor in range(floors.size() - 1):
-		var current: Array = floors[floor]
-		var next: Array = floors[floor + 1]
+		var current: Array = floors[floor].duplicate()
+		var next: Array = floors[floor + 1].duplicate()
+		current.sort_custom(func(a, b): return int(nodes[a].column) < int(nodes[b].column))
+		next.sort_custom(func(a, b): return int(nodes[a].column) < int(nodes[b].column))
 		var band_edges: Array = []
+		# 先用單調配對建立骨架：每個來源都有出口、每個目標都有入口，且邊不會交叉。
+		for source_index in range(current.size()):
+			var target_index := 0 if current.size() <= 1 else int(round(float(source_index) * float(next.size() - 1) / float(current.size() - 1)))
+			_add_band_edge(nodes, int(current[source_index]), int(next[target_index]), band_edges)
+		for target_index in range(next.size()):
+			var source_index := 0 if next.size() <= 1 else int(round(float(target_index) * float(current.size() - 1) / float(next.size() - 1)))
+			_add_band_edge(nodes, int(current[source_index]), int(next[target_index]), band_edges)
+
+		# 再補少量隨機分支；所有候選仍必須通過同一個交叉檢查。
 		for source_id in current:
 			var desired := 1 if floor == floors.size() - 2 else _rng.randi_range(1, max_links)
 			var candidates := _sort_by_distance(nodes, next, int(source_id))
-			var links := 0
+			var links: int = nodes[source_id].next.size()
 			for target_id in candidates:
 				if links >= desired:
 					break
+				if target_id in nodes[source_id].next:
+					continue
 				if _would_cross(nodes, int(source_id), int(target_id), band_edges):
 					continue
-				_add_edge(nodes, int(source_id), int(target_id))
-				band_edges.append([source_id, target_id])
+				_add_band_edge(nodes, int(source_id), int(target_id), band_edges)
 				links += 1
-			if links == 0:
-				_add_edge(nodes, int(source_id), int(candidates[0]))
-				band_edges.append([source_id, candidates[0]])
-		for target_id in next:
-			if nodes[target_id].prev.is_empty():
-				var sources := _sort_by_distance(nodes, current, int(target_id))
-				_add_edge(nodes, int(sources[0]), int(target_id))
+
+
+func _add_band_edge(nodes: Dictionary, source_id: int, target_id: int, band_edges: Array) -> void:
+	if target_id in nodes[source_id].next:
+		return
+	_add_edge(nodes, source_id, target_id)
+	band_edges.append([source_id, target_id])
 
 
 func _assign_types_and_content(nodes: Dictionary, floors: Array, template: Dictionary) -> void:

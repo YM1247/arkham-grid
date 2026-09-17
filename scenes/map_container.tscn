@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" path="res://scripts/ui/run_map_view.gd" id="1_map_view"]
 [ext_resource type="Script" path="res://scripts/ui/run_map_graph.gd" id="2_graph"]
-[ext_resource type="Texture2D" path="res://assets/art/backgrounds/harbor_map.png" id="3_harbor"]
+[ext_resource type="Texture2D" path="res://assets/art/backgrounds/observatory_map_v2.png" id="3_map_bg"]
 
 [sub_resource type="StyleBoxFlat" id="MapPanelStyle"]
 bg_color = Color(0.018, 0.03, 0.05, 0.12)
@@ -30,10 +30,10 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 texture_filter = 1
-texture = ExtResource("3_harbor")
+texture = ExtResource("3_map_bg")
 expand_mode = 1
 stretch_mode = 6
-self_modulate = Color(0.43, 0.47, 0.52, 1)
+self_modulate = Color(0.68, 0.72, 0.78, 1)
 
 [node name="Grade" type="ColorRect" parent="."]
 layout_mode = 1

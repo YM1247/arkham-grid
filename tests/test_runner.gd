@@ -497,6 +497,9 @@ func _test_phase_14_run_foundation() -> void:
 	var generated_b: Dictionary = generator.generate(98765, map_document)
 	_expect(generated_a == generated_b, "相同 Run seed 應生成完全相同的分層 DAG")
 	_expect(generator.verify_connectivity(generated_a), "生成地圖的所有起點都應可抵達 Boss")
+	for route_seed in [98765, 13579, 24680, 424242, 1558685593]:
+		var generated_route: Dictionary = generator.generate(route_seed, map_document)
+		_expect(not _map_has_crossing_edges(generated_route), "程序地圖的相鄰層路線不得互相交叉：seed=%d" % route_seed)
 	var boss_id := str(generated_a.get("boss_node_id", ""))
 	var boss_floor := -1
 	var rest_floor_count := 0
@@ -937,6 +940,12 @@ func _test_main_scene_smoke() -> void:
 		graph._available_ids = available_edge_ids
 		_expect(graph.get_edge_style("done", "next").state == "available", "已完成節點通往可選節點的路線應顯示金色")
 		_expect(graph.get_edge_style("locked", "next").state == "locked", "未完成來源通往同一候選的路線不得誤標為金色")
+		for source_node in graph._map_data.get("nodes", []):
+			var source_id := str(source_node.get("id", ""))
+			for target_value in source_node.get("next_ids", []):
+				var target_id := str(target_value)
+				var route: PackedVector2Array = graph._edge_route(source_id, target_id)
+				_expect(not graph._node_rects[source_id].has_point(route[0]) and not graph._node_rects[target_id].has_point(route[1]), "地圖線應從節點外緣開始，不得穿過節點文字")
 	_expect(FileAccess.file_exists(run_manager.save_service.get_run_path()), "新 Run 建立後應寫入單一自動存檔槽")
 	var player_hud := instance.get_node_or_null("UILayer/ScreenMargin/Screen/Layout/BattleStageView/PlayerHUD") as PlayerHUD
 	var system_menu := instance.get_node_or_null("UILayer/SystemMenu") as SystemMenu
@@ -978,6 +987,8 @@ func _test_main_scene_smoke() -> void:
 	run_manager._show_build_pool()
 	var spell_grid := build_pool_view.get_node_or_null("Background/Margin/Panel/VBox/Scroll/Content/SpellGrid") if build_pool_view != null else null
 	_expect(build_pool_view != null and build_pool_view.visible and spell_grid != null and spell_grid.get_child_count() > 0, "地圖應可開啟戰鬥外咒文與方塊構築檢視")
+	_expect(build_pool_view.get_node_or_null("Background/Margin/Panel/VBox/Hint") == null, "構築頁不應再顯示石板綁定說明句")
+	_expect(spell_grid != null and spell_grid.size_flags_horizontal == Control.SIZE_SHRINK_CENTER, "構築石板網格應在頁面水平置中")
 	var build_has_duplicate_tooltip := false
 	if spell_grid != null:
 		for card in spell_grid.get_children():
@@ -1142,6 +1153,36 @@ func _generated_path_battle_range(map_data: Dictionary) -> Dictionary:
 	if counts.is_empty():
 		return {"min": 0, "max": 0}
 	return {"min": counts.min(), "max": counts.max()}
+
+
+func _map_has_crossing_edges(map_data: Dictionary) -> bool:
+	var index := {}
+	var edges: Array[Dictionary] = []
+	for node in map_data.get("nodes", []):
+		index[str(node.get("id", ""))] = node
+	for node in map_data.get("nodes", []):
+		var source_id := str(node.get("id", ""))
+		for target_value in node.get("next_ids", []):
+			var target_id := str(target_value)
+			if index.has(target_id):
+				edges.append({"source": source_id, "target": target_id})
+	for first_index in range(edges.size()):
+		var first := edges[first_index]
+		var first_source: Dictionary = index[first.source]
+		var first_target: Dictionary = index[first.target]
+		for second_index in range(first_index + 1, edges.size()):
+			var second := edges[second_index]
+			if first.source == second.source or first.target == second.target:
+				continue
+			var second_source: Dictionary = index[second.source]
+			var second_target: Dictionary = index[second.target]
+			if int(first_source.get("floor", -1)) != int(second_source.get("floor", -2)):
+				continue
+			var source_order := int(first_source.get("column", 0)) - int(second_source.get("column", 0))
+			var target_order := int(first_target.get("column", 0)) - int(second_target.get("column", 0))
+			if source_order * target_order < 0:
+				return true
+	return false
 
 
 func _collect_path_battle_counts(node_id: String, boss_id: String, index: Dictionary, count: int, output: Array[int]) -> void:

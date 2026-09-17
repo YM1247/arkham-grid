@@ -41,26 +41,33 @@ func hide_pool() -> void:
 
 func _slate_card(slate: BlockData) -> PanelContainer:
 	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(350, 142)
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 10)
+	panel.custom_minimum_size = Vector2(320, 228)
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", 8)
+	column.alignment = BoxContainer.ALIGNMENT_CENTER
+	var preview_center := CenterContainer.new()
+	preview_center.custom_minimum_size = Vector2(292, 124)
+	preview_center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var preview: Control = SlatePreviewScript.new()
-	preview.set_slate(slate, 27.0)
-	row.add_child(preview)
+	preview.set_slate(slate, 30.0)
+	preview_center.add_child(preview)
+	column.add_child(preview_center)
 	var details := VBoxContainer.new()
 	details.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var title := Label.new()
 	title.text = slate.spell.spell_name if slate.spell != null else "空白石板"
-	title.add_theme_font_size_override("font_size", 18)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 20)
 	title.add_theme_color_override("font_color", slate.spell.get_icon_color() if slate.spell != null else Color.WHITE)
 	details.add_child(title)
 	var description := Label.new()
 	description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	description.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	description.text = slate.spell.get_runtime_rules_text() if slate.spell != null else "無咒文"
 	description.tooltip_text = ""
 	details.add_child(description)
-	row.add_child(details)
-	panel.add_child(row)
+	column.add_child(details)
+	panel.add_child(column)
 	return panel
 
 

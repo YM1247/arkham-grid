@@ -40,7 +40,15 @@ Phase 17.1 的角色與背景由 OpenAI 內建 ImageGen 於 2026-09-14／15 生�
 
 ### `backgrounds/harbor_map.png`
 
+此圖保留為舊版來源紀錄；自 2026-09-18 起已不再由主頁與地圖場景引用。
+
 > Create an original ultra-wide 16:9 title-and-map background for a cosmic-horror pixel-art puzzle roguelike. A rain-soaked 1920s East Asian harbor city seen from above and at distance, crooked roofs descending toward a black sea, a faint impossible constellation reflected in flooded alleys, one warm lantern path suggesting an expedition route. Reserve calm dark negative space through the center for title or map nodes. No people, no creatures, no UI, no written words, no logo, no watermark. Handcrafted high-detail 32-bit pixel art with crisp intentional pixels, restrained charcoal, midnight blue, aged teal, tarnished brass and muted burgundy palette, moody mist, cinematic depth, original design not based on any existing franchise or artist.
+
+### `backgrounds/observatory_map_v2.png`
+
+2026-09-18 使用 OpenAI 內建 ImageGen 生成，並以 `ritual_arena_v2.png` 作唯一風格參考。此圖同時供主頁與地圖使用，中央刻意保留低對比留白，讓標題、節點與路線可讀；版本化另存，未覆寫舊圖。
+
+> Use case: style-transfer. Asset type: 16:9 title screen and branching route-map background for this pixel-art game. Image 1 is the exact style, pixel scale, palette, lighting, and world reference; create a new environment, not a copy of its composition. Scene: a dreamlike occult observatory-city seen from a slightly elevated viewpoint, connected by irregular floating stone terraces and narrow bridges above pale clouds, with distant gothic towers and a celestial void. It must clearly belong to the same location and production as Image 1: chunky simple Q-like 32-bit pixel art, crisp nearest-neighbor edges, restrained navy/slate blue, ivory cloud, aged brass and muted burgundy, warm upper-left highlights, clean readable shapes, less dense detail than realistic concept art. Composition: broad calm dark negative space across the central 70 percent for a ten-depth branching node map; architectural silhouettes frame only the far left, far right, upper edge, and lower corners; keep the center free of bright stars, circles, roads, bridges, characters, or focal objects. The central space must be low contrast so pale route lines and Chinese labels remain readable. No people, creatures, UI, map nodes, route lines, written text, logos, frames, watermark, or existing franchise symbols. Avoid photorealism, painterly rendering, tiny noisy detail, saturated colors, rain, harbor ships, East Asian rooftops, and the old harbor composition.
 
 ## 顯示與效能規則
 

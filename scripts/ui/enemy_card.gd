@@ -12,7 +12,7 @@ signal target_requested(enemy: Entity)
 @onready var intent_label: Label = $VBox/Intent
 @onready var status_label: Label = $VBox/Status
 @onready var target_button: Button = $VBox/Target
-@onready var target_frame: Panel = $TargetFrame
+@onready var target_frame: Control = $TargetFrame
 
 var entity: Entity
 var _selected := false
@@ -21,6 +21,9 @@ var _selected := false
 func _ready() -> void:
 	target_button.pressed.connect(func(): target_requested.emit(entity))
 	gui_input.connect(_on_gui_input)
+	portrait.resized.connect(_defer_target_frame_sync)
+	resized.connect(_defer_target_frame_sync)
+	target_frame.draw.connect(_draw_target_frame)
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	var hp_fill := StyleBoxFlat.new()
 	hp_fill.bg_color = Color("d95c64")
@@ -54,12 +57,14 @@ func refresh(selected: bool) -> void:
 	status_label.text = CombatIconRegistry.status_summary(entity)
 	status_label.visible = not status_label.text.is_empty()
 	tooltip_text = "%s\n%s\n點擊角色鎖定" % [intent_label.tooltip_text, entity.get_status_summary()]
-	target_marker.text = "†" if entity.is_dead else "◉" if selected else ""
+	# 活著的鎖定狀態只用立繪四角標示，避免同時出現兩套目標符號。
+	target_marker.text = "†" if entity.is_dead else ""
 	target_button.text = "目前目標" if selected else "鎖定此敵人"
 	target_button.disabled = selected or entity.is_dead
 	modulate = Color(0.45, 0.45, 0.45) if entity.is_dead else Color.WHITE
 	_selected = selected and not entity.is_dead
-	queue_redraw()
+	_sync_target_frame()
+	_defer_target_frame_sync()
 
 
 func _update_armor_overlay(hp: int, armor: int, maximum: int) -> void:
@@ -73,24 +78,39 @@ func _update_armor_overlay(hp: int, armor: int, maximum: int) -> void:
 	armor_overlay.offset_right = 0.0
 
 
-func _draw() -> void:
-	if not _selected:
+func _defer_target_frame_sync() -> void:
+	if is_inside_tree():
+		call_deferred("_sync_target_frame")
+
+
+func _sync_target_frame() -> void:
+	if target_frame == null or portrait == null or not is_instance_valid(target_frame) or not is_instance_valid(portrait):
+		return
+	# Portrait 位於 VBox 內；轉換至卡片座標後將框收進立繪，避免被名稱與 HP 列壓住。
+	var portrait_origin := get_global_transform_with_canvas().affine_inverse() * (portrait.get_global_transform_with_canvas() * Vector2.ZERO)
+	target_frame.position = portrait_origin + Vector2(4, 4)
+	target_frame.size = (portrait.size - Vector2(8, 8)).max(Vector2(16, 16))
+	target_frame.visible = _selected
+	target_frame.queue_redraw()
+
+
+func _draw_target_frame() -> void:
+	if not _selected or not target_frame.visible:
 		return
 	var color := Color("f7d889")
-	var portrait_rect := Rect2(portrait.position, portrait.size).grow(5.0)
-	var margin := 1.0
-	var arm := 22.0
-	var left := portrait_rect.position.x + margin
-	var top := portrait_rect.position.y + margin
-	var right := portrait_rect.end.x - margin
-	var bottom := portrait_rect.end.y - margin
+	var arm := 26.0
+	var left := 0.0
+	var top := 0.0
+	var right := target_frame.size.x
+	var bottom := target_frame.size.y
 	for points in [
 		[Vector2(left, top + arm), Vector2(left, top), Vector2(left + arm, top)],
 		[Vector2(right - arm, top), Vector2(right, top), Vector2(right, top + arm)],
 		[Vector2(left, bottom - arm), Vector2(left, bottom), Vector2(left + arm, bottom)],
 		[Vector2(right - arm, bottom), Vector2(right, bottom), Vector2(right, bottom - arm)],
 	]:
-		draw_polyline(PackedVector2Array(points), color, 4.0, false)
+		target_frame.draw_polyline(PackedVector2Array(points), Color(0.01, 0.015, 0.025, 0.94), 8.0, false)
+		target_frame.draw_polyline(PackedVector2Array(points), color, 4.0, false)
 
 
 func play_windup() -> void:

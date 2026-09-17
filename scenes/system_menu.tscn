@@ -1,7 +1,7 @@
 [gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/system_menu.gd" id="1_menu"]
-[ext_resource type="Texture2D" path="res://assets/art/backgrounds/harbor_map.png" id="2_harbor"]
+[ext_resource type="Texture2D" path="res://assets/art/backgrounds/observatory_map_v2.png" id="2_map_bg"]
 
 [sub_resource type="StyleBoxFlat" id="MenuPanelStyle"]
 bg_color = Color(0.015, 0.025, 0.04, 0.2)
@@ -32,10 +32,10 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 texture_filter = 1
-texture = ExtResource("2_harbor")
+texture = ExtResource("2_map_bg")
 expand_mode = 1
 stretch_mode = 6
-self_modulate = Color(0.4, 0.44, 0.48, 1)
+self_modulate = Color(0.66, 0.7, 0.76, 1)
 
 [node name="Center" type="CenterContainer" parent="Background"]
 layout_mode = 1

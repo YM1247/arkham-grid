@@ -519,8 +519,7 @@ func _check_and_clear_lines():
 	_sync_hand_drag_enabled()
 
 func _execute_clear(rows: Array, cols: Array):
-	# --- 階段 1: 視覺特效 (只閃爍，不刪資料) ---
-	
+	# --- 階段 1: 收集本次消除範圍，資料與畫面都先保持原狀 ---
 	# 收集所有需要消除的格子座標，避免重複 (十字消除的中心點)
 	var cells_to_clear = []
 	
@@ -538,11 +537,8 @@ func _execute_clear(rows: Array, cols: Array):
 			if not Vector2i(x, y) in cells_to_clear:
 				cells_to_clear.append(Vector2i(x, y))
 
-	# 先亮起將被消除的格子，再逐一報出並結算咒文。
-	for coord in cells_to_clear:
-		_play_flash_effect(coord.x, coord.y)
-
-	# 每個被消除的效果格只觸發一次；Row／Col 交會不重複結算。
+	# --- 階段 2: 逐一完整結算咒文；Row／Col 交會不重複結算 ---
+	# 咒文仍留在盤面上，讓玩家能把名稱、效果與來源格對起來。
 	for coord in cells_to_clear:
 		var spell := grid_spells[coord.x][coord.y] as BattleItem
 		if spell != null:
@@ -554,11 +550,13 @@ func _execute_clear(rows: Array, cols: Array):
 			if DisplayServer.get_name() != "headless":
 				await get_tree().create_timer(0.18).timeout
 	
-	# --- 階段 2: 停頓 (關鍵延遲) ---
-	# 這裡設定 0.3 秒，你可以自己調整喜歡的節奏
-	await get_tree().create_timer(0.15).timeout
-	
-	# --- 階段 3: 真實清除 (資料與顏色) ---
+	# --- 階段 3: 所有效果完成後，全體同步閃白，再消失 ---
+	for coord in cells_to_clear:
+		_play_flash_effect(coord.x, coord.y)
+	if DisplayServer.get_name() != "headless":
+		await get_tree().create_timer(0.32).timeout
+
+	# --- 階段 4: 真實清除資料與畫面 ---
 	for coord in cells_to_clear:
 		_clear_cell_data(coord.x, coord.y)
 

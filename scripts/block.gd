@@ -130,7 +130,7 @@ func _redraw_shape():
 
 func _draw() -> void:
 	if keyboard_selected:
-		draw_style_box(_selection_style(), Rect2(Vector2.ZERO, size))
+		_draw_selection_corners(Rect2(Vector2.ZERO, size).grow(-3.0))
 
 
 func _gui_input(event: InputEvent) -> void:
@@ -216,10 +216,19 @@ func _set_shape_visible(is_visible: bool) -> void:
 			child.visible = is_visible
 
 
-func _selection_style() -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.9, 0.72, 0.36, 0.08)
-	style.border_color = Color("f7d889")
-	style.set_border_width_all(3)
-	style.set_corner_radius_all(8)
-	return style
+func _draw_selection_corners(rect: Rect2) -> void:
+	var color := Color("f7d889")
+	var arm := 22.0
+	var thickness := 4.0
+	var left := rect.position.x
+	var top := rect.position.y
+	var right := rect.end.x
+	var bottom := rect.end.y
+	for points in [
+		[Vector2(left, top + arm), Vector2(left, top), Vector2(left + arm, top)],
+		[Vector2(right - arm, top), Vector2(right, top), Vector2(right, top + arm)],
+		[Vector2(left, bottom - arm), Vector2(left, bottom), Vector2(left + arm, bottom)],
+		[Vector2(right - arm, bottom), Vector2(right, bottom), Vector2(right, bottom - arm)],
+	]:
+		draw_polyline(PackedVector2Array(points), Color(0.015, 0.02, 0.03, 0.92), thickness + 4.0, false)
+		draw_polyline(PackedVector2Array(points), color, thickness, false)

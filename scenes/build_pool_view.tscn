@@ -59,12 +59,6 @@ layout_mode = 2
 text = "構築摘要"
 horizontal_alignment = 1
 
-[node name="Hint" type="Label" parent="Background/Margin/Panel/VBox"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.611765, 0.662745, 0.733333, 1)
-text = "每張卡就是實際會抽到的石板；形狀、咒文與效果格永久綁定。"
-horizontal_alignment = 1
-
 [node name="Scroll" type="ScrollContainer" parent="Background/Margin/Panel/VBox"]
 layout_mode = 2
 size_flags_vertical = 3
@@ -80,6 +74,7 @@ text = "持有石板"
 
 [node name="SpellGrid" type="GridContainer" parent="Background/Margin/Panel/VBox/Scroll/Content"]
 layout_mode = 2
+size_flags_horizontal = 4
 columns = 4
 
 [node name="BlockTitle" type="Label" parent="Background/Margin/Panel/VBox/Scroll/Content"]
