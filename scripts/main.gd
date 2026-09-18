@@ -54,14 +54,14 @@ func _toggle_pause_menu() -> void:
 
 
 func _resume_game() -> void:
-	system_menu.hide_menu()
 	get_tree().paused = false
+	UIMotionScript.fade_out(system_menu, Callable(system_menu, "hide_menu"), "emphasis")
 
 
 func _start_new_run() -> void:
 	get_tree().paused = false
 	run_manager.start_new_run()
-	system_menu.hide_menu()
+	UIMotionScript.fade_out(system_menu, Callable(system_menu, "hide_menu"), "emphasis")
 
 
 func _apply_settings(values: Dictionary) -> void:

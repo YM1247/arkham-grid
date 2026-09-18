@@ -22,7 +22,8 @@ func init(x, y, m_manager):
 	manager = m_manager
 	original_color = color # 記住初始顏色 (深灰色)
 	spell_marker = SpellRuneBadgeScript.new()
-	spell_marker.custom_minimum_size = Vector2(46, 46)
+	# 盤面格為 46px；徽章四周各留 3px，不能再用最小尺寸把它撐回 46px。
+	spell_marker.custom_minimum_size = Vector2.ZERO
 	spell_marker.position = Vector2(3, 3)
 	spell_marker.size = Vector2(40, 40)
 	spell_marker.visible = false

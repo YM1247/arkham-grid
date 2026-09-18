@@ -248,8 +248,6 @@ func start_new_run() -> void:
 		battle_manager.battle_active = false
 	flow.transition(flow.State.MAP)
 	run_state.flow_state = flow.current_state
-	if settlement_screen != null and settlement_screen.has_method("hide_result"):
-		settlement_screen.hide_result()
 	_show_map()
 	_autosave("new_run")
 
@@ -259,12 +257,24 @@ func _index_runtime_map() -> void:
 		map_node_index[str(node.get("id", ""))] = node
 
 func _show_map() -> void:
-	_hide_rewards()
-	_hide_event()
+	var reward_was_visible := reward_panel != null and reward_panel.visible
+	var event_was_visible := event_view != null and event_view.visible
+	var settlement_was_visible := settlement_screen != null and settlement_screen.visible
 	if tablet.has_method("set_placement_enabled"):
 		tablet.set_placement_enabled(false)
 	if map_container != null and map_container.has_method("render"):
 		map_container.render(runtime_map, run_state.available_node_ids, run_state.completed_node_ids, run_state.current_node_id)
+		UIMotionScript.fade_in(map_container, "emphasis")
+	if reward_was_visible:
+		UIMotionScript.fade_out(reward_panel, Callable(self, "_hide_rewards"), "emphasis")
+	else:
+		_hide_rewards()
+	if event_was_visible:
+		UIMotionScript.fade_out(event_view, Callable(self, "_hide_event"), "emphasis")
+	else:
+		_hide_event()
+	if settlement_was_visible and settlement_screen.has_method("hide_result"):
+		UIMotionScript.fade_out(settlement_screen, Callable(settlement_screen, "hide_result"), "emphasis")
 	_set_result_text("選擇下一個路線節點。Seed：%d" % run_state.seed)
 
 func select_map_node(node_id: String) -> bool:
@@ -277,7 +287,7 @@ func select_map_node(node_id: String) -> bool:
 	run_state.current_node_id = node_id
 	_autosave("node_entered")
 	if map_container != null and map_container.has_method("hide_map"):
-		map_container.hide_map()
+		UIMotionScript.fade_out(map_container, Callable(map_container, "hide_map"), "emphasis")
 	var node_type := str(node.get("type", ""))
 	if node_type in ["normal_battle", "elite", "boss"]:
 		flow.transition(flow.State.BATTLE)
@@ -333,7 +343,6 @@ func _on_event_choice_selected(option_id: String) -> void:
 	if sanity_delta != 0 and battle_manager.has_method("change_player_sanity"):
 		battle_manager.change_player_sanity(sanity_delta, "%s:%s:%s" % [node_type, definition.get("id", ""), option_id])
 		changes.erase("sanity")
-	_hide_event()
 	if not grant.is_empty():
 		_apply_choice_grant(grant)
 	_complete_current_node(changes)
@@ -441,14 +450,20 @@ func _finish_run(victory: bool, reason: String) -> void:
 		}, int(content.get_document("run_config").get("run_history_limit", 20)))
 		if not profile_service.save_meta(meta_state):
 			push_warning("無法更新 Meta Run 紀錄：%s" % profile_service.last_error)
-	_hide_rewards()
-	_hide_event()
-	if map_container != null:
-		map_container.visible = false
 	if tablet.has_method("set_placement_enabled"):
 		tablet.set_placement_enabled(false)
 	if settlement_screen != null and settlement_screen.has_method("show_result"):
 		settlement_screen.show_result(victory, "%s\n完成節點：%d｜戰鬥勝利：%d｜金錢：%d\nSeed：%d" % [reason, run_state.completed_node_ids.size(), battles_won, run_state.currency, run_state.seed])
+	if reward_panel != null and reward_panel.visible:
+		UIMotionScript.fade_out(reward_panel, Callable(self, "_hide_rewards"), "emphasis")
+	else:
+		_hide_rewards()
+	if event_view != null and event_view.visible:
+		UIMotionScript.fade_out(event_view, Callable(self, "_hide_event"), "emphasis")
+	else:
+		_hide_event()
+	if map_container != null and map_container.visible:
+		UIMotionScript.fade_out(map_container, Callable(map_container, "hide_map") if map_container.has_method("hide_map") else Callable(), "emphasis")
 	_autosave("run_finished")
 
 func _start_encounter(encounter_id: String) -> void:

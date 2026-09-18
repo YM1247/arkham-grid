@@ -10,8 +10,8 @@ signal selection_requested(block: Block)
 # 這裡的大小必須跟你的棋盤格子一樣大，不然會對不齊
 const CELL_SIZE = Vector2(46, 46)
 const SPACING = 4
-const HAND_CELL_SCALE := 0.78
-const HAND_VISUAL_CENTER := Vector2(82, 72)
+const HAND_CELL_SCALE := 1.0
+const HAND_VISUAL_CENTER := Vector2(102, 73)
 const DRAG_GRAB_TOLERANCE := 22.0
 
 # 存方塊的資料
@@ -72,7 +72,7 @@ func _redraw_shape():
 		max_cell.y = maxi(max_cell.y, coord.y)
 	render_min_cell = min_cell
 	var dimensions := max_cell - min_cell + Vector2i.ONE
-	# 所有形狀共用同一格子比例；卡片改用橫向空間容納文字，避免形狀忽大忽小。
+	# 所有形狀都使用棋盤原始格子尺寸；卡片以橫向空間容納形狀與全文資訊。
 	var scale_factor := HAND_CELL_SCALE
 	render_cell_size = CELL_SIZE * scale_factor
 	render_stride = (CELL_SIZE + Vector2(SPACING, SPACING)) * scale_factor
@@ -101,8 +101,8 @@ func _redraw_shape():
 			rune.set_meta("shape_visual", true)
 
 	var name_label := Label.new()
-	name_label.position = Vector2(166, 10)
-	name_label.size = Vector2(188, 30)
+	name_label.position = Vector2(214, 10)
+	name_label.size = Vector2(196, 30)
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	name_label.text = "%d　%s" % [shortcut_number, block_data.spell.spell_name] if shortcut_number > 0 and block_data.spell != null else block_data.spell.spell_name if block_data.spell != null else "空白石板"
 	name_label.add_theme_font_size_override("font_size", 19)
@@ -110,8 +110,8 @@ func _redraw_shape():
 	name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(name_label)
 	var detail_label := Label.new()
-	detail_label.position = Vector2(166, 42)
-	detail_label.size = Vector2(188, 98)
+	detail_label.position = Vector2(214, 42)
+	detail_label.size = Vector2(196, 98)
 	detail_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	detail_label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 	detail_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -124,8 +124,8 @@ func _redraw_shape():
 	detail_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(detail_label)
 	
-	# 【建議】把最小尺寸設大一點，確保能包住位移後的方塊 (3x3 格子約 220x220)
-	custom_minimum_size = Vector2(360, 146)
+	# 形狀區保留四格寬的原尺寸空間，右側顯示咒文全文。
+	custom_minimum_size = Vector2(420, 146)
 
 
 func _draw() -> void:
@@ -159,8 +159,7 @@ func _get_drag_data(at_position):
 		"source_block": self
 	}
 	
-	# 手牌可能為了側欄縮小；拖曳時重新以棋盤的原始格尺寸繪製，
-	# 避免沿用手牌縮放後的格子與符文尺寸。
+	# 拖曳預覽仍獨立重建，確保游標錨點與棋盤格完全一致。
 	var preview_wrapper := _build_drag_preview(at_position, grab_offset)
 	set_drag_preview(preview_wrapper)
 	_set_shape_visible(false)

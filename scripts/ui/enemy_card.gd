@@ -88,8 +88,9 @@ func _sync_target_frame() -> void:
 		return
 	# Portrait 位於 VBox 內；轉換至卡片座標後將框收進立繪，避免被名稱與 HP 列壓住。
 	var portrait_origin := get_global_transform_with_canvas().affine_inverse() * (portrait.get_global_transform_with_canvas() * Vector2.ZERO)
-	target_frame.position = portrait_origin + Vector2(4, 4)
-	target_frame.size = (portrait.size - Vector2(8, 8)).max(Vector2(16, 16))
+	var frame_inset := Vector2(10, 12)
+	target_frame.position = portrait_origin + frame_inset
+	target_frame.size = (portrait.size - frame_inset * 2.0).max(Vector2(16, 16))
 	target_frame.visible = _selected
 	target_frame.queue_redraw()
 
@@ -98,7 +99,7 @@ func _draw_target_frame() -> void:
 	if not _selected or not target_frame.visible:
 		return
 	var color := Color("f7d889")
-	var arm := 26.0
+	var arm := 22.0
 	var left := 0.0
 	var top := 0.0
 	var right := target_frame.size.x

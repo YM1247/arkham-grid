@@ -85,7 +85,8 @@ func _test_content_registry() -> void:
 	var icon_cell := GridCell.new()
 	icon_cell.init(0, 0, null)
 	icon_cell.set_spell(registry.get_spell("poison_spell"))
-	_expect(icon_cell.spell_marker.text == registry.get_spell("poison_spell").category_glyph and icon_cell.spell_marker.custom_minimum_size.x >= 46.0, "盤面效果格應直接顯示清楚的大型分類符文，不需依賴 hover")
+	var marker_rect := Rect2(icon_cell.spell_marker.position, icon_cell.spell_marker.size)
+	_expect(icon_cell.spell_marker.text == registry.get_spell("poison_spell").category_glyph and marker_rect.get_center().is_equal_approx(Vector2(23, 23)), "盤面效果格的大型分類符文應精確置中，不得向右下偏移")
 	icon_cell.free()
 	for spell in registry.get_entries("spells"):
 		var has_regen: bool = spell.get("status_effects_self", []).any(func(effect): return str(effect.get("id", "")) == "regen")
@@ -822,6 +823,10 @@ func _test_five_enemy_roster() -> void:
 	presenter.render(label, enemies, 0, func(_index: int): pass)
 	var before := presenter.get_card_instance_ids()
 	_expect(before.size() == 5, "敵人 UI 應可建立 5 張獨立敵人卡")
+	await process_frame
+	var selected_card := presenter._cards[0]
+	_expect(selected_card.name_label.horizontal_alignment == HORIZONTAL_ALIGNMENT_CENTER, "敵人名稱應置中顯示")
+	_expect(selected_card.target_frame.visible and selected_card.target_frame.size.y <= selected_card.portrait.size.y - 20.0, "敵人鎖定四角應縮進立繪，與名稱及血條保留間距")
 	enemies[2].add_armor(3)
 	presenter.render(label, enemies, 0, func(_index: int): pass)
 	_expect(presenter.get_card_instance_ids() == before, "五敵人數值更新不應重建卡片")
@@ -862,7 +867,7 @@ func _test_drag_source_visibility() -> void:
 	for child in block.get_children():
 		if child is SpellRuneBadge:
 			hand_rune = child
-	_expect(hand_rune != null and hand_rune.size.x < 40.0, "手牌縮放時咒文符文應跟隨格子等比例縮小")
+	_expect(hand_rune != null and block.render_cell_size == Block.CELL_SIZE and hand_rune.size == Block.CELL_SIZE - Vector2(6, 6), "手牌方塊與咒文符文應維持棋盤原始尺寸，不再縮小")
 	var compact_block := preload("res://scripts/block.gd").new() as Block
 	root.add_child(compact_block)
 	var compact_data := data.duplicate(true) as BlockData
@@ -870,7 +875,7 @@ func _test_drag_source_visibility() -> void:
 	compact_data.effect_cell = Vector2i.ZERO
 	compact_block.set_data(compact_data)
 	_expect(compact_block.render_cell_size.is_equal_approx(block.render_cell_size), "不同外框尺寸的石板在手牌中應使用相同格子縮放比例")
-	_expect(block.custom_minimum_size.x >= 360.0 and block.custom_minimum_size.y >= 146.0, "每張手牌應提供放大的完整點選區域與全文資訊")
+	_expect(block.custom_minimum_size.x >= 420.0 and block.custom_minimum_size.y >= 146.0, "原尺寸手牌應提供足夠的形狀、點選與全文資訊空間")
 	var tolerant_grab := block._resolve_grab_offset(block.render_origin - Vector2(12, 0))
 	_expect(tolerant_grab.x != 9999, "拖曳起點在石板邊緣外仍應被放大的容許範圍吸附")
 	var reward_preview := preload("res://scripts/ui/slate_preview.gd").new() as SlatePreview
@@ -931,10 +936,31 @@ func _test_main_scene_smoke() -> void:
 		await process_frame
 		_expect(grid.global_position.distance_to(stable_board_position) <= 0.5, "手牌由三張降至零張時棋盤位置不得位移")
 	tablet_ui.refill_hand()
+	var board_before_clear_order_test: Array[String] = tablet_ui.get_board_state()
+	var spells_before_clear_order_test: Array[String] = tablet_ui.get_board_spell_state()
+	var clear_order_spell: BattleItem = run_manager.content.get_spell("pistol")
+	for clear_x in range(tablet_ui.GRID_DIMENSION):
+		tablet_ui.grid_data[clear_x][0] = Color("7f5c48")
+		var clear_cell := tablet_ui.grid_container.get_child(clear_x) as GridCell
+		clear_cell.set_slate_color(Color("7f5c48"))
+	tablet_ui.grid_spells[0][0] = clear_order_spell
+	(tablet_ui.grid_container.get_child(0) as GridCell).set_spell(clear_order_spell)
+	var clear_order_observation := {"triggered": false, "cell_was_empty": false}
+	var observe_clear_order := func(_spell, _coord):
+		clear_order_observation.triggered = true
+		clear_order_observation.cell_was_empty = tablet_ui.grid_data[0][0] == null and not (tablet_ui.grid_container.get_child(0) as GridCell).spell_marker.visible
+	tablet_ui.spell_activated.connect(observe_clear_order, CONNECT_ONE_SHOT)
+	await tablet_ui._execute_clear([0], [])
+	_expect(bool(clear_order_observation.triggered) and bool(clear_order_observation.cell_was_empty), "消除應先閃爍並清空棋格，再觸發咒文演出與效果")
+	tablet_ui.restore_board_state(board_before_clear_order_test)
+	tablet_ui.restore_board_spell_state(spells_before_clear_order_test, run_manager.content.spell_resources)
 	var graph = instance.get_node_or_null("UILayer/MapContainer/Margin/Panel/VBox/Scroll/Center/Graph")
 	_expect(graph != null and graph.get_edge_count() > 0, "地圖畫布應建立可見的節點連線資料")
 	if graph != null:
 		_expect(graph.FLOOR_GAP >= 132.0 and graph.SIDE_MARGIN >= 230.0, "地圖節點應拉開垂直層距並集中於中央區域")
+		for map_button in graph.get_children():
+			if map_button is Button:
+				_expect(map_button.tooltip_text.is_empty(), "地圖節點不應在游標停留時顯示額外預覽")
 		var completed_edge_ids: Array[String] = ["done", "other_done"]
 		var available_edge_ids: Array[String] = ["next"]
 		graph._completed_ids = completed_edge_ids
@@ -954,6 +980,7 @@ func _test_main_scene_smoke() -> void:
 	_expect(system_menu != null and system_menu.visible, "啟動時應顯示可繼續、新遊戲與設定的主選單")
 	_expect(InputMap.has_action("hand_slot_1") and InputMap.has_action("place_selected") and InputMap.has_action("toggle_pause"), "PC 鍵盤操作應完成輸入映射")
 	instance._resume_game()
+	_expect(system_menu.has_meta(UIMotion.TWEEN_META), "關閉主選單時應播放淡出，而非直接切換畫面")
 	var payment_label := instance.get_node_or_null("UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox/TabletSection/Body/RightRail/PreviewClip/EffectPreview") as Label
 	var payment_clip := payment_label.get_parent() as Control if payment_label != null else null
 	var payment_title := instance.get_node_or_null("UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox/TabletSection/Body/RightRail/PreviewTitle") as Label
@@ -999,6 +1026,10 @@ func _test_main_scene_smoke() -> void:
 	_expect(not build_has_duplicate_tooltip, "構築卡已顯示完整規則時不應再提供重複 tooltip")
 	build_pool_view.hide_pool()
 	var dead_board_warning_state := {"seen": false}
+	tablet_ui._is_resolving_clear = true
+	tablet_ui._check_no_valid_moves_deferred()
+	_expect(not tablet_ui._no_move_check_pending, "消除尚未完成時不得排入死盤判定")
+	tablet_ui._is_resolving_clear = false
 	tablet_ui.dead_board_warning_started.connect(func(): dead_board_warning_state.seen = true, CONNECT_ONE_SHOT)
 	await tablet_ui._play_dead_board_warning()
 	_expect(bool(dead_board_warning_state.seen) and not tablet_ui._dead_board_warning_active, "死盤應先在棋盤播放完整警示動畫，再進入懲罰結算")

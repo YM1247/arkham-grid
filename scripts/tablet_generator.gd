@@ -13,7 +13,8 @@ signal payment_preview_changed(spells: Array)
 # 這裡的大小要跟 GridCell 的大小一致
 const CELL_SIZE = Vector2(46, 46)
 const GRID_DIMENSION = 8
-const HAND_SLOT_SIZE := Vector2(360, 146)
+const HAND_SLOT_SIZE := Vector2(420, 146)
+const HAND_SLOT_SEPARATION := 50
 
 # --- 資源載入 ---
 # 載入剛剛做的格子場景
@@ -51,6 +52,7 @@ var placement_enabled := true
 var _is_recovering_from_no_moves := false
 var _dead_board_warning_active := false
 var _is_resolving_clear := false
+var _no_move_check_pending := false
 var _keyboard_selected_block: Block
 var _keyboard_origin := Vector2i(3, 3)
 var _preview_entity: Entity
@@ -79,9 +81,9 @@ func _setup_layout_properties():
 	$Header.visible = false
 	row_icons_container.visible = false
 	corner_spacer.custom_minimum_size = Vector2.ZERO
-	hand_area.custom_minimum_size = Vector2(HAND_SLOT_SIZE.x, HAND_SLOT_SIZE.y * hand_size + 8.0 * max(hand_size - 1, 0))
+	hand_area.custom_minimum_size = Vector2(HAND_SLOT_SIZE.x, HAND_SLOT_SIZE.y * hand_size + HAND_SLOT_SEPARATION * max(hand_size - 1, 0))
 	hand_area.alignment = BoxContainer.ALIGNMENT_CENTER
-	hand_area.add_theme_constant_override("separation", 8)
+	hand_area.add_theme_constant_override("separation", HAND_SLOT_SEPARATION)
 	_ensure_hand_slots()
 	
 	# 如果你在編輯器有用 PaddingContainer，這裡的 spacing 可以設為 0 或小一點
@@ -537,28 +539,35 @@ func _execute_clear(rows: Array, cols: Array):
 			if not Vector2i(x, y) in cells_to_clear:
 				cells_to_clear.append(Vector2i(x, y))
 
-	# --- 階段 2: 逐一完整結算咒文；Row／Col 交會不重複結算 ---
-	# 咒文仍留在盤面上，讓玩家能把名稱、效果與來源格對起來。
+	# 先保存效果格內容；盤面消失後仍能依原本的固定 Col→Row 順序結算。
+	var spells_to_trigger: Array[Dictionary] = []
 	for coord in cells_to_clear:
 		var spell := grid_spells[coord.x][coord.y] as BattleItem
 		if spell != null:
-			if DisplayServer.get_name() != "headless":
-				spell_announcement_requested.emit(spell)
-				# 等名稱完整彈出、停留並淡出後才結算，讓多個咒文不會疊在一起。
-				await get_tree().create_timer(0.62).timeout
-			spell_activated.emit(spell, coord)
-			if DisplayServer.get_name() != "headless":
-				await get_tree().create_timer(0.18).timeout
-	
-	# --- 階段 3: 所有效果完成後，全體同步閃白，再消失 ---
+			spells_to_trigger.append({"spell": spell, "coord": coord})
+
+	# --- 階段 2: 全體同步閃白 ---
 	for coord in cells_to_clear:
 		_play_flash_effect(coord.x, coord.y)
 	if DisplayServer.get_name() != "headless":
 		await get_tree().create_timer(0.32).timeout
 
-	# --- 階段 4: 真實清除資料與畫面 ---
+	# --- 階段 3: 先清除資料與畫面 ---
 	for coord in cells_to_clear:
 		_clear_cell_data(coord.x, coord.y)
+	if DisplayServer.get_name() != "headless":
+		await get_tree().create_timer(0.08).timeout
+
+	# --- 階段 4: 棋格消失後，再逐一播放咒文名稱並結算效果 ---
+	for trigger in spells_to_trigger:
+		var spell := trigger.get("spell") as BattleItem
+		var coord: Vector2i = trigger.get("coord", Vector2i.ZERO)
+		if DisplayServer.get_name() != "headless":
+			spell_announcement_requested.emit(spell)
+			await get_tree().create_timer(0.62).timeout
+		spell_activated.emit(spell, coord)
+		if DisplayServer.get_name() != "headless":
+			await get_tree().create_timer(0.18).timeout
 
 # 只負責視覺閃爍
 func _play_flash_effect(x: int, y: int):
@@ -782,12 +791,14 @@ func _refresh_hand_shortcuts() -> void:
 
 
 func _check_no_valid_moves_deferred():
-	if _is_recovering_from_no_moves or not placement_enabled:
+	if _is_recovering_from_no_moves or _is_resolving_clear or _no_move_check_pending or not placement_enabled:
 		return
+	_no_move_check_pending = true
 	call_deferred("_handle_no_valid_moves_if_needed")
 
 func _handle_no_valid_moves_if_needed():
-	if _is_recovering_from_no_moves or not placement_enabled:
+	_no_move_check_pending = false
+	if _is_recovering_from_no_moves or _is_resolving_clear or not placement_enabled:
 		return
 	if block_pool.is_empty() or _get_active_hand_block_data().is_empty():
 		return

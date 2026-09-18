@@ -71,7 +71,7 @@ func render(map_data: Dictionary, available_ids: Array[String], completed_ids: A
 		button.position = center - NODE_SIZE * 0.5
 		button.size = NODE_SIZE
 		button.text = "%s  %s%s" % [_type_icon(str(node.get("type", ""))), _type_name(str(node.get("type", ""))), "  ✓" if node_id in _completed_ids else ""]
-		button.tooltip_text = "第 %d 層｜%s\n路線節點：%s" % [int(node.get("floor", 0)) + 1, _type_name(str(node.get("type", ""))), node_id]
+		button.tooltip_text = ""
 		button.disabled = node_id not in _available_ids
 		_configure_node_style(button, str(node.get("type", "")), node_id)
 		button.pressed.connect(func(): node_selected.emit(node_id))
