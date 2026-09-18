@@ -934,6 +934,7 @@ func _test_main_scene_smoke() -> void:
 	var graph = instance.get_node_or_null("UILayer/MapContainer/Margin/Panel/VBox/Scroll/Center/Graph")
 	_expect(graph != null and graph.get_edge_count() > 0, "地圖畫布應建立可見的節點連線資料")
 	if graph != null:
+		_expect(graph.FLOOR_GAP >= 132.0 and graph.SIDE_MARGIN >= 230.0, "地圖節點應拉開垂直層距並集中於中央區域")
 		var completed_edge_ids: Array[String] = ["done", "other_done"]
 		var available_edge_ids: Array[String] = ["next"]
 		graph._completed_ids = completed_edge_ids

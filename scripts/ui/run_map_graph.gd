@@ -4,12 +4,12 @@ extends Control
 signal node_selected(node_id: String)
 
 const NODE_SIZE := Vector2(184, 58)
-const FLOOR_GAP := 96.0
-const SIDE_MARGIN := 124.0
+const FLOOR_GAP := 132.0
+const SIDE_MARGIN := 230.0
 const NODE_GAP := 48.0
-const FLOOR_DRIFT := 28.0
+const FLOOR_DRIFT := 20.0
 const NODE_JITTER := 10.0
-const FLOOR_JITTER := 10.0
+const FLOOR_JITTER := 20.0
 
 var _map_data: Dictionary = {}
 var _node_positions: Dictionary = {}
