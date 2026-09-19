@@ -36,10 +36,10 @@ mouse_filter = 2
 
 [node name="PlayerHUD" parent="." instance=ExtResource("4_hud")]
 layout_mode = 1
-offset_left = 198.0
-offset_top = 366.0
-offset_right = 386.0
-offset_bottom = 440.0
+offset_left = 68.0
+offset_top = 274.0
+offset_right = 256.0
+offset_bottom = 348.0
 
 [node name="EnemyAnchor" type="Control" parent="."]
 layout_mode = 1
@@ -110,22 +110,6 @@ theme_override_font_sizes/font_size = 16
 text = "行動紀錄"
 horizontal_alignment = 2
 mouse_filter = 2
-
-[node name="IntentLegend" type="Label" parent="."]
-layout_mode = 1
-anchors_preset = 1
-anchor_left = 1.0
-anchor_right = 1.0
-offset_left = -760.0
-offset_top = 10.0
-offset_right = -18.0
-offset_bottom = 36.0
-theme_override_colors/font_color = Color(0.92, 0.82, 0.58, 1)
-theme_override_font_sizes/font_size = 15
-text = "意圖  ↘ 攻擊　✹ 重擊　⬢ 防禦　◉ 精神　◆ 弱化　▲ 強化　◌ 待機"
-horizontal_alignment = 2
-mouse_filter = 2
-tooltip_text = "敵人的意圖會顯示於角色下方；游標停留可查看完整說明。"
 
 [node name="SpellAnnouncement" type="Label" parent="."]
 visible = false

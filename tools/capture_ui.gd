@@ -18,6 +18,7 @@ func _capture() -> void:
 	var system_menu := main.get_node_or_null("UILayer/SystemMenu")
 	if system_menu != null and mode != "title":
 		system_menu.hide_menu()
+		paused = false
 	var run_manager := main.get_node("RunManager") as RunManager
 	if mode in ["battle", "battle_action", "battle_armor", "battle_preview", "battle_dead_board", "reward"] and run_manager != null and not run_manager.run_state.available_node_ids.is_empty():
 		run_manager.select_map_node(run_manager.run_state.available_node_ids[0])

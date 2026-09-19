@@ -975,8 +975,18 @@ func _test_main_scene_smoke() -> void:
 				_expect(not graph._node_rects[source_id].has_point(route[0]) and not graph._node_rects[target_id].has_point(route[1]), "地圖線應從節點外緣開始，不得穿過節點文字")
 	_expect(FileAccess.file_exists(run_manager.save_service.get_run_path()), "新 Run 建立後應寫入單一自動存檔槽")
 	var player_hud := instance.get_node_or_null("UILayer/ScreenMargin/Screen/Layout/BattleStageView/PlayerHUD") as PlayerHUD
+	var battle_stage := instance.get_node_or_null("UILayer/ScreenMargin/Screen/Layout/BattleStageView") as Control
+	var battle_context := instance.get_node_or_null("UILayer/ScreenMargin/Screen/TopBar/Context") as Label
+	var ap_readout := instance.get_node_or_null("UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox/BoardHeader/Title") as Label
+	var turn_readout := instance.get_node_or_null("UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox/BoardHeader/Controls") as Label
+	var board_surface := instance.get_node_or_null("UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface") as Control
 	var system_menu := instance.get_node_or_null("UILayer/SystemMenu") as SystemMenu
 	_expect(player_hud != null and player_hud.hp_bar.value == manager.player.hp, "正式 HUD 應以資源條呈現玩家狀態")
+	_expect(player_hud != null and battle_stage != null and player_hud.position.y >= 0.0 and player_hud.position.y + player_hud.size.y <= battle_stage.size.y + 0.5, "玩家 HP、SAN 與 MP 狀態列不得超出戰場裁切範圍")
+	_expect(battle_stage != null and battle_stage.get_node_or_null("IntentLegend") == null, "戰場右上角不應保留意圖圖例")
+	_expect(battle_context != null and battle_context.text == "戰鬥", "頂部戰鬥標題應只保留『戰鬥』兩字")
+	_expect(ap_readout != null and turn_readout != null and ap_readout.get_theme_font_size("font_size") >= 28 and turn_readout.get_theme_font_size("font_size") >= 28, "AP 與回合資訊應使用更大的像素字")
+	_expect(board_surface != null and board_surface.custom_minimum_size.x >= 1320.0, "AP 與回合資訊應向棋盤外側拉開")
 	_expect(system_menu != null and system_menu.visible, "啟動時應顯示可繼續、新遊戲與設定的主選單")
 	_expect(InputMap.has_action("hand_slot_1") and InputMap.has_action("place_selected") and InputMap.has_action("toggle_pause"), "PC 鍵盤操作應完成輸入映射")
 	instance._resume_game()
