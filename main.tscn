@@ -203,6 +203,7 @@ layout_mode = 2
 
 [node name="GridCells" type="GridContainer" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox/TabletSection/Body"]
 layout_mode = 2
+size_flags_vertical = 4
 mouse_filter = 0
 theme_override_constants/h_separation = 2
 theme_override_constants/v_separation = 2

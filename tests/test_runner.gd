@@ -914,6 +914,26 @@ func _test_drag_source_visibility() -> void:
 			source_restored = false
 	_expect(source_restored, "取消拖曳後來源方塊圖形應恢復")
 	block.queue_free()
+	var last_slot := PanelContainer.new()
+	last_slot.custom_minimum_size = Vector2(420, 146)
+	last_slot.set_meta("hand_slot_is_last", true)
+	last_slot.set_meta("hand_slot_height", 146.0)
+	root.add_child(last_slot)
+	var tall_block := preload("res://scripts/block.gd").new() as Block
+	last_slot.add_child(tall_block)
+	var tall_data := BlockData.new()
+	tall_data.id = "tall_hand_test"
+	tall_data.cells = [Vector2i.ZERO, Vector2i(0, 1), Vector2i(0, 2), Vector2i(0, 3)]
+	tall_data.effect_cell = Vector2i(0, 1)
+	tall_data.spell = spell
+	tall_block.set_data(tall_data)
+	await process_frame
+	var lowest_visual_edge := 0.0
+	for child in tall_block.get_children():
+		if child.has_meta("shape_visual"):
+			lowest_visual_edge = maxf(lowest_visual_edge, child.position.y + child.size.y)
+	_expect(lowest_visual_edge <= 146.5, "第三張四格高手牌應向上利用槽間空隙，不得超出手牌區底部")
+	last_slot.queue_free()
 	await process_frame
 
 
@@ -998,9 +1018,15 @@ func _test_main_scene_smoke() -> void:
 	_expect(board_surface != null and board_surface.custom_minimum_size.x >= 1320.0, "AP 與回合資訊應向棋盤外側拉開")
 	_expect(board_header != null and board_header.custom_minimum_size.y >= 56.0, "棋盤應與上方回合資訊保留更大的垂直間距")
 	_expect(right_rail != null and right_rail.custom_minimum_size.x >= 360.0, "結束回合按鈕所在區域應向右側移動")
+	_expect(grid.size_flags_vertical == Control.SIZE_SHRINK_CENTER, "棋盤應在三張手牌總高度內垂直置中，與第二張手牌等高")
+	_expect(player_hud.status_icons.get_index() < player_hud.hp_bar.get_parent().get_index(), "玩家特殊狀態列應位於 HP 上方，保持 HP、SAN、MP 三條數值連續")
+	_expect(battle_stage.get_node("PlayerArt").position.x >= 290.0 and player_hud.position.x >= 108.0, "玩家立繪與狀態 HUD 應整組向右移動")
+	var enemy_anchor := battle_stage.get_node("EnemyAnchor") as Control
+	var enemy_stage_container := battle_stage.get_node("EnemyAnchor/EnemyContainer") as HBoxContainer
+	_expect(enemy_anchor.anchor_left >= 0.3 and enemy_stage_container.get_theme_constant("separation") <= 6, "敵人陣列應向右集中並縮小彼此間距")
 	manager.player.add_status("poison", 3)
 	manager._update_all_status_labels()
-	_expect(player_hud.status_icons.visible and player_hud.status_icons.get_child_count() == 1 and player_hud.status_icons.get_child(0).text == "☣3", "玩家特殊狀態應在 HP 下方以圖示加層數顯示")
+	_expect(player_hud.status_icons.visible and player_hud.status_icons.get_child_count() == 1 and player_hud.status_icons.get_child(0).text == "☣3", "玩家特殊狀態應在 HP 上方以圖示加層數顯示")
 	manager.player.clear_statuses()
 	manager._update_all_status_labels()
 	_expect(system_menu != null and system_menu.visible, "啟動時應顯示可繼續、新遊戲與設定的主選單")

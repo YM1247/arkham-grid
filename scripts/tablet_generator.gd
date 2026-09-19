@@ -250,6 +250,8 @@ func _ensure_hand_slots() -> void:
 		slot.name = "HandSlot%d" % (index + 1)
 		slot.custom_minimum_size = HAND_SLOT_SIZE
 		slot.set_meta("hand_slot_index", index)
+		slot.set_meta("hand_slot_height", HAND_SLOT_SIZE.y)
+		slot.set_meta("hand_slot_is_last", index == hand_size - 1)
 		var style := StyleBoxFlat.new()
 		style.bg_color = Color(0, 0, 0, 0)
 		style.border_color = Color(0, 0, 0, 0)

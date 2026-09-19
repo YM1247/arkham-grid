@@ -13,9 +13,9 @@ script = ExtResource("1_stage")
 [node name="PlayerArt" type="TextureRect" parent="."]
 layout_mode = 1
 anchors_preset = 0
-offset_left = 190.0
+offset_left = 290.0
 offset_top = 141.0
-offset_right = 390.0
+offset_right = 490.0
 offset_bottom = 381.0
 texture_filter = 1
 texture = ExtResource("3_player")
@@ -25,9 +25,9 @@ mouse_filter = 2
 
 [node name="PlayerName" type="Label" parent="."]
 layout_mode = 1
-offset_left = 205.0
+offset_left = 305.0
 offset_top = 115.0
-offset_right = 382.0
+offset_right = 482.0
 offset_bottom = 139.0
 theme_override_font_sizes/font_size = 18
 text = "調查員"
@@ -36,17 +36,17 @@ mouse_filter = 2
 
 [node name="PlayerHUD" parent="." instance=ExtResource("4_hud")]
 layout_mode = 1
-offset_left = 8.0
+offset_left = 108.0
 offset_top = 250.0
-offset_right = 196.0
+offset_right = 296.0
 offset_bottom = 350.0
 
 [node name="EnemyAnchor" type="Control" parent="."]
 layout_mode = 1
 anchors_preset = 0
-anchor_left = 0.25
+anchor_left = 0.3
 anchor_top = 0.36
-anchor_right = 0.92
+anchor_right = 0.94
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
@@ -60,7 +60,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 alignment = 1
-theme_override_constants/separation = 14
+theme_override_constants/separation = 6
 
 [node name="IntentLabel" type="Label" parent="EnemyAnchor/EnemyContainer"]
 visible = false

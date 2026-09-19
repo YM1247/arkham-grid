@@ -79,6 +79,13 @@ func _redraw_shape():
 	var visual_width := float(dimensions.x) * render_cell_size.x + float(dimensions.x - 1) * SPACING * scale_factor
 	var visual_height := float(dimensions.y) * render_cell_size.y + float(dimensions.y - 1) * SPACING * scale_factor
 	render_origin = HAND_VISUAL_CENTER - Vector2(visual_width, visual_height) * 0.5
+	# 最末槽的四格高形狀會超出手牌區底部；使用槽間既有空隙向上避讓，保留原始格子尺寸。
+	var slot := get_parent()
+	if slot != null and bool(slot.get_meta("hand_slot_is_last", false)):
+		var slot_height := float(slot.get_meta("hand_slot_height", custom_minimum_size.y))
+		var bottom_overflow := render_origin.y + visual_height - slot_height
+		if bottom_overflow > 0.0:
+			render_origin.y -= bottom_overflow
 		
 	for cell_pos in block_data.cells:
 		var rect: Control = SlateCellScript.new()

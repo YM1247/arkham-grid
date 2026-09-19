@@ -20,11 +20,11 @@ func _capture() -> void:
 		system_menu.hide_menu()
 		paused = false
 	var run_manager := main.get_node("RunManager") as RunManager
-	if mode in ["battle", "battle_action", "battle_armor", "battle_status", "battle_preview", "battle_dead_board", "reward"] and run_manager != null and not run_manager.run_state.available_node_ids.is_empty():
+	if mode in ["battle", "battle_action", "battle_armor", "battle_status", "battle_tall_hand", "battle_preview", "battle_dead_board", "reward"] and run_manager != null and not run_manager.run_state.available_node_ids.is_empty():
 		run_manager.select_map_node(run_manager.run_state.available_node_ids[0])
 		for _frame in range(3):
 			await process_frame
-		if mode in ["battle", "battle_action", "battle_armor", "battle_status", "battle_preview", "battle_dead_board"]:
+		if mode in ["battle", "battle_action", "battle_armor", "battle_status", "battle_tall_hand", "battle_preview", "battle_dead_board"]:
 			var battle_manager := main.get_node("BattleManager")
 			battle_manager.start_encounter(run_manager.enemies.slice(0, 5))
 			for _frame in range(3):
@@ -42,6 +42,12 @@ func _capture() -> void:
 					battle_manager.enemies[0].add_status("weak", 2)
 					battle_manager.enemies[0].add_status("fragile", 1)
 				battle_manager._update_all_status_labels()
+				await process_frame
+			if mode == "battle_tall_hand":
+				var hand_blocks = battle_manager.tablet._get_hand_blocks()
+				if hand_blocks.size() >= 3:
+					var tall_slate := run_manager.content.get_block("shape_I").as_slate("capture_tall", run_manager.content.get_spell("pistol"), Vector2i.ZERO)
+					hand_blocks[2].set_data(tall_slate)
 				await process_frame
 			if mode == "battle_action":
 				battle_manager.end_player_turn()
