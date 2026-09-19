@@ -27,6 +27,9 @@ static func status_glyph(status_id: String) -> String:
 static func status_label(status_id: String) -> String:
 	return str(STATUS.get(status_id, {}).get("label", status_id))
 
+static func status_color(status_id: String) -> Color:
+	return STATUS.get(status_id, {}).get("color", Color.WHITE) as Color
+
 static func intent_glyph(intent_id: String) -> String:
 	return str(INTENTS.get(intent_id, {}).get("glyph", "?"))
 

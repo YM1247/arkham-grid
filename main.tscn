@@ -131,7 +131,7 @@ theme_override_styles/panel = SubResource("StyleBoardSurface")
 layout_mode = 2
 
 [node name="BoardHeader" type="HBoxContainer" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox"]
-custom_minimum_size = Vector2(0, 42)
+custom_minimum_size = Vector2(0, 56)
 layout_mode = 2
 
 [node name="Title" type="Label" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox/BoardHeader"]
@@ -209,7 +209,7 @@ theme_override_constants/v_separation = 2
 script = ExtResource("22_grid_drop")
 
 [node name="RightRail" type="VBoxContainer" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox/TabletSection/Body"]
-custom_minimum_size = Vector2(300, 0)
+custom_minimum_size = Vector2(360, 0)
 layout_mode = 2
 
 [node name="PreviewTitle" type="Label" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox/TabletSection/Body/RightRail"]
@@ -244,6 +244,7 @@ size_flags_vertical = 3
 [node name="EndTurnButton" type="Button" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox/TabletSection/Body/RightRail"]
 custom_minimum_size = Vector2(300, 64)
 layout_mode = 2
+size_flags_horizontal = 8
 focus_mode = 0
 theme_override_font_sizes/font_size = 21
 text = "結束回合\nEnter"

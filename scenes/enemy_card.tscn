@@ -1,6 +1,7 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/enemy_card.gd" id="1_card"]
+[ext_resource type="Script" path="res://scripts/ui/status_icon_row.gd" id="2_status_icons"]
 
 [sub_resource type="StyleBoxFlat" id="ArmorOutline"]
 bg_color = Color(1, 1, 1, 0.08)
@@ -77,19 +78,19 @@ vertical_alignment = 1
 theme_override_font_sizes/font_size = 18
 mouse_filter = 2
 
+[node name="StatusIcons" type="HBoxContainer" parent="VBox"]
+visible = false
+custom_minimum_size = Vector2(0, 22)
+layout_mode = 2
+theme_override_constants/separation = 8
+alignment = 1
+script = ExtResource("2_status_icons")
+
 [node name="Intent" type="Label" parent="VBox"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.901961, 0.72549, 0.360784, 1)
 theme_override_font_sizes/font_size = 21
 horizontal_alignment = 1
-
-[node name="Status" type="Label" parent="VBox"]
-visible = true
-layout_mode = 2
-theme_override_colors/font_color = Color(0.611765, 0.662745, 0.733333, 1)
-horizontal_alignment = 1
-text_overrun_behavior = 3
-theme_override_font_sizes/font_size = 17
 
 [node name="Target" type="Button" parent="VBox"]
 visible = false

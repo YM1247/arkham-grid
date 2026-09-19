@@ -36,10 +36,10 @@ mouse_filter = 2
 
 [node name="PlayerHUD" parent="." instance=ExtResource("4_hud")]
 layout_mode = 1
-offset_left = 68.0
-offset_top = 274.0
-offset_right = 256.0
-offset_bottom = 348.0
+offset_left = 8.0
+offset_top = 250.0
+offset_right = 196.0
+offset_bottom = 350.0
 
 [node name="EnemyAnchor" type="Control" parent="."]
 layout_mode = 1

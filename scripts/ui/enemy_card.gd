@@ -3,6 +3,9 @@ extends Control
 
 signal target_requested(enemy: Entity)
 
+const TARGET_FRAME_OUTSET := Vector2(8, 5)
+const TARGET_CORNER_ARM := 13.0
+
 @onready var name_label: Label = $VBox/Header/Name
 @onready var target_marker: Label = $VBox/Header/TargetMarker
 @onready var portrait: TextureRect = $VBox/Portrait
@@ -10,7 +13,7 @@ signal target_requested(enemy: Entity)
 @onready var armor_overlay: Panel = $VBox/HPRow/ArmorOverlay
 @onready var stats_label: Label = $VBox/HPRow/Stats
 @onready var intent_label: Label = $VBox/Intent
-@onready var status_label: Label = $VBox/Status
+@onready var status_icons: StatusIconRow = $VBox/StatusIcons
 @onready var target_button: Button = $VBox/Target
 @onready var target_frame: Control = $TargetFrame
 
@@ -48,14 +51,11 @@ func refresh(selected: bool) -> void:
 	hp_bar.value = entity.hp
 	_update_armor_overlay(entity.hp, entity.armor, entity.max_hp)
 	stats_label.text = "%d / %d%s" % [entity.hp, entity.max_hp, "　護盾 %d" % entity.armor if entity.armor > 0 else ""]
-	var status := entity.get_status_summary()
-	status_label.text = "狀態｜%s" % ("無" if status.is_empty() else status)
 	var intent_id := str(entity.get_meta("intent_id", ""))
 	var glyph := CombatIconRegistry.intent_glyph(intent_id)
 	intent_label.text = "%s  %s" % [glyph, CombatIconRegistry.intent_label(intent_id)]
 	intent_label.tooltip_text = "下一步：%s" % CombatIconRegistry.intent_label(intent_id)
-	status_label.text = CombatIconRegistry.status_summary(entity)
-	status_label.visible = not status_label.text.is_empty()
+	status_icons.refresh(entity)
 	tooltip_text = "%s\n%s\n點擊角色鎖定" % [intent_label.tooltip_text, entity.get_status_summary()]
 	# 活著的鎖定狀態只用立繪四角標示，避免同時出現兩套目標符號。
 	target_marker.text = "†" if entity.is_dead else ""
@@ -86,11 +86,10 @@ func _defer_target_frame_sync() -> void:
 func _sync_target_frame() -> void:
 	if target_frame == null or portrait == null or not is_instance_valid(target_frame) or not is_instance_valid(portrait):
 		return
-	# Portrait 位於 VBox 內；轉換至卡片座標後將框收進立繪，避免被名稱與 HP 列壓住。
+	# 四角略微包在立繪外側，與敵人保留呼吸空間；短角線避免壓到名稱與 HP。
 	var portrait_origin := get_global_transform_with_canvas().affine_inverse() * (portrait.get_global_transform_with_canvas() * Vector2.ZERO)
-	var frame_inset := Vector2(10, 12)
-	target_frame.position = portrait_origin + frame_inset
-	target_frame.size = (portrait.size - frame_inset * 2.0).max(Vector2(16, 16))
+	target_frame.position = portrait_origin - TARGET_FRAME_OUTSET
+	target_frame.size = (portrait.size + TARGET_FRAME_OUTSET * 2.0).max(Vector2(16, 16))
 	target_frame.visible = _selected
 	target_frame.queue_redraw()
 
@@ -99,7 +98,7 @@ func _draw_target_frame() -> void:
 	if not _selected or not target_frame.visible:
 		return
 	var color := Color("f7d889")
-	var arm := 22.0
+	var arm := TARGET_CORNER_ARM
 	var left := 0.0
 	var top := 0.0
 	var right := target_frame.size.x

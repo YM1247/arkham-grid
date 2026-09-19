@@ -826,7 +826,11 @@ func _test_five_enemy_roster() -> void:
 	await process_frame
 	var selected_card := presenter._cards[0]
 	_expect(selected_card.name_label.horizontal_alignment == HORIZONTAL_ALIGNMENT_CENTER, "敵人名稱應置中顯示")
-	_expect(selected_card.target_frame.visible and selected_card.target_frame.size.y <= selected_card.portrait.size.y - 20.0, "敵人鎖定四角應縮進立繪，與名稱及血條保留間距")
+	_expect(selected_card.target_frame.visible and selected_card.target_frame.size.x > selected_card.portrait.size.x and selected_card.target_frame.size.y > selected_card.portrait.size.y, "敵人鎖定四角應放大到立繪外側，與角色保留間距")
+	_expect(selected_card.TARGET_CORNER_ARM <= 13.0, "放大的敵人鎖定框應使用較短的四角線段")
+	enemies[0].add_status("strength", 2)
+	presenter.render(label, enemies, 0, func(_index: int): pass)
+	_expect(selected_card.status_icons.visible and selected_card.status_icons.get_child_count() == 1 and selected_card.status_icons.get_child(0).text == "▲2", "敵人特殊狀態應在 HP 下方以圖示加層數顯示")
 	enemies[2].add_armor(3)
 	presenter.render(label, enemies, 0, func(_index: int): pass)
 	_expect(presenter.get_card_instance_ids() == before, "五敵人數值更新不應重建卡片")
@@ -958,6 +962,9 @@ func _test_main_scene_smoke() -> void:
 	_expect(graph != null and graph.get_edge_count() > 0, "地圖畫布應建立可見的節點連線資料")
 	if graph != null:
 		_expect(graph.FLOOR_GAP >= 132.0 and graph.SIDE_MARGIN >= 230.0, "地圖節點應拉開垂直層距並集中於中央區域")
+		for node_rect_value in graph._node_rects.values():
+			var node_rect := node_rect_value as Rect2
+			_expect(node_rect.position.y >= 0.0, "地圖最上層節點不得超出畫布上緣而被切掉")
 		for map_button in graph.get_children():
 			if map_button is Button:
 				_expect(map_button.tooltip_text.is_empty(), "地圖節點不應在游標停留時顯示額外預覽")
@@ -980,6 +987,8 @@ func _test_main_scene_smoke() -> void:
 	var ap_readout := instance.get_node_or_null("UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox/BoardHeader/Title") as Label
 	var turn_readout := instance.get_node_or_null("UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox/BoardHeader/Controls") as Label
 	var board_surface := instance.get_node_or_null("UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface") as Control
+	var board_header := instance.get_node_or_null("UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox/BoardHeader") as Control
+	var right_rail := instance.get_node_or_null("UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox/TabletSection/Body/RightRail") as Control
 	var system_menu := instance.get_node_or_null("UILayer/SystemMenu") as SystemMenu
 	_expect(player_hud != null and player_hud.hp_bar.value == manager.player.hp, "正式 HUD 應以資源條呈現玩家狀態")
 	_expect(player_hud != null and battle_stage != null and player_hud.position.y >= 0.0 and player_hud.position.y + player_hud.size.y <= battle_stage.size.y + 0.5, "玩家 HP、SAN 與 MP 狀態列不得超出戰場裁切範圍")
@@ -987,6 +996,13 @@ func _test_main_scene_smoke() -> void:
 	_expect(battle_context != null and battle_context.text == "戰鬥", "頂部戰鬥標題應只保留『戰鬥』兩字")
 	_expect(ap_readout != null and turn_readout != null and ap_readout.get_theme_font_size("font_size") >= 28 and turn_readout.get_theme_font_size("font_size") >= 28, "AP 與回合資訊應使用更大的像素字")
 	_expect(board_surface != null and board_surface.custom_minimum_size.x >= 1320.0, "AP 與回合資訊應向棋盤外側拉開")
+	_expect(board_header != null and board_header.custom_minimum_size.y >= 56.0, "棋盤應與上方回合資訊保留更大的垂直間距")
+	_expect(right_rail != null and right_rail.custom_minimum_size.x >= 360.0, "結束回合按鈕所在區域應向右側移動")
+	manager.player.add_status("poison", 3)
+	manager._update_all_status_labels()
+	_expect(player_hud.status_icons.visible and player_hud.status_icons.get_child_count() == 1 and player_hud.status_icons.get_child(0).text == "☣3", "玩家特殊狀態應在 HP 下方以圖示加層數顯示")
+	manager.player.clear_statuses()
+	manager._update_all_status_labels()
 	_expect(system_menu != null and system_menu.visible, "啟動時應顯示可繼續、新遊戲與設定的主選單")
 	_expect(InputMap.has_action("hand_slot_1") and InputMap.has_action("place_selected") and InputMap.has_action("toggle_pause"), "PC 鍵盤操作應完成輸入映射")
 	instance._resume_game()

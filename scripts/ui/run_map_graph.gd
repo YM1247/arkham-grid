@@ -10,6 +10,7 @@ const NODE_GAP := 48.0
 const FLOOR_DRIFT := 20.0
 const NODE_JITTER := 10.0
 const FLOOR_JITTER := 20.0
+const TOP_PADDING := 30.0
 
 var _map_data: Dictionary = {}
 var _node_positions: Dictionary = {}
@@ -39,7 +40,7 @@ func render(map_data: Dictionary, available_ids: Array[String], completed_ids: A
 		max_column = maxi(max_column, int(node.get("column", 0)))
 	var available_width := get_viewport_rect().size.x - 220.0
 	var collision_free_width := float(max_column) * (NODE_SIZE.x + NODE_GAP) + SIDE_MARGIN * 2.0
-	custom_minimum_size = Vector2(maxf(minf(1420.0, available_width), collision_free_width), (max_floor + 1) * FLOOR_GAP + 58.0)
+	custom_minimum_size = Vector2(maxf(minf(1420.0, available_width), collision_free_width), (max_floor + 1) * FLOOR_GAP + NODE_SIZE.y + TOP_PADDING)
 	_node_positions.clear()
 	_node_rects.clear()
 	_incoming_ids.clear()
@@ -60,7 +61,7 @@ func render(map_data: Dictionary, available_ids: Array[String], completed_ids: A
 		var floor_jitter := _signed_jitter("floor_y:%d:%d" % [map_seed, floor], FLOOR_JITTER)
 		var center_x := lerpf(SIDE_MARGIN, custom_minimum_size.x - SIDE_MARGIN, column_ratio) + floor_drift + node_jitter
 		center_x = clampf(center_x, SIDE_MARGIN - NODE_JITTER, custom_minimum_size.x - SIDE_MARGIN + NODE_JITTER)
-		var center := Vector2(center_x, 40.0 + floor * FLOOR_GAP + floor_jitter)
+		var center := Vector2(center_x, TOP_PADDING + NODE_SIZE.y * 0.5 + floor * FLOOR_GAP + floor_jitter)
 		_node_positions[node_id] = center
 		_node_rects[node_id] = Rect2(center - NODE_SIZE * 0.5, NODE_SIZE)
 	# 位置先完整算好，端口排序和首幀鎖定都不再依賴尚未完成的容器版面。

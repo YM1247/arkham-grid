@@ -10,7 +10,7 @@ extends Control
 @onready var sanity_value: Label = $VBox/Sanity/Value
 @onready var mp_bar: ProgressBar = $VBox/MP/Bar
 @onready var mp_value: Label = $VBox/MP/Value
-@onready var status_label: Label = $VBox/Status
+@onready var status_icons: StatusIconRow = $VBox/StatusIcons
 @onready var ap_label: Label = $VBox/AP
 
 
@@ -30,14 +30,8 @@ func refresh(entity: Entity, mp: int, max_mp: int, sanity_stage: String, sanity_
 	hp_value.text = "%d / %d%s" % [entity.hp, entity.max_hp, "　盾 %d" % entity.armor if entity.armor > 0 else ""]
 	_set_bar(sanity_bar, sanity_value, entity.sanity, entity.max_sanity)
 	_set_bar(mp_bar, mp_value, mp, max_mp)
-	var statuses: Array[String] = []
-	if entity.has_method("get_status_summary"):
-		var summary := str(entity.get_status_summary())
-		if not summary.is_empty():
-			statuses.append(summary)
-	if not sanity_effects.is_empty():
-		statuses.append("%s｜%s" % [sanity_stage, sanity_effects])
-	status_label.text = "狀態｜%s" % ("穩定" if statuses.is_empty() else "　".join(statuses))
+	status_icons.refresh(entity)
+	status_icons.tooltip_text = "%s%s" % [sanity_stage, "｜%s" % sanity_effects if not sanity_effects.is_empty() else ""]
 	ap_label.text = "AP　%s%s" % ["●".repeat(maxi(action_points, 0)), "○".repeat(maxi(max_action_points - action_points, 0))]
 	ap_label.tooltip_text = "行動點：%d / %d" % [action_points, max_action_points]
 
