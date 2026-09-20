@@ -12,7 +12,7 @@ border_width_bottom = 2
 border_color = Color(0.96, 0.98, 1, 0.96)
 
 [node name="PlayerHUD" type="Control"]
-custom_minimum_size = Vector2(188, 94)
+custom_minimum_size = Vector2(188, 84)
 script = ExtResource("1_hud")
 
 [node name="VBox" type="VBoxContainer" parent="."]
@@ -22,7 +22,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/separation = 2
+theme_override_constants/separation = 5
 
 [node name="Header" type="HBoxContainer" parent="VBox"]
 visible = false
@@ -47,7 +47,7 @@ alignment = 1
 script = ExtResource("2_status_icons")
 
 [node name="HP" type="Control" parent="VBox"]
-custom_minimum_size = Vector2(0, 18)
+custom_minimum_size = Vector2(0, 14)
 layout_mode = 2
 
 [node name="Title" type="Label" parent="VBox/HP"]
@@ -55,8 +55,8 @@ anchors_preset = 0
 offset_left = 8.0
 offset_top = 0.0
 offset_right = 44.0
-offset_bottom = 18.0
-theme_override_font_sizes/font_size = 11
+offset_bottom = 14.0
+theme_override_font_sizes/font_size = 9
 text = "HP"
 mouse_filter = 2
 
@@ -86,18 +86,19 @@ grow_vertical = 2
 text = "-- / --"
 horizontal_alignment = 1
 vertical_alignment = 1
+theme_override_font_sizes/font_size = 12
 mouse_filter = 2
 
 [node name="Sanity" type="Control" parent="VBox"]
-custom_minimum_size = Vector2(0, 18)
+custom_minimum_size = Vector2(0, 14)
 layout_mode = 2
 
 [node name="Title" type="Label" parent="VBox/Sanity"]
 offset_left = 8.0
 offset_top = 0.0
 offset_right = 48.0
-offset_bottom = 18.0
-theme_override_font_sizes/font_size = 11
+offset_bottom = 14.0
+theme_override_font_sizes/font_size = 9
 text = "SAN"
 mouse_filter = 2
 
@@ -118,18 +119,19 @@ grow_vertical = 2
 text = "-- / --"
 horizontal_alignment = 1
 vertical_alignment = 1
+theme_override_font_sizes/font_size = 12
 mouse_filter = 2
 
 [node name="MP" type="Control" parent="VBox"]
-custom_minimum_size = Vector2(0, 18)
+custom_minimum_size = Vector2(0, 14)
 layout_mode = 2
 
 [node name="Title" type="Label" parent="VBox/MP"]
 offset_left = 8.0
 offset_top = 0.0
 offset_right = 44.0
-offset_bottom = 18.0
-theme_override_font_sizes/font_size = 11
+offset_bottom = 14.0
+theme_override_font_sizes/font_size = 9
 text = "MP"
 mouse_filter = 2
 
@@ -150,6 +152,7 @@ grow_vertical = 2
 text = "-- / --"
 horizontal_alignment = 1
 vertical_alignment = 1
+theme_override_font_sizes/font_size = 12
 mouse_filter = 2
 
 [node name="AP" type="Label" parent="VBox"]

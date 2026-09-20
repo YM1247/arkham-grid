@@ -828,6 +828,9 @@ func _test_five_enemy_roster() -> void:
 	_expect(selected_card.name_label.horizontal_alignment == HORIZONTAL_ALIGNMENT_CENTER, "敵人名稱應置中顯示")
 	_expect(selected_card.target_frame.visible and selected_card.target_frame.size.x > selected_card.portrait.size.x and selected_card.target_frame.size.y > selected_card.portrait.size.y, "敵人鎖定四角應放大到立繪外側，與角色保留間距")
 	_expect(selected_card.TARGET_CORNER_ARM <= 13.0, "放大的敵人鎖定框應使用較短的四角線段")
+	_expect(selected_card.name_label.get_global_rect().end.y + 2.0 <= selected_card.target_frame.get_global_rect().position.y, "敵人名稱應移到鎖定角框上方並保留空隙")
+	_expect(selected_card.target_frame.get_global_rect().end.y + 2.0 <= selected_card.hp_bar.get_global_rect().position.y, "敵人 HP 條應移到鎖定角框下方並保留空隙")
+	_expect(selected_card.hp_bar.size.y <= 14.5, "敵人 HP 條應使用較細的統一高度")
 	enemies[0].add_status("strength", 2)
 	presenter.render(label, enemies, 0, func(_index: int): pass)
 	_expect(selected_card.status_icons.visible and selected_card.status_icons.get_child_count() == 1 and selected_card.status_icons.get_child(0).text == "▲2", "敵人特殊狀態應在 HP 下方以圖示加層數顯示")
@@ -1011,6 +1014,8 @@ func _test_main_scene_smoke() -> void:
 	var right_rail := instance.get_node_or_null("UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox/TabletSection/Body/RightRail") as Control
 	var system_menu := instance.get_node_or_null("UILayer/SystemMenu") as SystemMenu
 	_expect(player_hud != null and player_hud.hp_bar.value == manager.player.hp, "正式 HUD 應以資源條呈現玩家狀態")
+	_expect(player_hud.hp_bar.size.y <= 14.5 and player_hud.sanity_bar.size.y <= 14.5 and player_hud.mp_bar.size.y <= 14.5, "玩家 HP、SAN、MP 狀態條應統一縮細")
+	_expect(player_hud.get_node("VBox").get_theme_constant("separation") >= 5, "玩家各狀態條之間應保留清楚空隙")
 	_expect(player_hud != null and battle_stage != null and player_hud.position.y >= 0.0 and player_hud.position.y + player_hud.size.y <= battle_stage.size.y + 0.5, "玩家 HP、SAN 與 MP 狀態列不得超出戰場裁切範圍")
 	_expect(battle_stage != null and battle_stage.get_node_or_null("IntentLegend") == null, "戰場右上角不應保留意圖圖例")
 	_expect(battle_context != null and battle_context.text == "戰鬥", "頂部戰鬥標題應只保留『戰鬥』兩字")
@@ -1023,7 +1028,7 @@ func _test_main_scene_smoke() -> void:
 	_expect(battle_stage.get_node("PlayerArt").position.x >= 290.0 and player_hud.position.x >= 108.0, "玩家立繪與狀態 HUD 應整組向右移動")
 	var enemy_anchor := battle_stage.get_node("EnemyAnchor") as Control
 	var enemy_stage_container := battle_stage.get_node("EnemyAnchor/EnemyContainer") as HBoxContainer
-	_expect(enemy_anchor.anchor_left >= 0.3 and enemy_stage_container.get_theme_constant("separation") <= 6, "敵人陣列應向右集中並縮小彼此間距")
+	_expect(enemy_anchor.anchor_left >= 0.3 and enemy_anchor.anchor_top <= 0.32 and enemy_stage_container.get_theme_constant("separation") <= 6, "敵人陣列應向右集中、縮小彼此間距，並為下方狀態資訊保留高度")
 	manager.player.add_status("poison", 3)
 	manager._update_all_status_labels()
 	_expect(player_hud.status_icons.visible and player_hud.status_icons.get_child_count() == 1 and player_hud.status_icons.get_child(0).text == "☣3", "玩家特殊狀態應在 HP 上方以圖示加層數顯示")

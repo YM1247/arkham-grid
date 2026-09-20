@@ -12,7 +12,7 @@ border_width_bottom = 2
 border_color = Color(0.96, 0.98, 1, 0.96)
 
 [node name="EnemyCard" type="Control"]
-custom_minimum_size = Vector2(188, 238)
+custom_minimum_size = Vector2(188, 242)
 mouse_default_cursor_shape = 2
 script = ExtResource("1_card")
 
@@ -34,6 +34,11 @@ layout_mode = 2
 theme_override_colors/font_color = Color(0.964706, 0.847059, 0.537255, 1)
 text = ""
 
+[node name="NameFrameGap" type="Control" parent="VBox"]
+custom_minimum_size = Vector2(0, 10)
+layout_mode = 2
+mouse_filter = 2
+
 [node name="TargetFrame" type="Control" parent="."]
 visible = false
 mouse_filter = 2
@@ -46,8 +51,13 @@ expand_mode = 1
 stretch_mode = 5
 mouse_filter = 2
 
+[node name="FrameHPGap" type="Control" parent="VBox"]
+custom_minimum_size = Vector2(0, 10)
+layout_mode = 2
+mouse_filter = 2
+
 [node name="HPRow" type="Control" parent="VBox"]
-custom_minimum_size = Vector2(0, 22)
+custom_minimum_size = Vector2(0, 14)
 layout_mode = 2
 
 [node name="HP" type="ProgressBar" parent="VBox/HPRow"]
@@ -75,7 +85,7 @@ grow_horizontal = 2
 grow_vertical = 2
 horizontal_alignment = 1
 vertical_alignment = 1
-theme_override_font_sizes/font_size = 18
+theme_override_font_sizes/font_size = 13
 mouse_filter = 2
 
 [node name="StatusIcons" type="HBoxContainer" parent="VBox"]

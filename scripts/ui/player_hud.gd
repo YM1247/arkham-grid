@@ -45,7 +45,7 @@ func _set_bar(bar: ProgressBar, value_label: Label, value: int, maximum: int) ->
 func _set_fill_color(bar: ProgressBar, color: Color) -> void:
 	var style := StyleBoxFlat.new()
 	style.bg_color = color
-	style.set_corner_radius_all(5)
+	style.set_corner_radius_all(3)
 	bar.add_theme_stylebox_override("fill", style)
 
 

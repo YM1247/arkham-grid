@@ -30,7 +30,7 @@ func _ready() -> void:
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	var hp_fill := StyleBoxFlat.new()
 	hp_fill.bg_color = Color("d95c64")
-	hp_fill.set_corner_radius_all(5)
+	hp_fill.set_corner_radius_all(3)
 	hp_bar.add_theme_stylebox_override("fill", hp_fill)
 
 
