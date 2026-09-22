@@ -26,7 +26,7 @@ layout_mode = 2
 [node name="Name" type="Label" parent="VBox/Header"]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_font_sizes/font_size = 18
+theme_override_font_sizes/font_size = 20
 horizontal_alignment = 1
 
 [node name="TargetMarker" type="Label" parent="VBox/Header"]
@@ -57,7 +57,7 @@ layout_mode = 2
 mouse_filter = 2
 
 [node name="HPRow" type="Control" parent="VBox"]
-custom_minimum_size = Vector2(0, 14)
+custom_minimum_size = Vector2(0, 18)
 layout_mode = 2
 
 [node name="HP" type="ProgressBar" parent="VBox/HPRow"]
@@ -85,16 +85,19 @@ grow_horizontal = 2
 grow_vertical = 2
 horizontal_alignment = 1
 vertical_alignment = 1
-theme_override_font_sizes/font_size = 13
+theme_override_colors/font_outline_color = Color(0.01, 0.015, 0.025, 0.98)
+theme_override_constants/outline_size = 2
+theme_override_font_sizes/font_size = 15
 mouse_filter = 2
 
 [node name="StatusIcons" type="HBoxContainer" parent="VBox"]
 visible = false
-custom_minimum_size = Vector2(0, 22)
+custom_minimum_size = Vector2(0, 24)
 layout_mode = 2
 theme_override_constants/separation = 8
 alignment = 1
 script = ExtResource("2_status_icons")
+icon_font_size = 20
 
 [node name="Intent" type="Label" parent="VBox"]
 layout_mode = 2

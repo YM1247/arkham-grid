@@ -830,7 +830,8 @@ func _test_five_enemy_roster() -> void:
 	_expect(selected_card.TARGET_CORNER_ARM <= 13.0, "放大的敵人鎖定框應使用較短的四角線段")
 	_expect(selected_card.name_label.get_global_rect().end.y + 2.0 <= selected_card.target_frame.get_global_rect().position.y, "敵人名稱應移到鎖定角框上方並保留空隙")
 	_expect(selected_card.target_frame.get_global_rect().end.y + 2.0 <= selected_card.hp_bar.get_global_rect().position.y, "敵人 HP 條應移到鎖定角框下方並保留空隙")
-	_expect(selected_card.hp_bar.size.y <= 14.5, "敵人 HP 條應使用較細的統一高度")
+	_expect(selected_card.hp_bar.size.y >= 17.5 and selected_card.hp_bar.size.y <= 18.5, "敵人 HP 條應維持纖細比例，同時提供可讀的數字高度")
+	_expect(selected_card.stats_label.get_theme_font_size("font_size") >= 15, "敵人 HP／護盾數字應使用可讀字級")
 	enemies[0].add_status("strength", 2)
 	presenter.render(label, enemies, 0, func(_index: int): pass)
 	_expect(selected_card.status_icons.visible and selected_card.status_icons.get_child_count() == 1 and selected_card.status_icons.get_child(0).text == "▲2", "敵人特殊狀態應在 HP 下方以圖示加層數顯示")
@@ -887,6 +888,9 @@ func _test_drag_source_visibility() -> void:
 	_expect(block.custom_minimum_size.x >= 420.0 and block.custom_minimum_size.y >= 146.0, "原尺寸手牌應提供足夠的形狀、點選與全文資訊空間")
 	var tolerant_grab := block._resolve_grab_offset(block.render_origin - Vector2(12, 0))
 	_expect(tolerant_grab.x != 9999, "拖曳起點在石板邊緣外仍應被放大的容許範圍吸附")
+	block.set_keyboard_selected(true)
+	_expect(block.scale.is_equal_approx(Vector2.ONE), "選取手牌時不應放大卡片或四角框")
+	block.set_keyboard_selected(false)
 	var reward_preview := preload("res://scripts/ui/slate_preview.gd").new() as SlatePreview
 	reward_preview.size = Vector2(160, 148)
 	root.add_child(reward_preview)
@@ -1016,7 +1020,8 @@ func _test_main_scene_smoke() -> void:
 	var right_rail := instance.get_node_or_null("UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox/TabletSection/Body/RightRail") as Control
 	var system_menu := instance.get_node_or_null("UILayer/SystemMenu") as SystemMenu
 	_expect(player_hud != null and player_hud.hp_bar.value == manager.player.hp, "正式 HUD 應以資源條呈現玩家狀態")
-	_expect(player_hud.hp_bar.size.y <= 14.5 and player_hud.sanity_bar.size.y <= 14.5 and player_hud.mp_bar.size.y <= 14.5, "玩家 HP、SAN、MP 狀態條應統一縮細")
+	_expect(player_hud.hp_bar.size.y >= 17.5 and player_hud.sanity_bar.size.y >= 17.5 and player_hud.mp_bar.size.y >= 17.5, "玩家 HP、SAN、MP 狀態條應保留纖細比例並提供可讀高度")
+	_expect(player_hud.hp_value.get_theme_font_size("font_size") >= 15 and player_hud.sanity_value.get_theme_font_size("font_size") >= 15 and player_hud.mp_value.get_theme_font_size("font_size") >= 15, "玩家狀態條數字應使用可讀字級")
 	_expect(player_hud.get_node("VBox").get_theme_constant("separation") >= 5, "玩家各狀態條之間應保留清楚空隙")
 	_expect(player_hud != null and battle_stage != null and player_hud.position.y >= 0.0 and player_hud.position.y + player_hud.size.y <= battle_stage.size.y + 0.5, "玩家 HP、SAN 與 MP 狀態列不得超出戰場裁切範圍")
 	_expect(battle_stage != null and battle_stage.get_node_or_null("IntentLegend") == null, "戰場右上角不應保留意圖圖例")

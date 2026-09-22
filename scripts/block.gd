@@ -46,6 +46,7 @@ func set_preview_entity(value: Entity) -> void:
 
 func set_keyboard_selected(active: bool) -> void:
 	keyboard_selected = active
+	scale = Vector2.ONE
 	modulate = Color.WHITE if active else Color(1, 1, 1, 1 if drag_enabled else 0.45)
 	queue_redraw()
 
@@ -112,7 +113,7 @@ func _redraw_shape():
 	name_label.size = Vector2(196, 30)
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	name_label.text = "%d　%s" % [shortcut_number, block_data.spell.spell_name] if shortcut_number > 0 and block_data.spell != null else block_data.spell.spell_name if block_data.spell != null else "空白石板"
-	name_label.add_theme_font_size_override("font_size", 19)
+	name_label.add_theme_font_size_override("font_size", 21)
 	name_label.add_theme_color_override("font_color", block_data.spell.get_icon_color() if block_data.spell != null else Color.WHITE)
 	name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(name_label)
@@ -126,7 +127,7 @@ func _redraw_shape():
 		detail_label.text = block_data.spell.get_runtime_rules_text(preview_entity)
 	else:
 		detail_label.text = "無咒文"
-	detail_label.add_theme_font_size_override("font_size", 14)
+	detail_label.add_theme_font_size_override("font_size", 15)
 	detail_label.add_theme_color_override("font_color", Color(0.78, 0.82, 0.9))
 	detail_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(detail_label)
@@ -158,7 +159,8 @@ func _get_drag_data(at_position):
 		return null
 	
 	print("開始拖曳: ", block_data.id)
-	scale = Vector2(1.06, 1.06)
+	# 選取與拖曳僅使用四角框及棋盤預覽，不縮放手牌本體，避免版面跳動。
+	scale = Vector2.ONE
 	
 	var data_packet = {
 		"block_data": block_data,
