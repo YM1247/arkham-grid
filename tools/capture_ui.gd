@@ -20,11 +20,11 @@ func _capture() -> void:
 		system_menu.hide_menu()
 		paused = false
 	var run_manager := main.get_node("RunManager") as RunManager
-	if mode in ["battle", "battle_action", "battle_armor", "battle_status", "battle_tall_hand", "battle_preview", "battle_dead_board", "reward"] and run_manager != null and not run_manager.run_state.available_node_ids.is_empty():
+	if mode in ["battle", "battle_action", "battle_armor", "battle_status", "battle_log", "battle_tall_hand", "battle_preview", "battle_dead_board", "reward"] and run_manager != null and not run_manager.run_state.available_node_ids.is_empty():
 		run_manager.select_map_node(run_manager.run_state.available_node_ids[0])
 		for _frame in range(3):
 			await process_frame
-		if mode in ["battle", "battle_action", "battle_armor", "battle_status", "battle_tall_hand", "battle_preview", "battle_dead_board"]:
+		if mode in ["battle", "battle_action", "battle_armor", "battle_status", "battle_log", "battle_tall_hand", "battle_preview", "battle_dead_board"]:
 			var battle_manager := main.get_node("BattleManager")
 			battle_manager.start_encounter(run_manager.enemies.slice(0, 5))
 			for _frame in range(3):
@@ -43,6 +43,12 @@ func _capture() -> void:
 					battle_manager.enemies[0].add_status("fragile", 1)
 				battle_manager._update_all_status_labels()
 				await process_frame
+			if mode == "battle_log":
+				var stage := battle_manager.battle_stage as BattleStageView
+				stage.present_player_placement("秘銀飛矢")
+				stage.present_spell_trigger("秘銀飛矢", "✦", Color("ff9b54"))
+				stage.present_combat_feedback("深淵眷屬", "-10 HP", true)
+				await stage.present_enemy_resolution("深淵眷屬", "攻擊", "造成 8 HP 傷害", true)
 			if mode == "battle_tall_hand":
 				var hand_blocks = battle_manager.tablet._get_hand_blocks()
 				if hand_blocks.size() >= 3:

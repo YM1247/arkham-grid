@@ -131,7 +131,7 @@ theme_override_styles/panel = SubResource("StyleBoardSurface")
 layout_mode = 2
 
 [node name="BoardHeader" type="HBoxContainer" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox"]
-custom_minimum_size = Vector2(0, 56)
+custom_minimum_size = Vector2(0, 32)
 layout_mode = 2
 
 [node name="Title" type="Label" parent="UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox/BoardHeader"]
@@ -352,11 +352,11 @@ hp = 120
 player_path = NodePath("../Player")
 enemy_path = NodePath("../Enemy")
 tablet_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox/TabletSection")
-player_hud_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/BattleStageView/PlayerHUD")
-player_status_label_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/BattleStageView/PlayerHUD/VBox/HP/Value")
-enemy_status_label_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/BattleStageView/EnemyAnchor/EnemyContainer/EnemyHpLabel")
+player_hud_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/BattleStageView/StageContent/PlayerHUD")
+player_status_label_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/BattleStageView/StageContent/PlayerHUD/VBox/HP/Value")
+enemy_status_label_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/BattleStageView/StageContent/EnemyAnchor/EnemyContainer/EnemyHpLabel")
 ap_status_label_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox/BoardHeader/Title")
-intent_label_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/BattleStageView/EnemyAnchor/EnemyContainer/IntentLabel")
+intent_label_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/BattleStageView/StageContent/EnemyAnchor/EnemyContainer/IntentLabel")
 turn_status_label_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox/BoardHeader/Controls")
 end_turn_button_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox/TabletSection/Body/RightRail/EndTurnButton")
 spell_summary_label_path = NodePath("../UILayer/ScreenMargin/Screen/Layout/InfoSection/LegendRow/SpellLabel")

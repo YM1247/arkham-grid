@@ -848,8 +848,10 @@ func _test_five_enemy_roster() -> void:
 	await process_frame
 	stage.begin_encounter("測試調查員")
 	for index in range(5):
-		stage._append_log("行動%d" % index)
-	_expect(stage._recent_entries.size() == 4 and not stage.combat_log.text.contains("行動0") and stage.combat_log.text.contains("行動4"), "戰鬥舞台應只保留最近四筆敵人行動")
+		stage._append_log("行動%d" % index, "player" if index % 2 == 0 else "enemy")
+	_expect(stage._recent_entries.size() == 5 and stage.combat_log.get_parsed_text().contains("行動0") and stage.combat_log.get_parsed_text().contains("行動4"), "戰鬥舞台應保留整場敵我雙方的完整行動歷史")
+	_expect(stage._recent_entries[0].side == "player" and stage._recent_entries[1].side == "enemy" and stage.combat_log.get_parsed_text().contains("我方｜") and stage.combat_log.get_parsed_text().contains("敵方｜"), "戰鬥紀錄應區分我方藍色與敵方紅色資料")
+	_expect(stage.stage_content.scale.x >= 1.049 and stage.stage_content.position.y >= 5.9, "上半戰場內容應等比例放大並整體下移")
 	stage.queue_free()
 	host.queue_free()
 	await process_frame
@@ -1004,7 +1006,7 @@ func _test_main_scene_smoke() -> void:
 				var route: PackedVector2Array = graph._edge_route(source_id, target_id)
 				_expect(not graph._node_rects[source_id].has_point(route[0]) and not graph._node_rects[target_id].has_point(route[1]), "地圖線應從節點外緣開始，不得穿過節點文字")
 	_expect(FileAccess.file_exists(run_manager.save_service.get_run_path()), "新 Run 建立後應寫入單一自動存檔槽")
-	var player_hud := instance.get_node_or_null("UILayer/ScreenMargin/Screen/Layout/BattleStageView/PlayerHUD") as PlayerHUD
+	var player_hud := instance.get_node_or_null("UILayer/ScreenMargin/Screen/Layout/BattleStageView/StageContent/PlayerHUD") as PlayerHUD
 	var battle_stage := instance.get_node_or_null("UILayer/ScreenMargin/Screen/Layout/BattleStageView") as Control
 	var battle_context := instance.get_node_or_null("UILayer/ScreenMargin/Screen/TopBar/Context") as Label
 	var ap_readout := instance.get_node_or_null("UILayer/ScreenMargin/Screen/Layout/BoardPanel/BoardCenter/BoardSurface/BoardVBox/BoardHeader/Title") as Label
@@ -1021,13 +1023,13 @@ func _test_main_scene_smoke() -> void:
 	_expect(battle_context != null and battle_context.text == "戰鬥", "頂部戰鬥標題應只保留『戰鬥』兩字")
 	_expect(ap_readout != null and turn_readout != null and ap_readout.get_theme_font_size("font_size") >= 28 and turn_readout.get_theme_font_size("font_size") >= 28, "AP 與回合資訊應使用更大的像素字")
 	_expect(board_surface != null and board_surface.custom_minimum_size.x >= 1320.0, "AP 與回合資訊應向棋盤外側拉開")
-	_expect(board_header != null and board_header.custom_minimum_size.y >= 56.0, "棋盤應與上方回合資訊保留更大的垂直間距")
+	_expect(board_header != null and board_header.custom_minimum_size.y >= 32.0, "AP 與回合標題列應保留足夠高度，同時把多餘空間讓給放大的戰場")
 	_expect(right_rail != null and right_rail.custom_minimum_size.x >= 360.0, "結束回合按鈕所在區域應向右側移動")
 	_expect(grid.size_flags_vertical == Control.SIZE_SHRINK_CENTER, "棋盤應在三張手牌總高度內垂直置中，與第二張手牌等高")
 	_expect(player_hud.status_icons.get_index() < player_hud.hp_bar.get_parent().get_index(), "玩家特殊狀態列應位於 HP 上方，保持 HP、SAN、MP 三條數值連續")
-	_expect(battle_stage.get_node("PlayerArt").position.x >= 290.0 and player_hud.position.x >= 108.0, "玩家立繪與狀態 HUD 應整組向右移動")
-	var enemy_anchor := battle_stage.get_node("EnemyAnchor") as Control
-	var enemy_stage_container := battle_stage.get_node("EnemyAnchor/EnemyContainer") as HBoxContainer
+	_expect(battle_stage.get_node("StageContent/PlayerArt").position.x >= 290.0 and player_hud.position.x >= 108.0, "玩家立繪與狀態 HUD 應整組向右移動")
+	var enemy_anchor := battle_stage.get_node("StageContent/EnemyAnchor") as Control
+	var enemy_stage_container := battle_stage.get_node("StageContent/EnemyAnchor/EnemyContainer") as HBoxContainer
 	_expect(enemy_anchor.anchor_left >= 0.3 and enemy_anchor.anchor_top <= 0.32 and enemy_stage_container.get_theme_constant("separation") <= 6, "敵人陣列應向右集中、縮小彼此間距，並為下方狀態資訊保留高度")
 	manager.player.add_status("poison", 3)
 	manager._update_all_status_labels()

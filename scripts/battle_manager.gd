@@ -163,6 +163,8 @@ func _on_entity_stats_changed(_entity: Entity) -> void:
 
 func _on_entity_died(entity: Entity) -> void:
 	print("戰鬥事件：", entity.entity_name, " 死亡。")
+	if battle_stage != null and battle_active:
+		battle_stage.present_death(entity.entity_name, current_turn == TurnState.PLAYER_TURN)
 	if entity != player and _get_selected_enemy() == entity:
 		selected_enemy_index = _first_living_enemy_index()
 	if entity != player:
@@ -181,6 +183,8 @@ func _on_player_sanity_depleted(_entity: Entity) -> void:
 	_schedule_outcome_check()
 
 func _on_entity_combat_feedback(entity: Entity, message: String, color: Color) -> void:
+	if battle_stage != null and battle_active:
+		battle_stage.present_combat_feedback(entity.entity_name, message, current_turn == TurnState.PLAYER_TURN)
 	if entity != player:
 		_enemy_presenter.play_hit(entity)
 	var label = _get_status_label_for_entity(entity)
@@ -189,9 +193,12 @@ func _on_entity_combat_feedback(entity: Entity, message: String, color: Color) -
 	_flash_label(label, color)
 	_spawn_floating_text(label, message, color)
 
-func _on_tablet_block_placed(_block_data: BlockData) -> void:
+func _on_tablet_block_placed(block_data: BlockData) -> void:
 	if current_turn != TurnState.PLAYER_TURN:
 		return
+	if battle_stage != null and block_data != null:
+		var spell_name := block_data.spell.spell_name if block_data.spell != null else "空白"
+		battle_stage.present_player_placement(spell_name)
 	current_action_points = maxi(current_action_points - 1, 0)
 	if current_action_points <= 0 and tablet != null and tablet.has_method("set_placement_enabled"):
 		tablet.set_placement_enabled(false)
